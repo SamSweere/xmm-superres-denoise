@@ -1,0 +1,20 @@
+dataset_name: "xmm_sim_dataset"
+dataset_type: sim
+include_hr: True # Inlcude the high resolution samples (only relevant for real dataset types)
+lr_res: 416 # Must be multiples of 32
+hr_res: 416 # This implies the resolution increase
+dataset_lr_res: 416 # The dataset lr resolution, all the images will be padded/cropped to this resolution
+lr_exp: 10 # Exposure of the low resolution images, in ks
+hr_exp: 20 # Exposure of the high resolution images, in ks
+mode: img # The mode, img or agn. If agn the model samples from agn as if it is an image
+lr_agn: True # Include agns in the low resolution images
+hr_agn: True # Include agns in the high resolution images
+lr_background: True # Include background for lr
+hr_background: True # Include background for hr
+det_mask: True # Apply the detector mask
+exp_channel: True #Add exposure channel
+data_scaling: sqrt # Other options None and 'linear', 'sqrt', 'asinh', 'log'
+crop_mode: center # Options: 'center', 'random', 'boresight'
+lr_max: 0.0022336 #TODO: aggresive max, 200 times background, this is +-111 counts on 50ks
+hr_max: 0.0005584 #TODO: aggresive max, 200 times background, this is +-11 counts on 50ks
+

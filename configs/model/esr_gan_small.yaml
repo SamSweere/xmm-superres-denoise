@@ -1,0 +1,13 @@
+base_model: 'esr_gan'
+in_channels: 2
+out_channels: 1
+filters: 16
+residual_blocks: 3
+discriminator_filter_start: 16 # The starting size of the discrimnator num_filters, the scaling is [1,2,4,8], paper default: 64
+learning_rate: 0.0002
+b1: 0.9
+b2: 0.999
+warmup_batches: 0
+lambda_adv: 0.005
+lambda_pixel: 0.04
+loss_func: l1

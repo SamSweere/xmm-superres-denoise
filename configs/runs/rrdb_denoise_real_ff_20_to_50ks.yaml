@@ -1,0 +1,36 @@
+model_name: rrdb_denoise  # Options: 'esr_gen', 'esr_gan', 'sr_cnn',  'sr_flow'
+dataset_name: xmm_real_ff_denoise_20_to_50ks
+server: True
+
+server_datasets_dir: /lhome/ssweere/data/datasets # /home/sam/Documents/ESA/data/sim #/lhome/ssweere/data/sim # /home/sam/Documents/ESA/data/sim #/home/ssweere/data # /home/sam/Documents/ESA/data/sim
+pc_datasets_dir: /home/sam/Documents/ESA/data/datasets # /home/sam/Documents/ESA/data/sim #/lhome/ssweere/data/sim # /home/sam/Documents/ESA/data/sim #/home/ssweere/data # /home/sam/Documents/ESA/data/sim
+
+sim_display_name: xmm_sim_display_selection
+real_display_name: xmm_split_display_selection
+display_exposure: 20
+
+end_to_end_test: False
+fast_dev_run: False
+debug: False
+sweep: False
+log_online: True
+
+check_dataset_files: False #Checks if all the files in the chosen dataset are in good state
+
+run_test_dataset: False #Enable this when finalizing the models
+
+server_runs_dir: /lhome/ssweere/data/runs # /lhome/ssweere/data/runs # /home/sam/Documents/ESA/data/runs #/home/sam/Documents/ESA/data/runs # '/home/sam/Documents/ESA/data/runs', "/home/ssweere/remote_home/data/runs" ## The run specific folder will be created automatically
+pc_runs_dir: /home/sam/Documents/ESA/data/runs # /lhome/ssweere/data/runs # /home/sam/Documents/ESA/data/runs #/home/sam/Documents/ESA/data/runs # '/home/sam/Documents/ESA/data/runs', "/home/ssweere/remote_home/data/runs" ## The run specific folder will be created automatically
+epochs: 50
+gpus: [0] #[3] #[2] #[0] #[0] #cpu: null, gpu: [0] (give the gpu number)
+batch_size: 1
+log_every_n_steps: 100
+log_images_every_n_epoch: 5
+
+wandb_entity: xmm_superres
+
+resume_from_checkpoint: False  # TODO: this does not yet work with wandb and other settings
+run_test_from_checkpoint_only: False # Only run the test
+resume_model_checkpoint_path: '/lhome/ssweere/xmm_superres/esr_gen/3tsi15yf/checkpoints/esr_gen-epoch=00036-val/loss=-1.16823.ckpt'
+resume_run: False
+resume_id: 3tsi15yf

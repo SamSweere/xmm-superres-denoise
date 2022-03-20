@@ -1,0 +1,19 @@
+model_name: rrdb_denoise_small  # Options: 'esr_gen', 'esr_gan', 'sr_cnn',  'sr_flow'
+dataset_name: xmm_dev_bc_denoise
+datasets_dir: /home/sam/Documents/ESA/data/sim #/home/ssweere/data # /home/sam/Documents/ESA/data/sim #/home/ssweere/data # /home/sam/Documents/ESA/data/sim
+
+end_to_end_test: False
+fast_dev_run: False
+debug: True
+check_dataset_files: False #Checks if all the files in the chosen dataset are in good state
+
+runs_dir: /home/sam/Documents/ESA/data/runs # /home/ssweere/data/runs # /home/sam/Documents/ESA/data/runs #/home/sam/Documents/ESA/data/runs # '/home/sam/Documents/ESA/data/runs', "/home/ssweere/remote_home/data/runs" ## The run specific folder will be created automatically
+epochs: 50
+gpus: null #[0] #[0] #cpu: null, gpu: [0] (give the gpu number)
+batch_size: 4
+log_every_n_steps: 100
+log_images_every_n_epoch: 5
+
+
+resume_from_checkpoint: False  # TODO: this does not yet work with wandb and other settings
+resume_model_checkpoint_path: '/home/sam/Documents/ESA/data/models/esr_gen/fallen_energy_49/uqy8k3bw/checkpoints/esr_gen-epoch=00178-val_loss=0.0000.ckpt'

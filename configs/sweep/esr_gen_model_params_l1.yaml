@@ -1,0 +1,16 @@
+program: train.py
+method: random
+name: esr_gen_model_params_l1
+description: "Testing the influence of the model params: batch_size, learning_rate, num_filters, residual_blocks"
+metric:
+  name: val/l1
+  goal: minimize
+parameters:
+  batch_size:
+    values: [2, 4, 8]
+  learning_rate:
+    values: [0.001, 0.0005, 0.0001, 0.00005, 0.00001]
+  filters:
+    values: [8, 16, 32]
+  residual_blocks:
+    values: [1, 2, 4, 8]
