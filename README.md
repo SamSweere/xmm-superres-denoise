@@ -1,4 +1,4 @@
-# XMM Super Resolution
+# Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton EPIC-pn
 Super-resolution and de-noising on XMM-Newton images using convolutional neural networks
 
 ## Requirements
