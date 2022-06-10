@@ -1,5 +1,8 @@
-# Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton EPIC-pn
-Super-resolution and de-noising on XMM-Newton images using convolutional neural networks
+# Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton Images
+The results of this research are described in the paper <em>``Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton Images"</em>. Pre-print available at: https://arxiv.org/pdf/2205.01152.pdf
+
+More implementation details are described in the master's thesis included in this repository.
+
 
 ## Requirements
 - Gpu: This model was developed using a Nvidia gtx 2080ti with 12 gb of vram. To run and train the models on a gpu, a gpu with at least 12 gb of vram is needed. 
