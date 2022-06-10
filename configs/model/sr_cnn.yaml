@@ -1,2 +1,0 @@
-base_model: 'sr_cnn'
-learning_rate: 0.001

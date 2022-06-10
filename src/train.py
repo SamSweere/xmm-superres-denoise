@@ -1,14 +1,14 @@
-# Wandb implementations from: https://colab.research.google.com/github/wandb/examples/blob/master/colabs/pytorch-lightning/Supercharge_your_Training_with_Pytorch_Lightning_%2B_Weights_%26_Biases.ipynb#scrollTo=n6EvnEfK65ML
 import os
-
-from pytorch_lightning.callbacks import ModelCheckpoint, model_summary
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning import Trainer
 import wandb
 
-from datasets.xmm_datamodule import XmmDataModule
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning import Trainer
 
+
+from datasets.xmm_datamodule import XmmDataModule
 from datasets.xmm_dispay_datamodule import XmmDisplayDataModule
+
 from transforms.normalize import Normalize
 
 from utils.filehandling import read_yaml
@@ -179,35 +179,7 @@ def main(config):
     # ------------------------------ Setup the model ------------------------------
     callbacks = []
 
-    if config['model_config']['base_model'] == 'sr_flow':
-        from models.srflow.srflow_model import LitSRFlow
-
-        config['model_config']['epochs'] = config['epochs']
-        model = LitSRFlow(opt=config['model_config'])
-        # callbacks.append(models.srflow.srflow_callbacks.OptimizeParameters(model=model, config=sr_flow_config))
-    elif config['model_config']['base_model'] == 'esr_gan':
-        from models.esrgan_model import LitESRGAN
-
-        model = LitESRGAN(lr_shape=config['model_config']['lr_shape'],
-                          hr_shape=config['model_config']['hr_shape'],
-                          in_channels=config['model_config']['in_channels'],
-                          out_channels=config['model_config']['out_channels'],
-                          filters=config['model_config']['filters'],
-                          residual_blocks=config['model_config']['residual_blocks'],
-                          discriminator_filter_start=config['model_config']['discriminator_filter_start'],
-                          learning_rate=config['model_config']['learning_rate'],
-                          b1=config['model_config']['b1'],
-                          b2=config['model_config']['b2'],
-                          warmup_batches=config['model_config']['warmup_batches'],
-                          lambda_adv=config['model_config']['lambda_adv'],
-                          lambda_pixel=config['model_config']['lambda_pixel'],
-                          criterion=criterion)
-    elif config['model_config']['base_model'] == 'sr_cnn':
-        from models.srcnn_model import LitSRCNN
-
-        model = LitSRCNN(in_dims=sim_display_samples[0]['lr'].shape, out_dims=sim_display_samples[0]['hr'].shape,
-                         learning_rate=config['model_config']['learning_rate'])
-    elif config['model_config']['base_model'] == 'esr_gen':
+    if  config['model_config']['base_model'] == 'esr_gen':
         from models.esrgen_model import LitESRGEN
 
         model = LitESRGEN(lr_shape=config['model_config']['lr_shape'],
@@ -235,13 +207,6 @@ def main(config):
                                criterion=criterion)
     else:
         raise ValueError(f"Base model name {model_config['base_model']} is not a valid model name")
-
-    # model_summary.summarize(model, mode='full')
-
-    # Create the wandb logger
-    # wandb_logger = WandbLogger(project=config['project'], save_dir=config['runs_dir'],
-    #                            log_model=config['wandb_log_online'],
-    #                            offline=not config['wandb_log_online'], config=config)
 
     wandb_logger = WandbLogger()
 

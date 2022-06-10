@@ -1,7 +1,6 @@
 import os
 from datetime import datetime
 
-import matplotlib.pyplot as plt
 import numpy as np
 import onnxruntime as onnxruntime
 import torch
