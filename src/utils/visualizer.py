@@ -3,6 +3,7 @@ import wandb
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
+
 def plot_img(img, title=None, figsize=(10, 10)):
     # Generate and display a test image
     # image = np.arange(65536).reshape((256, 256))
@@ -12,14 +13,24 @@ def plot_img(img, title=None, figsize=(10, 10)):
         ax.set_title(title)
     ax.autoscale(enable=True)
 
-    pos = ax.imshow(img, cmap='hot', interpolation=None)
+    pos = ax.imshow(img, cmap="hot", interpolation=None)
     fig.colorbar(pos, ax=ax)
 
     plt.show()
 
 
-def plot_multiple_img(images, titles=None, rows=None, cols=None, figsize=(10, 10), merge=False, colorbar=True,
-                      save_fig=None, show_plot=True, wandb_log=False):
+def plot_multiple_img(
+    images,
+    titles=None,
+    rows=None,
+    cols=None,
+    figsize=(10, 10),
+    merge=False,
+    colorbar=True,
+    save_fig=None,
+    show_plot=True,
+    wandb_log=False,
+):
     """Plot multiple images
 
     Args:
@@ -57,7 +68,8 @@ def plot_multiple_img(images, titles=None, rows=None, cols=None, figsize=(10, 10
     else:
         if len(images) > rows * cols:
             raise ValueError(
-                f"The specified rows ({rows}) and cols ({cols}) do not provide enough room for all the images ({rows * cols}/{len(images)})")
+                f"The specified rows ({rows}) and cols ({cols}) do not provide enough room for all the images ({rows * cols}/{len(images)})"
+            )
 
     if merge:
         counter = 0
@@ -84,12 +96,11 @@ def plot_multiple_img(images, titles=None, rows=None, cols=None, figsize=(10, 10
         ax = fig.add_subplot(1, 1, 1)
         ax.autoscale(enable=True)
         if titles is not None:
-            ax.set_title(' - '.join(titles))
+            ax.set_title(" - ".join(titles))
 
-        pos = ax.imshow(img_merged, cmap='hot', interpolation=None)
+        pos = ax.imshow(img_merged, cmap="hot", interpolation=None)
         if colorbar:
             fig.colorbar(pos, ax=ax)
-
 
     else:
         fig, axs = plt.subplots(rows, cols, figsize=figsize)
@@ -121,7 +132,7 @@ def plot_multiple_img(images, titles=None, rows=None, cols=None, figsize=(10, 10
                 if titles is not None:
                     ax.set_title(titles[idx])
 
-                pos = ax.imshow(img, cmap='hot', interpolation=None)
+                pos = ax.imshow(img, cmap="hot", interpolation=None)
 
                 if colorbar:
                     # create an axes on the right side of ax. The width of cax will be 5%
@@ -136,7 +147,7 @@ def plot_multiple_img(images, titles=None, rows=None, cols=None, figsize=(10, 10
     #     fig.subplots_adjust(hspace=-0.7)
 
     if save_fig is not None:
-        plt.savefig(save_fig, bbox_inches='tight')
+        plt.savefig(save_fig, bbox_inches="tight")
     #         print("Saved figure to",save_fig)
 
     if wandb_log:
@@ -147,9 +158,9 @@ def plot_multiple_img(images, titles=None, rows=None, cols=None, figsize=(10, 10
     else:
         plt.close()
 
-class Visualizer():
-    """This class includes several functions that can display images and print logging information.
-    """
+
+class Visualizer:
+    """This class includes several functions that can display images and print logging information."""
 
     def __init__(self, configuration):
         """Initialize the Visualizer class.
@@ -157,9 +168,10 @@ class Visualizer():
             configuration -- stores all the configurations
         """
         self.configuration = configuration  # cache the option
-        self.name = configuration['name']
+        self.name = configuration["name"]
 
-#TODO: better implementation
+
+# TODO: better implementation
 '''
 import numpy as np
 import sys

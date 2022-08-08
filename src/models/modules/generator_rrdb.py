@@ -8,7 +8,9 @@ from models.modules.rrdb_blocks import RRDB, make_layer
 
 
 class GeneratorRRDB_SR(nn.Module):
-    def __init__(self, in_channels, out_channels, num_filters, num_res_blocks, num_upsample=2):
+    def __init__(
+        self, in_channels, out_channels, num_filters, num_res_blocks, num_upsample=2
+    ):
         # We set the grow count equal to the number of num_filters
         grow_count_filters = num_filters
 
@@ -45,7 +47,7 @@ class GeneratorRRDB_SR(nn.Module):
 
         # Bias the weights to be positive, since we need to clamp in the end, based on the default init: https://discuss.pytorch.org/t/how-are-layer-weights-and-biases-initialized-by-default/13073/2
         positive_offset_std = 0.01
-        stdv = 1. / math.sqrt(self.conv_last.weight.size(1))
+        stdv = 1.0 / math.sqrt(self.conv_last.weight.size(1))
 
         self.conv_last.weight.data.uniform_(-stdv, stdv + positive_offset_std * stdv)
         if self.conv_last.bias is not None:
@@ -70,7 +72,9 @@ class GeneratorRRDB_SR(nn.Module):
 
 
 class GeneratorRRDB_DN(nn.Module):
-    def __init__(self, in_channels, out_channels, num_filters, num_res_blocks, num_upsample=2):
+    def __init__(
+        self, in_channels, out_channels, num_filters, num_res_blocks, num_upsample=2
+    ):
         # We set the grow count equal to the number of num_filters
         grow_count_filters = num_filters
 
@@ -85,7 +89,6 @@ class GeneratorRRDB_DN(nn.Module):
         self.RRDB_trunk = make_layer(RRDB_block_f, num_res_blocks)
         self.trunk_conv = nn.Conv2d(num_filters, num_filters, 3, 1, 1, bias=True)
 
-
         # self.HRconv = nn.Conv2d(num_filters, num_filters, 3, 1, 1, bias=True)
         self.conv_last = nn.Conv2d(num_filters, out_channels, 3, 1, 1, bias=True)
 
@@ -93,7 +96,7 @@ class GeneratorRRDB_DN(nn.Module):
 
         # Bias the weights to be positive, since we need to clamp in the end, based on the default init: https://discuss.pytorch.org/t/how-are-layer-weights-and-biases-initialized-by-default/13073/2
         positive_offset_std = 0.01
-        stdv = 1. / math.sqrt(self.conv_last.weight.size(1))
+        stdv = 1.0 / math.sqrt(self.conv_last.weight.size(1))
 
         self.conv_last.weight.data.uniform_(-stdv, stdv + positive_offset_std * stdv)
         if self.conv_last.bias is not None:
@@ -114,7 +117,6 @@ class GeneratorRRDB_DN(nn.Module):
         out = torch.clamp(out, min=0.0, max=1.0)
 
         return out
-
 
 
 # class GeneratorRRDB_DN(nn.Module):

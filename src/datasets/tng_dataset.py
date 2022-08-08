@@ -15,8 +15,18 @@ from transforms.randomflip import RandomFlip
 class TngDataset(Dataset):
     """Illustrius TNG X ray simulated images dataset"""
 
-    def __init__(self, dataset_name, datasets_dir, cache_dir, dataset_lr_res, dataset_hr_res, lr_res, hr_res, data_scaling=None,
-                 transform=None):
+    def __init__(
+        self,
+        dataset_name,
+        datasets_dir,
+        cache_dir,
+        dataset_lr_res,
+        dataset_hr_res,
+        lr_res,
+        hr_res,
+        data_scaling=None,
+        transform=None,
+    ):
         """
         Args:
             dataset_name (string): Name of the dataset
@@ -38,7 +48,7 @@ class TngDataset(Dataset):
         self.transform = transform
         self.stretch_f = data_scaling
 
-        self.cache_format = '.npz' # Compressed numpy files
+        self.cache_format = ".npz"  # Compressed numpy files
         self.lr_res = lr_res
         self.hr_res = hr_res
 
@@ -59,7 +69,6 @@ class TngDataset(Dataset):
             self.randomcrop = Crop(lr_res, hr_res)
         else:
             self.randomcrop = None
-
 
         dataset_dir = os.path.join(datasets_dir, dataset_name)
 
@@ -99,13 +108,17 @@ class TngDataset(Dataset):
         if os.path.exists(self.hr_cache_dir):
             print(f"Found existing hr dataset cache dir {self.hr_cache_dir}")
         else:
-            print(f"No hr dataset cache dir found, creating cache dir {self.hr_cache_dir}")
+            print(
+                f"No hr dataset cache dir found, creating cache dir {self.hr_cache_dir}"
+            )
             os.makedirs(self.hr_cache_dir)
 
         if os.path.exists(self.lr_cache_dir):
             print(f"Found existing lr dataset cache dir {self.lr_cache_dir}")
         else:
-            print(f"No hr dataset cache dir found, creating cache dir {self.lr_cache_dir}")
+            print(
+                f"No hr dataset cache dir found, creating cache dir {self.lr_cache_dir}"
+            )
             os.makedirs(self.lr_cache_dir)
 
         hr_cache_files = os.listdir(self.hr_cache_dir)
@@ -148,12 +161,11 @@ class TngDataset(Dataset):
 
         self.lr_cache_files = os.listdir(self.lr_cache_dir)
 
-
     def load_fits(self, fits_path):
         hdu = fits.open(fits_path)
         # Extract the image data from the fits file and convert to float
         # (these images will be in int but since we will work with floats in pytorch we convert them to float)
-        img = hdu['PRIMARY'].data.astype(np.float32)
+        img = hdu["PRIMARY"].data.astype(np.float32)
         hdu.close()
 
         return img
@@ -167,11 +179,15 @@ class TngDataset(Dataset):
         file_name = self.file_names[idx]
 
         # Load the lr and hr images from cache
-        lr_cache_file_name = os.path.join(self.lr_cache_dir, file_name + self.cache_format)
-        lr_img = np.load(lr_cache_file_name)['data']
+        lr_cache_file_name = os.path.join(
+            self.lr_cache_dir, file_name + self.cache_format
+        )
+        lr_img = np.load(lr_cache_file_name)["data"]
 
-        hr_cache_file_name = os.path.join(self.hr_cache_dir, file_name + self.cache_format)
-        hr_img = np.load(hr_cache_file_name)['data']
+        hr_cache_file_name = os.path.join(
+            self.hr_cache_dir, file_name + self.cache_format
+        )
+        hr_img = np.load(hr_cache_file_name)["data"]
 
         # Do the random cropping to resolution
         if self.randomcrop:
@@ -197,6 +213,13 @@ class TngDataset(Dataset):
         # lr_img = torch.unsqueeze(lr_img, axis=0)
         # hr_img = torch.unsqueeze(hr_img, axis=0)
 
-        sample = {'lr': lr_img, 'hr': hr_img, 'source': file_name, 'lr_max': lr_max, 'hr_max': hr_max, 'stretch_mode': self.stretch_f}
+        sample = {
+            "lr": lr_img,
+            "hr": hr_img,
+            "source": file_name,
+            "lr_max": lr_max,
+            "hr_max": hr_max,
+            "stretch_mode": self.stretch_f,
+        }
 
         return sample

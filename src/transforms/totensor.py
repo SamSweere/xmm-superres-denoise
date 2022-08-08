@@ -2,6 +2,7 @@
 import torch
 import torchvision.transforms.functional as F
 
+
 class ToTensor:
     """Convert a ``PIL Image`` or ``numpy.ndarray`` to tensor. This transform does not support torchscript.
 
@@ -40,4 +41,4 @@ class ToTensor:
             return torch.from_numpy(pic).float()
 
     def __repr__(self):
-        return self.__class__.__name__ + '()'
+        return self.__class__.__name__ + "()"

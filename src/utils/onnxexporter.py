@@ -4,7 +4,6 @@ import torch
 
 
 class OnnxExporter(pl.Callback):
-
     def __init__(self, in_dims, wandb_logger, save_on_start=True, save_on_end=True):
         super().__init__()
 
@@ -24,26 +23,33 @@ class OnnxExporter(pl.Callback):
         model_path = os.path.join(self.onnx_path, model_filename)
 
         # TODO: check if this actually fixes the issue
-        input_names = ['input']
-        if hasattr(pl_module, 'heats'):
-            input_names.append('heat')
-            dummy_input = (dummy_input, torch.tensor(pl_module.heats[0]).type_as(dummy_input))
+        input_names = ["input"]
+        if hasattr(pl_module, "heats"):
+            input_names.append("heat")
+            dummy_input = (
+                dummy_input,
+                torch.tensor(pl_module.heats[0]).type_as(dummy_input),
+            )
 
             # TODO: the inverse operation in permutations.py makes exporting to onnx impossible, might be fixable with custom algorithm
 
-        if not hasattr(pl_module, 'heats'):
+        if not hasattr(pl_module, "heats"):
             torch.onnx.export(pl_module, dummy_input, model_path, opset_version=11)
             # Export the model
-            torch.onnx.export(pl_module,  # model being run
-                              dummy_input,  # model input (or a tuple for multiple inputs)
-                              model_path,  # where to save the model (can be a file or file-like object)
-                              export_params=True,  # store the trained parameter weights inside the model file
-                              opset_version=11,  # the ONNX version to export the model to
-                              do_constant_folding=True,  # whether to execute constant folding for optimization
-                              input_names=input_names,  # the model's input names
-                              output_names=['output'],  # the model's output names
-                              dynamic_axes={'input': {0: 'batch_size'},  # variable length axes
-                                            'output': {0: 'batch_size'}})
+            torch.onnx.export(
+                pl_module,  # model being run
+                dummy_input,  # model input (or a tuple for multiple inputs)
+                model_path,  # where to save the model (can be a file or file-like object)
+                export_params=True,  # store the trained parameter weights inside the model file
+                opset_version=11,  # the ONNX version to export the model to
+                do_constant_folding=True,  # whether to execute constant folding for optimization
+                input_names=input_names,  # the model's input names
+                output_names=["output"],  # the model's output names
+                dynamic_axes={
+                    "input": {0: "batch_size"},  # variable length axes
+                    "output": {0: "batch_size"},
+                },
+            )
             self.wandb_logger.experiment.save(model_path, base_path=self.export_path)
 
     def on_sanity_check_end(self, trainer, pl_module):

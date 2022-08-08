@@ -1,7 +1,12 @@
 import numpy as np
 import torch
 
-from transforms.data_scaling_functions import linear_scale, sqrt_scale, log_scale, asinh_scale
+from transforms.data_scaling_functions import (
+    linear_scale,
+    sqrt_scale,
+    log_scale,
+    asinh_scale,
+)
 
 
 class Normalize(object):
@@ -24,13 +29,13 @@ class Normalize(object):
         self.hr_max = hr_max
 
         self.stretch_f = None
-        if stretch_mode == 'linear':
+        if stretch_mode == "linear":
             self.stretch_f = linear_scale
-        elif stretch_mode == 'sqrt':
+        elif stretch_mode == "sqrt":
             self.stretch_f = sqrt_scale
-        elif stretch_mode == 'log':
+        elif stretch_mode == "log":
             self.stretch_f = log_scale
-        elif stretch_mode == 'asinh':
+        elif stretch_mode == "asinh":
             self.stretch_f = asinh_scale
         else:
             raise ValueError(f"Stretching function {stretch_mode} is not implemented")
@@ -80,21 +85,22 @@ class Normalize(object):
             lr_img = image[0]
             hr_img = image[1]
 
-            return [self.normalize_lr_image(lr_img),
-                    self.normalize_hr_image(hr_img)]
+            return [self.normalize_lr_image(lr_img), self.normalize_hr_image(hr_img)]
         else:
             # return self.normalize_image(image)
-            raise NotImplementedError("Normalize call not implemented for single images, call normalize directly")
+            raise NotImplementedError(
+                "Normalize call not implemented for single images, call normalize directly"
+            )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     lr_max = 0.0022336
     hr_max = 0.0005584
 
-    norm_linear = Normalize(lr_max, hr_max, 'linear')
-    norm_sqrt = Normalize(lr_max, hr_max, 'sqrt')
-    norm_asinh = Normalize(lr_max, hr_max, 'asinh')
-    norm_log = Normalize(lr_max, hr_max, 'log')
+    norm_linear = Normalize(lr_max, hr_max, "linear")
+    norm_sqrt = Normalize(lr_max, hr_max, "sqrt")
+    norm_asinh = Normalize(lr_max, hr_max, "asinh")
+    norm_log = Normalize(lr_max, hr_max, "log")
 
     input = torch.linspace(0.0, hr_max, 10)
 
@@ -103,22 +109,19 @@ if __name__ == '__main__':
     input_asinh_norm = norm_asinh.normalize_hr_image(input)
     input_log_norm = norm_log.normalize_hr_image(input)
 
-
     output_lin_corr = norm_linear.denormalize_hr_image(input_lin_norm)
     output_sqrt_corr = norm_sqrt.denormalize_hr_image(input_sqrt_norm)
     output_asinh_corr = norm_asinh.denormalize_hr_image(input_asinh_norm)
     output_log_corr = norm_log.denormalize_hr_image(input_log_norm)
 
     def torch_round(arr, n_digits):
-        return torch.round(arr * (10 ** n_digits)) / (10 ** n_digits)
-
+        return torch.round(arr * (10**n_digits)) / (10**n_digits)
 
     print("input:", input)
     print("lin norm and denormed input:", output_lin_corr)
     print("sqrt norm and denormed input:", output_sqrt_corr)
     print("asinh norm and denormed input:", output_asinh_corr)
     print("log norm and denormed input:", output_log_corr)
-
 
     # if torch.equal(torch_round(input, 5), torch_round(output_lin_corr, 5)):
     #     print("WARNING NOT THE SAME")

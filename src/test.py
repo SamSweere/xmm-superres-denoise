@@ -6,5 +6,5 @@ def read_yaml(file_path):
         return yaml.safe_load(f)
 
 
-a = read_yaml('configs/dataset/xmm_dev_ff.yaml')
+a = read_yaml("configs/dataset/xmm_dev_ff.yaml")
 print(a)

@@ -37,4 +37,4 @@ class RandomFlip(torch.nn.Module):
         return lr_img, hr_img
 
     def __repr__(self):
-        return self.__class__.__name__ + '(p={})'.format(self.p)
+        return self.__class__.__name__ + "(p={})".format(self.p)

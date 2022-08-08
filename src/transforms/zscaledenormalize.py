@@ -3,6 +3,7 @@
 import torch
 from torch import Tensor
 
+
 class ZScaleDeNormalize(torch.nn.Module):
     # Based of a discussion in https://github.com/pytorch/vision/issues/848
     """DeNormalize a tensor image with mean and standard deviation.
@@ -43,7 +44,6 @@ class ZScaleDeNormalize(torch.nn.Module):
 
         self.inplace = inplace
 
-
     def forward(self, tensor: Tensor) -> Tensor:
         # """
         # Args:
@@ -53,15 +53,21 @@ class ZScaleDeNormalize(torch.nn.Module):
         #     Tensor: DeNormalized Tensor image.
         # """
         if not isinstance(tensor, torch.Tensor):
-            raise TypeError('Input tensor should be a torch tensor. Got {}.'.format(type(tensor)))
+            raise TypeError(
+                "Input tensor should be a torch tensor. Got {}.".format(type(tensor))
+            )
 
         if not tensor.is_floating_point():
-            raise TypeError('Input tensor should be a float tensor. Got {}.'.format(tensor.dtype))
+            raise TypeError(
+                "Input tensor should be a float tensor. Got {}.".format(tensor.dtype)
+            )
 
         if tensor.ndim < 3:
-            raise ValueError('Expected tensor to be a tensor image of size (..., C, H, W) (three-dimensional). Got '
-                             'tensor.size() = '
-                             '{}.'.format(tensor.size()))
+            raise ValueError(
+                "Expected tensor to be a tensor image of size (..., C, H, W) (three-dimensional). Got "
+                "tensor.size() = "
+                "{}.".format(tensor.size())
+            )
 
         if not self.inplace:
             tensor = tensor.clone()
@@ -70,11 +76,16 @@ class ZScaleDeNormalize(torch.nn.Module):
         mean = torch.as_tensor(self.mean, dtype=dtype, device=tensor.device)
         std = torch.as_tensor(self.std, dtype=dtype, device=tensor.device)
         if (std == 0).any():
-            raise ValueError('std evaluated to zero after conversion to {}, leading to division by zero.'.format(dtype))
+            raise ValueError(
+                "std evaluated to zero after conversion to {}, leading to division by zero.".format(
+                    dtype
+                )
+            )
 
         tensor.mul_(std).add_(mean)
         return tensor
 
-
     def __repr__(self):
-        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+        return self.__class__.__name__ + "(mean={0}, std={1})".format(
+            self.mean, self.std
+        )

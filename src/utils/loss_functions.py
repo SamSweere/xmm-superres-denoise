@@ -41,28 +41,28 @@ class LossFunctionHandler:
                 "poisson": 0.3323,
                 "psnr": 22.189,
                 "ssim": 0.3856,
-                "ms_ssim": 0.6093
+                "ms_ssim": 0.6093,
             },
             "sqrt": {
                 "l1": 0.1573,
                 "poisson": 0.5002,
                 "psnr": 14.761,
                 "ssim": 0.1362,
-                "ms_ssim": 0.5425
+                "ms_ssim": 0.5425,
             },
             "asinh": {
                 "l1": 0.2573,
                 "poisson": 2.801,
                 "psnr": 10.464,
                 "ssim": 0.06155,
-                "ms_ssim": 0.2081
+                "ms_ssim": 0.2081,
             },
             "log": {
                 "l1": 0.3528,
                 "poisson": 3.167,
                 "psnr": 7.817,
                 "ssim": 0.05174,
-                "ms_ssim": 0.3088
+                "ms_ssim": 0.3088,
             },
         }
 
@@ -73,28 +73,28 @@ class LossFunctionHandler:
                 "poisson": 0.1804,
                 "psnr": 30.565,
                 "ssim": 0.7218,
-                "ms_ssim": 0.96
+                "ms_ssim": 0.96,
             },
             "sqrt": {
                 "l1": 0.05374,
                 "poisson": 0.4187,
                 "psnr": 22.977,
                 "ssim": 0.4621,
-                "ms_ssim": 0.874
+                "ms_ssim": 0.874,
             },
             "asinh": {
                 "l1": 0.08037,
                 "poisson": 0.5223,
                 "psnr": 19.52,
                 "ssim": 0.3662,
-                "ms_ssim": 0.8258
+                "ms_ssim": 0.8258,
             },
             "log": {
                 "l1": 0.1072,
                 "poisson": 0.6567,
                 "psnr": 16.838,
                 "ssim": 0.3446,
-                "ms_ssim": 0.7982
+                "ms_ssim": 0.7982,
             },
         }
 
@@ -118,21 +118,33 @@ class LossFunctionHandler:
         self.__scaled_loss_fs = {}
 
         # L1 loss
-        l1_scaling, l1_correction = self.__get_scaling(x1=zero_epoch[data_scaling]['l1'],
-                                                       x2=last_epoch[data_scaling]['l1'])
-        self.__scaled_loss_fs['l1'] = lambda x, y: l1_scaling * torch.nn.L1Loss()(x, y) + l1_correction
+        l1_scaling, l1_correction = self.__get_scaling(
+            x1=zero_epoch[data_scaling]["l1"], x2=last_epoch[data_scaling]["l1"]
+        )
+        self.__scaled_loss_fs["l1"] = (
+            lambda x, y: l1_scaling * torch.nn.L1Loss()(x, y) + l1_correction
+        )
 
         # Poisson loss
-        poisson_scaling, poisson_correction = self.__get_scaling(x1=zero_epoch[data_scaling]['poisson'],
-                                                                 x2=last_epoch[data_scaling]['poisson'])
-        self.__scaled_loss_fs['poisson'] = lambda x, y: poisson_scaling * torch.nn.PoissonNLLLoss(log_input=False)(x, y) \
-                                                        + poisson_correction
+        poisson_scaling, poisson_correction = self.__get_scaling(
+            x1=zero_epoch[data_scaling]["poisson"],
+            x2=last_epoch[data_scaling]["poisson"],
+        )
+        self.__scaled_loss_fs["poisson"] = (
+            lambda x, y: poisson_scaling
+            * torch.nn.PoissonNLLLoss(log_input=False)(x, y)
+            + poisson_correction
+        )
 
         # PSNR loss
         # psnr is a rising metric, therefore inverse the scale
-        psnr_scaling, psnr_correction = self.__get_scaling(x1=zero_epoch[data_scaling]['psnr'],
-                                                           x2=last_epoch[data_scaling]['psnr'])
-        self.__scaled_loss_fs['psnr'] = lambda x, y: psnr_scaling * piq.psnr(x=x, y=y, data_range=1.0) + psnr_correction
+        psnr_scaling, psnr_correction = self.__get_scaling(
+            x1=zero_epoch[data_scaling]["psnr"], x2=last_epoch[data_scaling]["psnr"]
+        )
+        self.__scaled_loss_fs["psnr"] = (
+            lambda x, y: psnr_scaling * piq.psnr(x=x, y=y, data_range=1.0)
+            + psnr_correction
+        )
 
         # SSIM settings
         winsize = 13
@@ -143,20 +155,35 @@ class LossFunctionHandler:
         # ssim is a rising metric, therefore inverse the scale
 
         # SSIM loss
-        ssim_scaling, ssim_correction = self.__get_scaling(x1=zero_epoch[data_scaling]['ssim'],
-                                                           x2=last_epoch[data_scaling]['ssim'])
-        self.__scaled_loss_fs['ssim'] = lambda x, y: ssim_scaling * \
-                                                     get_ssim(X=x, Y=y, win_size=winsize, win_sigma=sigma,
-                                                              data_range=1.0, K=K)[0] + ssim_correction
+        ssim_scaling, ssim_correction = self.__get_scaling(
+            x1=zero_epoch[data_scaling]["ssim"], x2=last_epoch[data_scaling]["ssim"]
+        )
+        self.__scaled_loss_fs["ssim"] = (
+            lambda x, y: ssim_scaling
+            * get_ssim(
+                X=x, Y=y, win_size=winsize, win_sigma=sigma, data_range=1.0, K=K
+            )[0]
+            + ssim_correction
+        )
 
         # MS_SSIM loss
-        ms_ssim_scaling, ms_ssim_correction = self.__get_scaling(x1=zero_epoch[data_scaling]['ms_ssim'],
-                                                                 x2=last_epoch[data_scaling]['ms_ssim'])
-        self.__scaled_loss_fs['ms_ssim'] = lambda x, y: ms_ssim_scaling * get_ms_ssim(X=x, Y=y, win_size=winsize,
-                                                                                      win_sigma=sigma,
-                                                                                      data_range=1.0,
-                                                                                      weights=ms_weights,
-                                                                                      K=K) + ms_ssim_correction
+        ms_ssim_scaling, ms_ssim_correction = self.__get_scaling(
+            x1=zero_epoch[data_scaling]["ms_ssim"],
+            x2=last_epoch[data_scaling]["ms_ssim"],
+        )
+        self.__scaled_loss_fs["ms_ssim"] = (
+            lambda x, y: ms_ssim_scaling
+            * get_ms_ssim(
+                X=x,
+                Y=y,
+                win_size=winsize,
+                win_sigma=sigma,
+                data_range=1.0,
+                weights=ms_weights,
+                K=K,
+            )
+            + ms_ssim_correction
+        )
 
     def __get_scaling(self, x1, x2, y1=1.0, y2=0.0):
         # Based on linear formula y=ax+b
@@ -173,36 +200,41 @@ class LossFunctionHandler:
         loss_names = []
         loss_scaling = []
         if l1_p > 0.0:
-            loss_names.append('l1')
-            loss_scaling.append(l1_p/sum_total)
+            loss_names.append("l1")
+            loss_scaling.append(l1_p / sum_total)
 
         if poisson_p > 0.0:
-            loss_names.append('poisson')
-            loss_scaling.append(poisson_p/sum_total)
+            loss_names.append("poisson")
+            loss_scaling.append(poisson_p / sum_total)
 
         if psnr_p > 0.0:
-            loss_names.append('psnr')
-            loss_scaling.append(psnr_p/sum_total)
+            loss_names.append("psnr")
+            loss_scaling.append(psnr_p / sum_total)
 
         if ssim_p > 0.0:
-            loss_names.append('ssim')
-            loss_scaling.append(ssim_p/sum_total)
+            loss_names.append("ssim")
+            loss_scaling.append(ssim_p / sum_total)
 
         if ms_ssim_p > 0.0:
-            loss_names.append('ms_ssim')
-            loss_scaling.append(ms_ssim_p/sum_total)
+            loss_names.append("ms_ssim")
+            loss_scaling.append(ms_ssim_p / sum_total)
 
-        combined_loss_s = ''
+        combined_loss_s = ""
         for scaling, loss_name in zip(loss_scaling, loss_names):
-            if combined_loss_s != '':
-                combined_loss_s += ' + '
+            if combined_loss_s != "":
+                combined_loss_s += " + "
             combined_loss_s += str(round(scaling, 4)) + "*" + "scaled_" + loss_name
         print("combined_loss_f =", combined_loss_s)
 
         # Combine the loss functions
-        combined_loss_f = lambda x, y: sum(list(scaling * self.__scaled_loss_fs[loss_name](x, y) for scaling, loss_name in zip(loss_scaling, loss_names)))
+        combined_loss_f = lambda x, y: sum(
+            list(
+                scaling * self.__scaled_loss_fs[loss_name](x, y)
+                for scaling, loss_name in zip(loss_scaling, loss_names)
+            )
+        )
         return combined_loss_f
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     LossFunctionHandler()

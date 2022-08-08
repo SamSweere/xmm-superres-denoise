@@ -10,23 +10,28 @@ def load_fits(fits_path):
         hdu = fits.open(fits_path)
         # Extract the image data from the fits file and convert to float
         # (these images will be in int but since we will work with floats in pytorch we convert them to float)
-        img = hdu['PRIMARY'].data.astype(np.float32)
-        exposure = hdu['PRIMARY'].header['EXPOSURE']
-        header = dict(hdu['PRIMARY'].header)
+        img = hdu["PRIMARY"].data.astype(np.float32)
+        exposure = hdu["PRIMARY"].header["EXPOSURE"]
+        header = dict(hdu["PRIMARY"].header)
 
         # The `HISTORY`, `COMMENT` and 'DPSCORRF' key are causing problems
-        header.pop('HISTORY', None)
-        header.pop('COMMENT', None)
-        header.pop('DPSCORRF', None)
-        header.pop('ODSCHAIN', None)
-        header.pop('SRCPOS', None)
+        header.pop("HISTORY", None)
+        header.pop("COMMENT", None)
+        header.pop("DPSCORRF", None)
+        header.pop("ODSCHAIN", None)
+        header.pop("SRCPOS", None)
 
         hdu.close()
 
         # Devide the image by the exposure time to get a counts/sec image
         img = img / exposure
 
-        return {'img': img, 'exp': exposure, 'file_name': os.path.basename(fits_path), 'header': header}
+        return {
+            "img": img,
+            "exp": exposure,
+            "file_name": os.path.basename(fits_path),
+            "header": header,
+        }
     except Exception as e:
         print("ERROR failed to load fits file with error: ", e)
         print(fits_path)
@@ -45,19 +50,21 @@ def reshape_img_to_res(dataset_lr_res, img, res_mult):
 
     if y_diff >= 0:
         # Pad the image in the y direction
-        img = np.pad(img, ((y_top_pad, y_bottom_pad), (0, 0)), 'constant',
-                     constant_values=0.0)
+        img = np.pad(
+            img, ((y_top_pad, y_bottom_pad), (0, 0)), "constant", constant_values=0.0
+        )
     else:
         # Crop the image in the y direction
-        img = img[abs(y_top_pad): img.shape[0] - abs(y_bottom_pad)]
+        img = img[abs(y_top_pad) : img.shape[0] - abs(y_bottom_pad)]
 
     if x_diff >= 0:
         # Pad the image in the x direction
-        img = np.pad(img, ((0, 0), (x_left_pad, x_right_pad)), 'constant',
-                     constant_values=0.0)
+        img = np.pad(
+            img, ((0, 0), (x_left_pad, x_right_pad)), "constant", constant_values=0.0
+        )
     else:
         # Crop the image in the x direction
-        img = img[:, abs(x_left_pad): img.shape[1] - abs(x_right_pad)]
+        img = img[:, abs(x_left_pad) : img.shape[1] - abs(x_right_pad)]
 
     return img
 
@@ -87,7 +94,8 @@ def _filter_file_list(filelist1, filelist2, base_names, split_key):
     filtered_filelist1 = []
     for i_list in filelist1:
         filtered_filelist1.append(
-            [[] for i in range(len(base_names))])  # Note that every list has to be created separately
+            [[] for i in range(len(base_names))]
+        )  # Note that every list has to be created separately
     # to be separate items
     filtered_filelist2 = [[] for i in range(len(base_names))]
 
@@ -148,7 +156,9 @@ def match_file_list(filelist1, filelist2, split_key):
     name_intersect_set = set(base_names1) & set(base_names2)
     name_intersect = list(name_intersect_set)
 
-    filtered_filelist1, filtered_filelist2 = _filter_file_list(filelist1, filelist2, name_intersect, split_key)
+    filtered_filelist1, filtered_filelist2 = _filter_file_list(
+        filelist1, filelist2, name_intersect, split_key
+    )
 
     if not list_of_lists:
         filtered_filelist1 = filtered_filelist1[0]
@@ -186,7 +196,9 @@ def group_same_sources(filelist1, filelist2, split_key):
     # Use the set operator to get the unique base_names
     base_names = list(set(base_names))
 
-    filtered_filelist1, filtered_filelist2 = _filter_file_list(filelist1, filelist2, base_names, split_key)
+    filtered_filelist1, filtered_filelist2 = _filter_file_list(
+        filelist1, filelist2, base_names, split_key
+    )
 
     if not list_of_lists:
         filtered_filelist1 = filtered_filelist1[0]

@@ -4,6 +4,7 @@ import math
 import torch
 import pytorch_lightning as pl
 from torch import nn
+
 #
 # from models.modules.rrdb_blocks import ResidualInResidualDenseBlock
 #
@@ -53,7 +54,19 @@ from models.modules.generator_rrdb import GeneratorRRDB_DN
 class LitRRDBDenoise(pl.LightningModule):
     # This is only the generator from the esr gan with a single loss
 
-    def __init__(self, lr_shape, hr_shape, in_channels, out_channels, filters, residual_blocks, learning_rate, b1, b2, criterion):
+    def __init__(
+        self,
+        lr_shape,
+        hr_shape,
+        in_channels,
+        out_channels,
+        filters,
+        residual_blocks,
+        learning_rate,
+        b1,
+        b2,
+        criterion,
+    ):
         super().__init__()
 
         # log hyperparameters
@@ -62,7 +75,12 @@ class LitRRDBDenoise(pl.LightningModule):
         # Make the model
 
         # Initialize generator and discriminator
-        self.generator = GeneratorRRDB_DN(in_channels=in_channels, out_channels=out_channels, num_filters=filters, num_res_blocks=residual_blocks)
+        self.generator = GeneratorRRDB_DN(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            num_filters=filters,
+            num_res_blocks=residual_blocks,
+        )
 
         # Loss
         self.criterion = criterion
@@ -74,7 +92,7 @@ class LitRRDBDenoise(pl.LightningModule):
 
     def _generator_loss(self, batch):
         # It is independent of forward
-        imgs_lr, imgs_hr = batch['lr'], batch['hr']
+        imgs_lr, imgs_hr = batch["lr"], batch["hr"]
 
         # Generate a high resolution image from low resolution input
         gen_hr = self(imgs_lr)
@@ -90,14 +108,14 @@ class LitRRDBDenoise(pl.LightningModule):
         # train generator
 
         loss, gen_hr, imgs_hr = self._generator_loss(batch)
-        self.log('train/loss', loss, prog_bar=True)
+        self.log("train/loss", loss, prog_bar=True)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, gen_hr, imgs_hr = self._generator_loss(batch)
 
-        self.log('val/loss', loss, prog_bar=True)
+        self.log("val/loss", loss, prog_bar=True)
 
         # Needed for extra loss calculation
         return gen_hr
@@ -105,14 +123,17 @@ class LitRRDBDenoise(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         loss, gen_hr, imgs_hr = self._generator_loss(batch)
 
-        self.log('test/loss', loss, prog_bar=True)
+        self.log("test/loss", loss, prog_bar=True)
 
         # Needed for extra loss calculation
         return gen_hr
 
     def configure_optimizers(self):
         # Optimizers
-        optimizer = torch.optim.Adam(self.generator.parameters(), lr=self.hparams["learning_rate"],
-                                       betas=(self.hparams["b1"], self.hparams["b2"]))
+        optimizer = torch.optim.Adam(
+            self.generator.parameters(),
+            lr=self.hparams["learning_rate"],
+            betas=(self.hparams["b1"], self.hparams["b2"]),
+        )
 
         return optimizer

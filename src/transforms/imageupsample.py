@@ -5,7 +5,7 @@ from torch import nn
 class ImageUpsample:
     def __init__(self, scale_factor):
         self.scale_factor = scale_factor
-        self.upsample = nn.Upsample(scale_factor=scale_factor, mode='nearest')
+        self.upsample = nn.Upsample(scale_factor=scale_factor, mode="nearest")
 
     def __call__(self, x):
         single_image = len(x.shape) < 4
@@ -17,7 +17,7 @@ class ImageUpsample:
         x = self.upsample(x)
 
         # Fix the upsample brightness by dividing by the scale factor squared
-        x = x/(self.scale_factor**2)
+        x = x / (self.scale_factor**2)
 
         if single_image:
             # Pull the upsampled input out of the batch

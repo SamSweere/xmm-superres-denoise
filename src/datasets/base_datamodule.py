@@ -11,9 +11,9 @@ class BaseDataModule(LightningDataModule):
     def __init__(self, config, dataset):
         super().__init__()
         self.config = config
-        self.batch_size = config['batch_size']
+        self.batch_size = config["batch_size"]
 
-        if config['debug']:
+        if config["debug"]:
             # For some reason the debugger does not like multiple workers
             self.num_workers = 0
             self.pin_memory = False
@@ -28,8 +28,14 @@ class BaseDataModule(LightningDataModule):
         self.dataset = dataset
 
     def get_dataloader(self, shuffle=False):
-        return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=shuffle, num_workers=self.num_workers,
-                          pin_memory=self.pin_memory, persistent_workers=self.persistent_workers)
+        return DataLoader(
+            self.dataset,
+            batch_size=self.batch_size,
+            shuffle=shuffle,
+            num_workers=self.num_workers,
+            pin_memory=self.pin_memory,
+            persistent_workers=self.persistent_workers,
+        )
 
     # def prepare_data(self):
     #     # download, split, etc...
@@ -58,7 +64,7 @@ class BaseDataModule(LightningDataModule):
     #     #                                               shuffle=True, num_workers=0)
     #     #                for x in ['train', 'val', 'test']}
 
-     #
+    #
     # def train_dataloader(self):
     #     return DataLoader(self.dataset['train'], batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers,
     #                       pin_memory=self.pin_memory, persistent_workers=self.persistent_workers)
