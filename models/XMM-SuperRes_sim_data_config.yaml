@@ -1,5 +1,5 @@
-datasets_dir: "../data/example_data/sim"
-dataset_name: "combined"
+datasets_dir: "../data/example_data"
+dataset_name: "sim"
 dataset_type: "sim"
 include_hr: True # Includes the high resolution target file (only set this to True if you have high resolution reference files)
 lr_res: 416 # Must be multiples of 32

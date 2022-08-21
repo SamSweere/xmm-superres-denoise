@@ -19,7 +19,7 @@ def do_inference(
     model_name = os.path.basename(model_path).replace(".onnx", "")
 
     # Extend the output path with the model name and dataset name
-    output_path = os.path.join(output_path, model_name, dataset_config['dataset_name'])
+    output_path = os.path.join(output_path, model_name, dataset_config["dataset_name"])
 
     # If the output path does not exist, create it
     if not os.path.exists(output_path):
@@ -31,7 +31,6 @@ def do_inference(
     # performs better on single image datasets
     dataset_config["check_files"] = check_files
     dataset_config["debug"] = debug
-    dataset_config["dataset_type"] = "real"
 
     # Load the datamodule
     datamodule = XmmDataModule(dataset_config)
@@ -43,6 +42,9 @@ def do_inference(
 
     # The output exposure is determined by the trained model
     exposure_out = dataset_config["hr_exp"] * 1000
+
+    print("")
+    print(f"Generating images using the {model_name} model:")
 
     # Run for every file in the input folder
     for input_sample in tqdm(dataloader):
@@ -95,7 +97,7 @@ def do_inference(
             in_header=lr_header_in,
         )
 
-        # For the predicted iamge image
+        # For the predicted image
         img_out_denorm = (
             datamodule.normalize.denormalize_hr_image(torch.tensor(img_out))
             .detach()
@@ -110,8 +112,8 @@ def do_inference(
             res_mult=2,
             exposure=exposure_out,
             comment=f"Model Prediction, using model: {model_name}."
-                    f"See paper 'Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton Images' for more "
-                    f"information.",
+            f"See paper 'Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton Images' for more "
+            f"information.",
             out_file_name="prediction",
             in_header=lr_header_in,
         )
@@ -150,15 +152,14 @@ def do_inference(
 
 if __name__ == "__main__":
     # XMM_SuperRes:
-    # model_path = "../models/XMM-SuperRes.onnx"
-    # model_data_config_path = "../models/XMM-SuperRes_real_data_config.yaml"
-    # # model_data_config_path = "../models/XMM-SuperRes_sim_data_config.yaml"
+    model_path = "../models/XMM-SuperRes.onnx"
+    model_data_config_path = "../models/XMM-SuperRes_real_data_config.yaml"
+    # model_data_config_path = "../models/XMM-SuperRes_sim_data_config.yaml"
 
     # XMM_DeNoise
-    model_path = "../models/XMM-DeNoise.onnx"
-    model_data_config_path = "../models/XMM-DeNoise_real_data_config.yaml"
+    # model_path = "../models/XMM-DeNoise.onnx"
+    # model_data_config_path = "../models/XMM-DeNoise_real_data_config.yaml"
     # model_data_config_path = "../models/XMM-DeNoise_sim_data_config.yaml"
-
 
     output_path = "../data/output"
 
@@ -166,6 +167,6 @@ if __name__ == "__main__":
         model_path=model_path,
         model_data_config_path=model_data_config_path,
         output_path=output_path,
-        check_files=False,
-        debug=True
+        check_files=True,
+        debug=False,
     )

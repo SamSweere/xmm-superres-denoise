@@ -491,6 +491,7 @@ class XmmSimDataset(Dataset):
                             shape=(411, 403),
                         )
 
+            print("")
             print("Checking hr agn files:")
             for big_img_path in tqdm(self.hr_agn_files):
                 for img_path in big_img_path:
@@ -500,6 +501,7 @@ class XmmSimDataset(Dataset):
                     )
 
         if self.lr_background:
+            print("")
             print("Checking lr background files:")
             for exp_index in range(len(self.lr_exps)):
                 print(f"Checking exp {self.lr_exps[exp_index]}")

@@ -179,6 +179,7 @@ class XmmDataset(Dataset):
                     )
 
         if self.include_hr:
+            print("")
             print("Checking hr img files:")
             for big_img_path in tqdm(self.hr_img_files):
                 for img_path in big_img_path:
