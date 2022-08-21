@@ -18,10 +18,15 @@ Nvidia cuda also has to be installed on the computer to use the gpu.
 https://pytorch.org/ <br>
 In my case I used:  <br>
 `pip3 install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html`
- - Install the requirements: `pip3 install -r requirements.txt`
+ - Install the requirements: `pip install -r requirements.txt`
+
+## Inference
+The notebook `inference_example.ipynb` and source code `src/inference.py`  show an example on how to generate super-resolution and de-noised images based on the example data. 
+Note that if you desire to run the models on your own data the model config files need to be altered. 
+
 
 ## Training
-Setup the config file `run_config.yaml` for your environment:
+Setup the config file `src/run_config.yaml` for your environment:
  - When using gpu: check which gpu is free by running: `nvidia-smi` <br>
-Set the gpu number in the `run_config.yaml` file under `gpus: [{your gpu num}]` 
+Set the gpu number in the `src/run_config.yaml` file under `gpus: [{your gpu num}]` 
  - Set the dataset_dir

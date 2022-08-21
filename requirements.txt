@@ -49,6 +49,7 @@ pathtools==0.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
 Pillow==9.2.0
+pkg_resources==0.0.0
 platformdirs==2.5.2
 promise==2.3
 prompt-toolkit==3.0.30
@@ -81,14 +82,10 @@ tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.8.1
 tokenize-rt==4.2.1
 tomli==2.0.1
-torch==1.9.0+cu111
-torchaudio==0.9.0
-torchmetrics==0.9.3
-torchvision==0.10.0+cu111
 tornado==6.2
 tqdm==4.64.0
 traitlets==5.3.0
-typing-extensions==4.3.0
+typing_extensions==4.3.0
 urllib3==1.26.11
 wandb==0.13.1
 wcwidth==0.2.5
