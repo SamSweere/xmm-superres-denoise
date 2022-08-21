@@ -1,5 +1,5 @@
-dataset_name: "../example_data/sim"
-dataset_type: sim
+datasets_dir: "../data/example_data/sim"
+dataset_name: "combined"
 lr_res: 416 # Must be multiples of 32
 hr_res: 416 # This implies the resolution increase
 dataset_lr_res: 416 # The dataset lr resolution, all the images will be padded/cropped to this resolution

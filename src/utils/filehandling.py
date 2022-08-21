@@ -110,7 +110,7 @@ def write_xmm_file_to_fits(
         out_file_name = source_file_name
 
     header["COMMENT"] = (
-        f"Code Created by Sam Sweere (samsweere@gmail.com) for ESAC at "
+        f"Code Created by Sam Sweere (samsweere@gmail.com) for ESAC. File created at "
         f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
     )
 

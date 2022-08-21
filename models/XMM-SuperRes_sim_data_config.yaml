@@ -1,5 +1,7 @@
-dataset_name: "../example_data/sim"
-dataset_type: sim
+datasets_dir: "../data/example_data/sim"
+dataset_name: "combined"
+dataset_type: "sim"
+include_hr: True # Includes the high resolution target file (only set this to True if you have high resolution reference files)
 lr_res: 416 # Must be multiples of 32
 hr_res: 832 # This implies the resolution increase
 dataset_lr_res: 416 # The dataset lr resolution, all the images will be padded/cropped to this resolution

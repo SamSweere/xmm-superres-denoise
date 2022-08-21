@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 
 from src.datasets.utils import (
     get_fits_files,
+    match_file_list,
     reshape_img_to_res,
     load_fits,
     group_same_sources,
