@@ -14,7 +14,7 @@ det_mask: True # Apply the detector mask
 exp_channel: True #Add exposure channel
 data_scaling: sqrt # Other options None and 'linear', 'sqrt', 'asinh', 'log'
 crop_mode: center # Options: 'center', 'random', 'boresight'
-lr_max: 0.0022336 #TODO: aggresive max, 200 times background, this is +-111 counts on 50ks
-hr_max: 0.0005584 #TODO: aggresive max, 200 times background, this is +-11 counts on 50ks
+lr_max: 0.0022336 #200 times background, this is +-111 counts on 50ks
+hr_max: 0.0005584 #200 times background, this is +-11 counts on 50ks
 
 

@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 from astropy.io import fits
-from tqdm import tqdm
 
 
 def load_fits(fits_path):

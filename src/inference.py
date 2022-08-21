@@ -1,10 +1,8 @@
 import os
-from datetime import datetime
 
 import numpy as np
 import onnxruntime as onnxruntime
 import torch
-from astropy.io import fits
 from tqdm import tqdm
 
 from datasets.xmm_datamodule import XmmDataModule
