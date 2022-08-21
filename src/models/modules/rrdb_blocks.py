@@ -1,6 +1,5 @@
 # Based on: https://github.com/xinntao/ESRGAN/blob/master/RRDBNet_arch.py
 
-import functools
 import torch
 import torch.nn as nn
 

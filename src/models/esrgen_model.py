@@ -2,8 +2,7 @@
 import torch
 import pytorch_lightning as pl
 
-# from models.modules.generator_rrdb import GeneratorRRDB
-from models.modules.generator_rrdb import GeneratorRRDB_SR
+from src.models.modules.generator_rrdb import GeneratorRRDB_SR
 
 
 class LitESRGEN(pl.LightningModule):

@@ -36,12 +36,6 @@ class ZScaleDeNormalize(torch.nn.Module):
         if std is None:
             raise ValueError("std is None")
 
-        # self.demean = [-m / s for m, s in zip(mean, std)]
-        # self.std = std
-        # self.destd = [1 / s for s in std]
-        # self.demean = -mean/std
-        # self.destd = 1/std
-
         self.inplace = inplace
 
     def forward(self, tensor: Tensor) -> Tensor:
