@@ -1,5 +1,4 @@
 # Newly added:
-*.fits
 .idea/
 wandb/
 xmm_superres_venv/
