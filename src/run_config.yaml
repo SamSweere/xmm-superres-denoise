@@ -4,7 +4,7 @@
 #model_name: esr_gen 
 #dataset_name: xmm_sim_ff
 model_name: rrdb_denoise 
-dataset_name: xmm_sim_ff_denoise_20_to_50ks
+dataset_name: xmm_sim_ff_denoise_10_to_50ks
 server: True
 
 server_datasets_dir: /xmm-super/final_data/sim # /home/sam/Documents/ESA/data/sim #/lhome/ssweere/data/sim 
@@ -26,7 +26,7 @@ run_test_dataset: False #Enable this when finalizing the models
 
 server_runs_dir: /xmm-super/runs # /lhome/ssweere/data/runs # /home/sam/Documents/ESA/data/runs #/home/sam/Documents/ESA/data/runs # '/home/sam/Documents/ESA/data/runs', "/home/ssweere/remote_home/data/runs" ## The run specific folder will be created automatically
 pc_runs_dir: None
-epochs: 50
+epochs: 5
 # multiple GPUs
 gpus: [4,5,6,7] # [0] #[3] #[2] #[0] #[0] #cpu: null, gpu: [0] (give the gpu number)
 batch_size: 4
