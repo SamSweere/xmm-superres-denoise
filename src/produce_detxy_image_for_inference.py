@@ -1,5 +1,5 @@
 #
-# test the XMM SAS xmmsas_tools
+# Using XMM SAS xmmsas_tools in utils
 #
 # The workflow is the following:
 #
@@ -16,7 +16,7 @@ import os
 
 top_d = '/lhome/ivaltchanov/XMM/xmm_super'
 if (not os.path.isdir(top_d)):
-    print ('Working folder {top_d} does not exist, cannot continue')
+    print ('Error: working folder {top_d} does not exist, cannot continue!')
     raise FileNotFoundError
 #
 obsid = '0852030101' # M51 (from paper, Fig. 7 bottom)
