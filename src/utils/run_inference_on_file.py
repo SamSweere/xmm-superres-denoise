@@ -24,7 +24,7 @@ if not os.path.isfile(detmask_file):
     raise FileNotFoundError
 
 #%%
-def run_inference_on_file(fits_file,dataset_config):
+def run_inference_on_file(fits_file,dataset_config,verbose=True):
     '''
     Purpose:
         Run SR or DN inference on an input FITS file with real XMM-Newton image
@@ -50,6 +50,15 @@ def run_inference_on_file(fits_file,dataset_config):
         print (f'Input FITS file {fits_file} not found. Cannot continue!')
         return None
     output_path = os.path.dirname(os.path.abspath(fits_file))
+    #
+    # raise a warning if the exposure (ONTIME) in the inpt fitsfile is outside 20 ks +/- 5ks
+    #
+    hdr = fits.getheader(fits_file)
+    ontime = hdr['EXPOSURE']/1000.0 # in ks
+    if (ontime >= 25.0 or ontime <= 15.0):
+        print (f'Warning: the networks were trained on 20 ks exposure images, the exposure time of the input image is {ontime} ks.')
+    else:
+        print (f'Info: the exposure time of the input image is {ontime} ks.')
     #
     loaded = load_fits(fits_file)
     #

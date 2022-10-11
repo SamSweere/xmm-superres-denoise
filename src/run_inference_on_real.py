@@ -14,7 +14,7 @@ import matplotlib.pylab as plt
 
 #%%
 #
-def run_inference_on_real(fitsfile,which='SR',display=False):
+def run_inference_on_real(fitsfile,which='SR',display=False,verbose=True):
     #
     #
     # inference_model_names = ["XMM-SuperRes","XMM-DeNoise"]
@@ -67,8 +67,6 @@ def run_inference_on_real(fitsfile,which='SR',display=False):
     inf, outf = run_inference_on_file(fitsfile,dataset_config)
     #
     if (display):
-        #
-        print ('Now will display it')
         #
         with fits.open(f'{inf}.fits.gz') as hdu1, fits.open(f'{outf}.fits.gz') as hdu2:
             img_in = hdu1[0].data

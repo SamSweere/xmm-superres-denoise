@@ -184,8 +184,10 @@ def max_expo_gti(gti_infile,gti_outfile,max_expo=10.0):
         tstart = hdu['STDGTI'].data[jk][0]
         tend = hdu['STDGTI'].data[jk][1]
         tgti = (tend - tstart)/1000.0 # in ks
+        ## will skip GTIs if less than 50 seconds
+        #if (tgti < 50.0/1000.0):
+        #    continue
         sum_expo += tgti
-        qmax = max(sum_expo-max_expo,max_expo)
         if (sum_expo >= max_expo):
             if (jk == 0):
                 tend = tstart + max_expo*1000.0
@@ -196,7 +198,6 @@ def max_expo_gti(gti_infile,gti_outfile,max_expo=10.0):
             break
         else:
             mask[jk] = 1
-            sum_expo += tgti
         #
     #
     hdu['STDGTI'].data = hdu['STDGTI'].data[mask]
@@ -279,20 +280,21 @@ def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(),max_expo=-1.0,plot
             # run gtigen
             #
             gti_name = f'{out_dir}/{inst_short[inst]}_pps.gti'
-            sas_args = [f'tabgtigen table={j} expression="RATE<={rate_lim}" gtiset={gti_name}']
+            sas_args = [f'tabgtigen table={j} expression="RATE<={rate_lim}" gtiset={gti_name} mingtisize=50.0']
             status = run_sas_command(sas_args)
             if (status.returncode != 0):
                 print (f'Could not run {sas_args}')
                 continue
             #
             #
-            xgti_name = gti_name
             if (max_expo > 0.0):
                 #
                 # filter with max exposure
                 #
                 xgti_name = f'{out_dir}/{inst_short[inst]}_pps_{max_expo:.1f}ks.gti'
                 _ = max_expo_gti(gti_name,xgti_name,max_expo=max_expo)
+            else:
+                xgti_name = gti_name
             #
             with fits.open(xgti_name,mode='update') as hdu:
                 hdu['STDGTI'].header['METHOD'] = ('pps','Method used to derive the rate threshold')
@@ -316,7 +318,7 @@ def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(),max_expo=-1.0,plot
                     for jj in np.arange(ngti):
                         xx = (start_gti[jj]-time_min,end_gti[jj]-time_min)
                         yy1 = (0.01,0.01)
-                        yy2 = (ymax,ymax)
+                        yy2 = (2*rate_lim,2*rate_lim)
                         ax[k].fill_between(xx,yy1,yy2,facecolor='white',zorder=0)
                     #
                     if (k == 2):
@@ -329,19 +331,19 @@ def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(),max_expo=-1.0,plot
                         ax[k].set_title(f'{obsid}')
                     k += 1
                 else:
-                    ax.step(x-x.min(),y,label=f'GTI, {inst}',zorder=1)
+                    ax.step(x-time_min,y,label=f'GTI, {inst}',zorder=1)
                     ax.axhline(rate_lim,color='red',linewidth=3,linestyle='dashed',label=f'GTI threshold {rate_lim:.2f} cts/s',zorder=2)
                     #
                     # and now the GTI bands
                     for jj in np.arange(ngti):
                         xx = (start_gti[jj]-time_min,end_gti[jj]-time_min)
                         yy1 = (0.01,0.01)
-                        yy2 = (ymax,ymax)
-                        ax.fill_between(xx,yy1,yy2,facecolor='white',zorder=0)
+                        yy2 = (2*rate_lim,2*rate_lim)
+                        ax.fill_between(xx,yy1,yy2,facecolor='yellow',zorder=0,alpha=0.3)
                     ax.set_xlabel('Relative time (s)')
                     ax.set_ylabel('Count-rate (cts/s)')
                     ax.grid()
-                    ax.set_facecolor("lightgrey")
+                    #ax.set_facecolor("lightgrey")
                     ax.legend(loc='upper left')
                     ax.set_title(f'{obsid}')
     if (save_plot is not None): 

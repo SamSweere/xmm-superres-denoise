@@ -26,7 +26,7 @@ parser.add_argument('obsid', type=str,
 parser.add_argument('--wdir', type=str,default=os.getcwd(),
                     help='The working top folder name, must exist')
 parser.add_argument('--expo_time', type=float,default=20,
-                    help='Will extract only this exposure time (in ks) from the event list')
+                    help='Will extract only this exposure time (in ks) from the event list. Set it to negative to use the GTI one.')
 #
 args = parser.parse_args()
 
@@ -52,7 +52,11 @@ os.chdir(proc_d)
 
 pps_files = check_pps_dir(pps_dir=pps_d,verbose=True)
 
-gtis = make_gti_pps(pps_d,instrument='pn',out_dir=proc_d,max_expo=expo_time,plot_it=True,save_plot=f'pn_gti_{expo_time}ks_figure.png')
+png_file = f'pn_gti_full_figure.png'
+if (expo_time > 0):
+    png_file = f'pn_gti_{expo_time}ks_figure.png'
+#
+gtis = make_gti_pps(pps_d,instrument='pn',out_dir=proc_d,max_expo=expo_time,plot_it=True,save_plot=png_file)
 if (len(gtis) < 1):
     raise RuntimeError
 # select the PN event list in the PPS
@@ -65,13 +69,19 @@ for ifile in gtis:
         pn_gti = ifile
         break
 #
-evl_filt = filter_events_gti(evl,pn_gti,pps_dir=pps_d,output_name=f'pn_cleaned_evl_{expo_time}ks.fits',verbose=True)
+evl_filt_name = f'pn_cleaned_evl_full.fits'
+if (expo_time > 0):
+    evl_filt_name = f'pn_cleaned_evl_{expo_time}ks.fits'
+
+evl_filt = filter_events_gti(evl,pn_gti,pps_dir=pps_d,output_name=evl_filt_name,verbose=True)
 if (evl_filt is None):
     raise RuntimeError
 #
 e1 = 500
 e2 = 2000
-outname = f'pn_{e1}_{e2}_detxy_image_{expo_time}ks.fits'
+outname = f'pn_{e1}_{e2}_detxy_image_full.fits'
+if (expo_time > 0):
+    outname = f'pn_{e1}_{e2}_detxy_image_{expo_time}ks.fits'
 detxy = make_detxy_image(evl_filt,pps_dir=pps_d,output_name=outname,low_energy=e1,high_energy=e2,bin_size=80,radec_image=False,verbose=True)
 if (detxy is None):
     raise RuntimeError
