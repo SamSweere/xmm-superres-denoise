@@ -4,8 +4,10 @@ import sys
 import subprocess
 import glob
 import math
+import tarfile
 import numpy as np
 from astropy.io import fits
+from astroquery.esa.xmm_newton import XMMNewton as xmm
 
 import matplotlib as mpl
 mpl.use('Agg')
@@ -47,6 +49,47 @@ def check_sas(verbose=True):
             sasversion = output.stdout.decode().split('[')[1].split(']')[0]
             print (sasversion)
         return True
+#%%
+def get_pps_nxsa(obsid,wdir=None,skip=True,keeptar=False,verbose=False):
+    '''
+        Download PPS files from the XMM archive for OBSID, only the FTZ files.
+    '''
+    #
+    if (not os.path.isdir(wdir)):
+        print (f'Warning! The working dir {wdir} does not exist. Will use the current dir.')
+        wdir = os.getcwd()
+    #
+    #
+    # check if subfolder pps already exists
+    #
+    ppsdir = f'{wdir}/{obsid}/pps'
+    if (os.path.isdir(ppsdir)):
+        if (skip):
+            print (f'Will skip PPS download for {obsid} as {ppsdir} already exists and skip flag is {skip}')
+            return 0
+        else:
+            print (f'Warning! Found an already existing folder {ppsdir} and skip flag is {skip} => files will be overwritten!')
+    #
+    pps_tar_file = f"{wdir}/{obsid}_PPS_nxsa"
+    # due to a bug (or feature) in xmm_newton the tar file name appends .tar at the end
+    xmm.download_data(obsid,level="PPS",extension="FTZ",filename=pps_tar_file)
+    pps_tar_file = f"{wdir}/{obsid}_PPS_nxsa.tar"
+    #%%
+    print (f"Extracting {pps_tar_file}")
+    if (not tarfile.is_tarfile(pps_tar_file)):
+        print (f'Downloaded file from NXSA {pps_tar_file} does not look like tar file. Cannot continue!')
+        raise FileNotFoundError
+    #
+    with tarfile.open(pps_tar_file,'r') as tar:
+        tar.extractall(path=wdir)
+    #
+    if (not keeptar):
+        os.remove(pps_tar_file)
+    #
+    pps_content = check_pps_dir(ppsdir)
+
+    return pps_content
+
 #%%
 def check_pps_dir(pps_dir=os.getcwd(),verbose=False):
     '''
@@ -115,7 +158,54 @@ def check_pps_dir(pps_dir=os.getcwd(),verbose=False):
     #
     return pps_files
 #%%
-def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(), plot_it=False,save_plot=None):
+def max_expo_gti(gti_infile,gti_outfile,max_expo=10.0):
+    '''
+    PURPOSE:
+        Using an input GTI file, will modify it in such a way as to have GTI duration of max_expo
+    
+    INPUTS:
+        gti_infile - str,
+            The name of the input GTI file, e.g. created using flaring background time series and a given rate threshold
+        gti_outfile - str,
+            The name of the output GTI file, filtering by this file will produce event list with max_expo duration
+        max-expo - float,
+            The required maximum exposure in ks            
+    '''
+    if (not os.path.isfile(gti_infile)):
+        print (f'Input GTI file {gti_infile} not found')
+        return None
+    #
+    hdu = fits.open(gti_infile)
+    nrec = len(hdu['STDGTI'].data)
+    mask = np.zeros(nrec,dtype=bool)
+    #
+    sum_expo = 0.0 # accumlate in ks
+    for jk in range(nrec):
+        tstart = hdu['STDGTI'].data[jk][0]
+        tend = hdu['STDGTI'].data[jk][1]
+        tgti = (tend - tstart)/1000.0 # in ks
+        sum_expo += tgti
+        qmax = max(sum_expo-max_expo,max_expo)
+        if (sum_expo >= max_expo):
+            if (jk == 0):
+                tend = tstart + max_expo*1000.0
+            else:
+                tend = tstart + (sum_expo - max_expo)*1000.0
+            hdu['STDGTI'].data[jk][1] = tend
+            mask[jk] = 1
+            break
+        else:
+            mask[jk] = 1
+            sum_expo += tgti
+        #
+    #
+    hdu['STDGTI'].data = hdu['STDGTI'].data[mask]
+    hdu.writeto(gti_outfile,overwrite=True)
+    hdu.close()
+    #
+    return 0
+
+def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(),max_expo=-1.0,plot_it=False,save_plot=None):
     '''
     PURPOSE: 
         Generate good-time-interval file using the XMM Pipeline Produced (PPS) flaring background and the PPS threshold
@@ -127,6 +217,8 @@ def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(), plot_it=False,sav
             One of m1, m2, pn or all, default all, case insensitive. Which instrument to process.
         out_dir - str,
             the output folder where the .gti files will be saved. Default current working dir
+        max_expo - float,
+            Limit the GTI to have maximum exposure of `max_expo` ks. Set it to negative to skip this.
         plot_it - bool,
             whether to plot the flaring background curve with the GTI threshold
         save_plot - str,
@@ -193,7 +285,16 @@ def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(), plot_it=False,sav
                 print (f'Could not run {sas_args}')
                 continue
             #
-            with fits.open(gti_name,mode='update') as hdu:
+            #
+            xgti_name = gti_name
+            if (max_expo > 0.0):
+                #
+                # filter with max exposure
+                #
+                xgti_name = f'{out_dir}/{inst_short[inst]}_pps_{max_expo:.1f}ks.gti'
+                _ = max_expo_gti(gti_name,xgti_name,max_expo=max_expo)
+            #
+            with fits.open(xgti_name,mode='update') as hdu:
                 hdu['STDGTI'].header['METHOD'] = ('pps','Method used to derive the rate threshold')
                 hdu['STDGTI'].header['RLIM'] = (rate_lim,'The PPS derived threshold')
                 #
@@ -203,7 +304,7 @@ def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(), plot_it=False,sav
                 end_gti = hdu['STDGTI'].data["STOP"]
                 ngti = len(start_gti)
             #
-            gti_names.append(gti_name)
+            gti_names.append(xgti_name)
             if (plot_it):
                 #
                 #fig, ax = plt.subplots(figsize=(10,6))
@@ -252,7 +353,7 @@ def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(), plot_it=False,sav
         #plt.close()
     return gti_names
 #%%
-def filter_events_gti(event_list,gti_file,pps_dir=os.getcwd(),output_name=None,filter_expression=None,verbose=False):
+def filter_events_gti(event_list,gti_file,max_expo=-1.0,pps_dir=os.getcwd(),output_name=None,filter_expression=None,verbose=False):
     '''
     PURPOSE:
         Filter event list with a GTI file
@@ -262,6 +363,8 @@ def filter_events_gti(event_list,gti_file,pps_dir=os.getcwd(),output_name=None,f
             FITS file with event list to filter with GTI
         gti_file - str,
             GTI file with periods of good time intervals
+        max_expo - float,
+            The maximum exposure time to extract, in ks. If negative, then it will not limit the exposure and will use the full GTI-filtered exposure.
         output_name - str,
             The name of the filtered output event list
         verbose - bool,
@@ -336,8 +439,7 @@ def filter_events_gti(event_list,gti_file,pps_dir=os.getcwd(),output_name=None,f
     if (verbose):
         hdr1 = fits.getheader(output_name,'EVENTS')
         ontime1 = hdr1['ONTIME']
-        print (f'Input event list on-time {ontime0:.1f} s, \n filtered list on-time {ontime1:.1f} s, \n good time fraction {(100*ontime1/ontime0):.1f} %')
-    #
+        print (f'Input event list on-time {ontime0:.1f} s, \n filtered list on-time {ontime1:.1f} s, \n good time fraction {(100*ontime1/ontime0):.1f} %')        
     return output_name
 #%%
 def make_detxy_image(event_list,pps_dir=os.getcwd(),output_name=None,low_energy=500,high_energy=2000,bin_size=80,radec_image=True,verbose=False):
@@ -400,7 +502,7 @@ def make_detxy_image(event_list,pps_dir=os.getcwd(),output_name=None,low_energy=
         print (f"*** {xinst[inst]}: generating image in DETX,DETY in band [{low_energy},{high_energy}] eV")
     #
     if (output_name is None):
-        image_name = f'{xinst[inst]}_{low_energy}_{high_energy}_detxy_image.fits'
+        output_name = f'{xinst[inst]}_{low_energy}_{high_energy}_detxy_image.fits'
     #
     if ('M1' in inst or 'M2' in inst):
         expr = f'PI in [{low_energy}:{high_energy}] &&  (FLAG & 0x766ba000)==0 && PATTERN in [0:12]'
@@ -409,7 +511,7 @@ def make_detxy_image(event_list,pps_dir=os.getcwd(),output_name=None,low_energy=
     #
     #
     sas_args = [f'evselect table={event_list} xcolumn=DETX ycolumn=DETY imagebinning=binSize ximagebinsize={bin_size} yimagebinsize={bin_size} ' + 
-            f'squarepixels=yes expression="{expr}" withimageset=true imageset={image_name}']
+            f'squarepixels=yes expression="{expr}" withimageset=true imageset={output_name}']
     #
     status = run_sas_command(sas_args)
     if (status.returncode != 0):
@@ -417,14 +519,14 @@ def make_detxy_image(event_list,pps_dir=os.getcwd(),output_name=None,low_energy=
         return False
     # 
     if (verbose):
-        print (f'\t DETXY image {image_name} created')
+        print (f'\t DETXY image {output_name} created')
     #
     # for reference will do an image in Sky coordinates
     #
     if (radec_image):
         if (verbose):
             print (f"*** {xinst[inst]}: generating image in RA,DEC in band [{low_energy},{high_energy}] eV")
-        image_name_radec = f'{xinst[inst]}_{low_energy}_{high_energy}_radec_image.fits'
+        image_name_radec = output_name.replace('detxy','radec')
         sas_args = [f'evselect table={event_list} xcolumn=X ycolumn=Y imagebinning=binSize ximagebinsize={bin_size} yimagebinsize={bin_size} ' + 
             f'squarepixels=yes expression="{expr}" withimageset=true imageset={image_name_radec}']
         #
@@ -441,7 +543,7 @@ def make_detxy_image(event_list,pps_dir=os.getcwd(),output_name=None,low_energy=
     #
     if (verbose):
         print ('Running ecoordconv')
-    sas_args = [f'ecoordconv imageset={image_name} x=0 y=0 coordtype=det']
+    sas_args = [f'ecoordconv imageset={output_name} x=0 y=0 coordtype=det']
     status = run_sas_command(sas_args)
     if (status.returncode != 0):
         print (f'Error executing {sas_args}')
@@ -460,9 +562,9 @@ def make_detxy_image(event_list,pps_dir=os.getcwd(),output_name=None,low_energy=
     #print (xima,yima,ra,dec)
     #
     if (verbose):
-        print (f'Update the header of {image_name} with a new WCS')
+        print (f'Update the header of {output_name} with a new WCS')
     #
-    with fits.open(image_name,mode='update') as hdu:
+    with fits.open(output_name,mode='update') as hdu:
         header = hdu[0].header
         # Create a new WCS object.  The number of axes must be set
         # from the start
@@ -493,4 +595,4 @@ def make_detxy_image(event_list,pps_dir=os.getcwd(),output_name=None,low_energy=
         header['CD2_2'] = cd2_2
         header['COMMENT'] = 'WCS added by IvanV'
     #
-    return image_name
+    return output_name
