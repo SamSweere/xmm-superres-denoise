@@ -59,9 +59,8 @@ model_config["hr_shape"] = (dataset_config["hr_res"], dataset_config["hr_res"])
 
 # Add other parts to the config
 config["project"] = model_config["base_model"]
-config["wandb_log_online"] = config[
-    "log_online"
-]  # not config['fast_dev_run'] and not config['debug'] # Only log the full runs
+config["wandb_log_online"] = config["log_online"]  
+# not config['fast_dev_run'] and not config['debug'] # Only log the full runs
 
 config["dataset_config"] = dataset_config
 config["model_config"] = model_config
@@ -290,7 +289,11 @@ def main(config):
             logger=wandb_logger,
             # W&B integration
             log_every_n_steps=config["log_every_n_steps"],  # set the logging frequency
-            gpus=config["gpus"],
+            ## Ivan's change
+            accelerator="gpu",
+            devices=config["gpus"],
+            strategy="dp",
+            ##gpus=config["gpus"],
             max_epochs=config["epochs"],  # number of epochs
             deterministic=False,  # keep it deterministic
             fast_dev_run=config["fast_dev_run"],
@@ -319,7 +322,11 @@ def main(config):
         trainer = Trainer(
             logger=wandb_logger,  # W&B integration
             log_every_n_steps=config["log_every_n_steps"],  # set the logging frequency
-            gpus=config["gpus"],
+            ## Ivan's change
+            accelerator="gpu",
+            devices=config["gpus"],
+            strategy="dp",
+            ##gpus=config["gpus"],
             max_epochs=config["epochs"],  # number of epochs
             # deterministic=True,  # keep it deterministic
             benchmark=(not config["debug"]) and True,

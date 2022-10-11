@@ -99,6 +99,12 @@ class MetricLogger(pl.Callback):
         log_input=False,
         log_extended=False,
     ):
+        #
+        # Ivan's addition to make it work on multiple GPUs
+        #
+        input = input.to(gen.device)
+        label = label.to(gen.device)
+        #
         # data_range = self.data_range
 
         # try:
