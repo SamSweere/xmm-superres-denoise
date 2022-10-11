@@ -50,4 +50,37 @@ Depending on `--which` the process will produce a predicted image with twice the
 * The network was trained on simulated images with 20ks exposure predicting images with 50ks, i.e. in principle shuold lead to an increase of the signal-to-noise ratio by a factor of 1.6. Using DN model on images with significantly different exposure (smaller or larger) may lead to undesirable effects.
 * We are currently training a new network to predict 50ks exposure images from 10ks input (SNR increase a factor of 2.2).
 
+
+## Practical usage of the code
+
+The simplest use is to run `python inference_end2end_obsid.py`.
+
+```
+usage: inference_end2end_obsid.py [-h] [--wdir WDIR] [--expo_time EXPO_TIME] obsid
+
+Predict XMM SR or DN image
+
+positional arguments:
+  obsid                 The OBS_ID to process
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --wdir WDIR           The working top folder name, must exist
+  --expo_time EXPO_TIME
+                        Will extract only this exposure time (in ks) from the event list. Set it to negative to use
+                        the GTI one.
+
+```
+
+It will follow the steps in the workflow as described above, and will produce predicted images using the SR and the DN models.
+
+Some comments:
+
+* The `obsid` must be public.
+* Downloading the PPS products and saving them in `<wdir>/<obsid>/pps` may take time, be patient.
+* If `wdir` is not set, the current folder wil lbe used.
+* The `expo_time` is set to 20 ks by default (see above why). You can use a different exposure or set `--expo_time -1` to use the full GTI-filtered one.
+* All products will be saved in `<wdir>/<obsid>/proc` (hardcoded for now): filtered event lists, GTI files, GTI diagnostc plot and the images.
+
+
 _Ivan Valtchanov_, XMM SOC, Oct 2022
