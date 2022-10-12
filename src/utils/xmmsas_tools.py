@@ -175,30 +175,35 @@ def max_expo_gti(gti_infile,gti_outfile,max_expo=10.0):
         print (f'Input GTI file {gti_infile} not found')
         return None
     #
+    max_expo_sec = max_expo*1000.0
+    #
     hdu = fits.open(gti_infile)
     nrec = len(hdu['STDGTI'].data)
     mask = np.zeros(nrec,dtype=bool)
-    #
-    sum_expo = 0.0 # accumlate in ks
-    for jk in range(nrec):
-        tstart = hdu['STDGTI'].data[jk][0]
-        tend = hdu['STDGTI'].data[jk][1]
-        tgti = (tend - tstart)/1000.0 # in ks
-        ## will skip GTIs if less than 50 seconds
-        #if (tgti < 50.0/1000.0):
-        #    continue
-        sum_expo += tgti
-        if (sum_expo >= max_expo):
-            if (jk == 0):
-                tend = tstart + max_expo*1000.0
-            else:
-                tend = tstart + (sum_expo - max_expo)*1000.0
-            hdu['STDGTI'].data[jk][1] = tend
-            mask[jk] = 1
-            break
-        else:
-            mask[jk] = 1
-        #
+    delta_time = hdu['STDGTI'].data['STOP'] - hdu['STDGTI'].data['START']
+    # first the easiest, find if there are GTI greater or equal to max_expo
+    ix = np.where(delta_time >= max_expo_sec)[0]
+    if (len(ix) == 1):
+        mask[ix] = 1
+        hdu['STDGTI'].data['STOP'][ix] = hdu['STDGTI'].data['START'][ix] + max_expo_sec
+    elif (len(ix) > 1):
+        imax = np.argmax(delta_time)
+        mask[imax] = 1
+        hdu['STDGTI'].data['STOP'][imax] = hdu['STDGTI'].data['START'][imax] + max_expo_sec
+    else:
+        # no single GTI is larger than max_expo and we have to accumulate them, starting with the largest
+        # starting from largest GTI
+        ixsort = delta_time.argsort()[-nrec:][::-1]
+        sum_gti = 0.0
+        for js in ixsort:
+            sum_gti += delta_time[js]
+            if (sum_gti >= max_expo_sec):
+                # last GTI will have to make it to max_expo_sec
+                mask[js] = 1
+                dd = sum_gti - max_expo_sec
+                hdu['STDGTI'].data['STOP'][js] = hdu['STDGTI'].data['START'][js] + dd
+                break
+            mask[js] = 1
     #
     hdu['STDGTI'].data = hdu['STDGTI'].data[mask]
     hdu.writeto(gti_outfile,overwrite=True)
@@ -206,7 +211,7 @@ def max_expo_gti(gti_infile,gti_outfile,max_expo=10.0):
     #
     return 0
 
-def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(),max_expo=-1.0,plot_it=False,save_plot=None):
+def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(),max_expo=-1.0,plot_it=False,save_plot=None,verbose=True):
     '''
     PURPOSE: 
         Generate good-time-interval file using the XMM Pipeline Produced (PPS) flaring background and the PPS threshold
@@ -291,6 +296,8 @@ def make_gti_pps(pps_dir,instrument='all',out_dir=os.getcwd(),max_expo=-1.0,plot
                 #
                 # filter with max exposure
                 #
+                if (verbose):
+                    print (f'INFO: now creating GTI with limited exposure of {max_expo} ks')
                 xgti_name = f'{out_dir}/{inst_short[inst]}_pps_{max_expo:.1f}ks.gti'
                 _ = max_expo_gti(gti_name,xgti_name,max_expo=max_expo)
             else:

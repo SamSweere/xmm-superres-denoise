@@ -41,7 +41,7 @@ def run_inference_on_real(fitsfile,which='SR',display=False,verbose=True):
         print (f'The model ONNX file not found, cannot continue! ==> {onnx_filepath}')
         raise FileNotFoundError
     #
-    model_data_config_path = os.path.join(model_base_path, f"{model_name}_data_config.yaml")
+    model_data_config_path = os.path.join(model_base_path, f"{model_name}_real_data_config.yaml")
     if (not os.path.isfile(model_data_config_path)):
         print (f'The model config YAML file not found, cannot continue! ==> {model_data_config_path}')
         raise FileNotFoundError
@@ -51,6 +51,7 @@ def run_inference_on_real(fitsfile,which='SR',display=False,verbose=True):
     # # Load the dataset config and modify to match the tests
     dataset_mode = "real"  # can be sim or real
     dataset_config = read_yaml(model_data_config_path)
+    #dataset_config = {}
     dataset_config["model_name"] = which.upper()
     dataset_config["onnx_path"] = onnx_filepath
     dataset_config["debug"] = True  # Set to True when debugging
@@ -61,6 +62,8 @@ def run_inference_on_real(fitsfile,which='SR',display=False,verbose=True):
     dataset_config['check_files'] = False
     dataset_config['include_hr'] = False
     dataset_config['crop_mode'] = 'center'
+    #if (verbose):
+    #    print (dataset_config)
     #
     # now run the inference
     #

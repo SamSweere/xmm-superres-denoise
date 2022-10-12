@@ -8,13 +8,16 @@
 # 1. Generate a new GTI with max 20ks exposure
 # 1. Filter the PPS event lists with the GTI
 # 1. Using the cleaned event lists, generate images in a given energy band
+# 
+# Created Oct 2022, _Ivan Valtchanov_, XMM SOC
 #
 
 from utils.xmmsas_tools import check_pps_dir, make_gti_pps, filter_events_gti,make_detxy_image, get_pps_nxsa
 
 import os
 
-top_d = '/lhome/ivaltchanov/XMM/xmm_super'
+# Set top_d to a folder where to download the PPS
+top_d = os.getcwd()
 if (not os.path.isdir(top_d)):
     print ('Error: working folder {top_d} does not exist, cannot continue!')
     raise FileNotFoundError

@@ -56,9 +56,9 @@ def run_inference_on_file(fits_file,dataset_config,verbose=True):
     hdr = fits.getheader(fits_file)
     ontime = hdr['EXPOSURE']/1000.0 # in ks
     if (ontime >= 25.0 or ontime <= 15.0):
-        print (f'Warning: the networks were trained on 20 ks exposure images, the exposure time of the input image is {ontime} ks.')
+        print (f'Warning: the networks were trained on 20 ks exposure images, the exposure time of the input image is {ontime:.2f} ks.')
     else:
-        print (f'Info: the exposure time of the input image is {ontime} ks.')
+        print (f'Info: the exposure time of the input image is {ontime:.2f} ks.')
     #
     loaded = load_fits(fits_file)
     #
