@@ -22,9 +22,12 @@ The following steps requre XMM-SAS to be available.
 `(FLAG == 0) && gti({gti_file},TIME) && (PI>150) && (PATTERN <= 4)`
 5. Using the filtered event list, produce an image in detector coordinates with `xmmsas_tools.make_detxy_image()`
 
-All these steps can be performed by the user with his own XMM-SAS procedures as long as the output image is in detector coordinates and with dimensions `(403,411)` pixels and exposure around 20 ks. 
+All these steps can be performed by the user with his own XMM-SAS procedures as long as the output image is in detector coordinates and with dimensions `(403,411)` pixels and exposure of 20 ks. 
 
-Note that by default, the SAS-produced image in detector coordinates will not have proper RA-DEC sky coordinate system. The function in `xmmsas_tools.make_detxy_image()` has an additional step to add a proper RA-DEC WCS.
+### Notes:
+ 
+* By default, the SAS-produced image in detector coordinates will not have proper RA-DEC sky coordinate system. The function in `xmmsas_tools.make_detxy_image()` has an additional step to add a proper RA-DEC WCS.
+* The workflow, as implemented in `xmmsas-toos`, is using python `subprocess` and not the XMM-SAS python wrapper `pysas.Wrapper` due to some portability issues with the latter.
 
 ## Run the inference 
 
