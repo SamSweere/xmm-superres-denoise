@@ -189,12 +189,13 @@ class ImageLogger(pl.Callback):
 
             # Generate the combined images
             # for x, pred, y in zip(sample['lr_gt'], preds, sample['hr_gt']):
+            ## Ivan change
             if generate_label:
                 label = sample["hr"]
                 hr_exps = sample["hr_exp"]
             else:
-                # If we do not want the label images, make the label images the pred images, this simplifies the code
-                # Since we can later not send the label images
+            # If we do not want the label images, make the label images the pred images, this simplifies the code
+            # Since we can later not send the label images
                 label = preds
                 hr_exps = sample["lr_exp"]
 
