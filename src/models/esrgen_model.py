@@ -1,8 +1,6 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
-import torch
 import pytorch_lightning as pl
-
-from src.models.modules.generator_rrdb import GeneratorRRDB_SR
+import torch
 
 
 class LitESRGEN(pl.LightningModule):
@@ -38,6 +36,7 @@ class LitESRGEN(pl.LightningModule):
         # Make the model
 
         # Initialize generator and discriminator
+        from models import GeneratorRRDB_SR
         self.generator = GeneratorRRDB_SR(
             in_channels=in_channels,
             out_channels=out_channels,

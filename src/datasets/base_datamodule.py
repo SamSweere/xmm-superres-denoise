@@ -1,7 +1,7 @@
+import os
+
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
-
-import os
 
 
 class BaseDataModule(LightningDataModule):
@@ -17,7 +17,7 @@ class BaseDataModule(LightningDataModule):
             self.persistent_workers = False
         else:
             # Take 1/4 of the cpu count for the dataloaders leaving some room for other processes
-            self.num_workers = int(1 / 4 * os.cpu_count())
+            self.num_workers = 3
             self.pin_memory = True
             self.persistent_workers = True
 

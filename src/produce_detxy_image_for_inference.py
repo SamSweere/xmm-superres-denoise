@@ -12,9 +12,9 @@
 # Created Oct 2022, _Ivan Valtchanov_, XMM SOC
 #
 
-from utils.xmmsas_tools import check_pps_dir, make_gti_pps, filter_events_gti,make_detxy_image, get_pps_nxsa
-
 import os
+
+from utils.xmmsas_tools import check_pps_dir, make_gti_pps, filter_events_gti, make_detxy_image, get_pps_nxsa
 
 # Set top_d to a folder where to download the PPS
 top_d = os.getcwd()

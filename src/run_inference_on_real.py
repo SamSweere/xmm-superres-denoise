@@ -1,15 +1,15 @@
+import argparse
 import os
 
-import argparse
-
-from utils.run_inference_on_file import run_inference_on_file
-from utils.filehandling import read_yaml
-
-from astropy.io import fits
-from astropy.wcs import WCS
-from astropy.visualization import PercentileInterval, ImageNormalize
-
 import matplotlib.pylab as plt
+from astropy.io import fits
+from astropy.visualization import PercentileInterval, ImageNormalize
+from astropy.wcs import WCS
+
+from utils.filehandling import read_yaml
+from utils.run_inference_on_file import run_inference_on_file
+
+
 #plt.style.use(['seaborn-colorblind','~/presentation.mplstyle'])
 
 #%%

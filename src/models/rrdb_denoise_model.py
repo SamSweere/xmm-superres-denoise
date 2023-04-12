@@ -1,10 +1,7 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
-import math
 
-import torch
 import pytorch_lightning as pl
-
-from src.models.modules.generator_rrdb import GeneratorRRDB_DN
+import torch
 
 
 class LitRRDBDenoise(pl.LightningModule):
@@ -31,6 +28,7 @@ class LitRRDBDenoise(pl.LightningModule):
         # Make the model
 
         # Initialize generator and discriminator
+        from models import GeneratorRRDB_DN
         self.generator = GeneratorRRDB_DN(
             in_channels=in_channels,
             out_channels=out_channels,

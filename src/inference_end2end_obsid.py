@@ -13,10 +13,11 @@
 # 1. Run the inference on this image and produce the predicted SR and DN images
 #
 #%%
-import os
 import argparse
-from utils.xmmsas_tools import check_pps_dir, make_gti_pps, filter_events_gti,make_detxy_image, get_pps_nxsa
+import os
+
 from run_inference_on_real import run_inference_on_real
+from utils.xmmsas_tools import check_pps_dir, make_gti_pps, filter_events_gti, make_detxy_image, get_pps_nxsa
 
 #%%
 # Parse the input 

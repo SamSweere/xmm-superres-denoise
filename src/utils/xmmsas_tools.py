@@ -1,15 +1,15 @@
-from lib2to3.refactor import get_all_fix_names
-import os
-import sys
-import subprocess
 import glob
 import math
+import os
+import subprocess
+import sys
 import tarfile
+
+import matplotlib as mpl
 import numpy as np
 from astropy.io import fits
 from astroquery.esa.xmm_newton import XMMNewton as xmm
 
-import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pylab as plt
 

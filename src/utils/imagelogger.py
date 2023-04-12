@@ -1,17 +1,16 @@
 # Written by: Sam Sweere
 import os
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import wandb
 from matplotlib import cm
-import numpy as np
 
+from transforms import ImageUpsample
+from utils.metriclogger import MetricLogger
 from utils.filehandling import write_xmm_file_to_fits
 from utils.ssim import ssim as get_ssim
-
-from transforms.imageupsample import ImageUpsample
-from utils.metriclogger import MetricLogger
 
 
 class ImageLogger(pl.Callback):

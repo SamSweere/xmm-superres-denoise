@@ -1,13 +1,10 @@
-import numpy as np
+import piq
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import wandb
-import piq
 
-from utils.ssim import ssim as get_ssim
-from utils.ssim import ms_ssim as get_ms_ssim
-from transforms.imageupsample import ImageUpsample
+from transforms import ImageUpsample
+from utils.ssim import ms_ssim as get_ms_ssim, ssim as get_ssim
 
 
 class MetricLogger(pl.Callback):

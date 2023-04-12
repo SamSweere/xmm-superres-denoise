@@ -1,9 +1,10 @@
+import math
 import os
 from datetime import datetime
-import numpy as np
-import math
+
 import yaml
 from astropy.io import fits
+
 
 #%%
 def write_xmm_file_to_fits(

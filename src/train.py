@@ -1,20 +1,17 @@
 import os
-import wandb
 
+import wandb
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning import Trainer
-
 
 from datasets.xmm_datamodule import XmmDataModule
 from datasets.xmm_dispay_datamodule import XmmDisplayDataModule
-
 from transforms.normalize import Normalize
-
+from utils import ImageLogger
+from utils import MetricLogger
 from utils.filehandling import read_yaml
-from utils.imagelogger import ImageLogger
 from utils.loss_functions import LossFunctionHandler
-from utils.metriclogger import MetricLogger
 from utils.onnxexporter import OnnxExporter
 
 # Load the run configs
@@ -350,31 +347,31 @@ def main(config):
 
     print("Best model saved at:", checkpoint_callback.best_model_path)
 
-    wandb.finish()
+    # wandb.finish()
 
 
 if __name__ == "__main__":  # This is needed in order to run it on multiple gpu's
     print(f"Starting run with {config}")
-
-    if not config["resume_run"]:
-        wandb.init(
-            project=config["project"],
-            dir=config["runs_dir"],
-            entity=config["wandb_entity"],
-            mode=wandb_mode,
-            config=config,
-        )
-    else:
-        wandb.init(
-            project=config["project"],
-            dir=config["runs_dir"],
-            entity=config["wandb_entity"],
-            mode=wandb_mode,
-            config=config,
-            resume=config["resume_id"],
-        )
-
-    # Config parameters are automatically set by Wandb sweep again
-    config = wandb.config
+    wandb.login(key="e7a753db6d3e0628a4d5e8c911eca81fd0799623")
+    # if not config["resume_run"]:
+    #     wandb.init(
+    #         project=config["project"],
+    #         dir=config["runs_dir"],
+    #         entity=config["wandb_entity"],
+    #         mode=wandb_mode,
+    #         config=config,
+    #     )
+    # else:
+    #     wandb.init(
+    #         project=config["project"],
+    #         dir=config["runs_dir"],
+    #         entity=config["wandb_entity"],
+    #         mode=wandb_mode,
+    #         config=config,
+    #         resume=config["resume_id"],
+    #     )
+    #
+    # # Config parameters are automatically set by Wandb sweep again
+    # config = wandb.config
 
     main(config)

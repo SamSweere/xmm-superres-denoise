@@ -1,9 +1,7 @@
-from src.datasets.base_datamodule import BaseDataModule
-from src.datasets.xmm_dataset import XmmDataset
-from src.datasets.xmm_sim_dataset import XmmSimDataset
-from src.transforms.normalize import Normalize
-from src.transforms.crop import Crop
-from src.transforms.totensor import ToTensor
+from datasets import BaseDataModule
+from transforms.crop import Crop
+from transforms.normalize import Normalize
+from transforms.totensor import ToTensor
 
 
 class XmmDataModule(BaseDataModule):
@@ -25,6 +23,7 @@ class XmmDataModule(BaseDataModule):
         )
 
         if config["dataset_type"] == "real":
+            from datasets import XmmDataset
             self.dataset = XmmDataset(
                 dataset_name=config["dataset_name"],
                 datasets_dir=config["datasets_dir"],
@@ -40,6 +39,7 @@ class XmmDataModule(BaseDataModule):
                 normalize=self.normalize,
             )
         elif config["dataset_type"] == "sim":
+            from datasets import XmmSimDataset
             self.dataset = XmmSimDataset(
                 dataset_name=config["dataset_name"],
                 datasets_dir=config["datasets_dir"],

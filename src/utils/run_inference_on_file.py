@@ -1,18 +1,16 @@
 import os
-import numpy as np
 
+import numpy as np
 import onnxruntime as onnxruntime
 import torch
-
 from astropy.io import fits
 
-#from datasets.xmm_datamodule import XmmDataModule
-from datasets.utils import reshape_img_to_res,load_fits
-
-from utils.filehandling import write_xmm_file_to_fits_wcs
-from transforms.normalize import Normalize
-from transforms.crop import Crop
+# from datasets.xmm_datamodule import XmmDataModule
+from datasets.utils import reshape_img_to_res, load_fits
+from transforms import Crop
+from transforms import Normalize
 from transforms.totensor import ToTensor
+from utils.filehandling import write_xmm_file_to_fits_wcs
 
 #
 # hardcoded location of the detector mask

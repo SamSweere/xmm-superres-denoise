@@ -1,12 +1,6 @@
-import numpy as np
 import torch
 
-from transforms.data_scaling_functions import (
-    linear_scale,
-    sqrt_scale,
-    log_scale,
-    asinh_scale,
-)
+from transforms.data_scaling_functions import linear_scale, sqrt_scale, log_scale, asinh_scale
 
 
 class Normalize(object):
