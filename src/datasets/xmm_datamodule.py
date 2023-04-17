@@ -1,5 +1,4 @@
 import pickle as p
-from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -18,7 +17,6 @@ class XmmDataModule(BaseDataModule):
 
         self.lr_exps = config["lr_exps"]
         self.hr_exp = config["hr_exp"]
-        self.split_dict = defaultdict(Path)
 
         if self.dataset_type == "real":
             from datasets import XmmDataset
@@ -64,20 +62,18 @@ class XmmDataModule(BaseDataModule):
     def prepare_data(self) -> None:
         # Check that for every used exposure time there is a train/val/test split
         # If there is none, create one
-        dataset_dir = str(self.dataset_dir.resolve())
-        subset_str = f"{dataset_dir}/{{0}}/{{1}}ks{self.mode}"
+        subset_str = f"res/splits/{self.dataset_type}_dataset/{{0}}/{{1}}ks"
+        if self.dataset_type == "sim":
+            subset_str = f"{subset_str}/{self.dataset.mode}/"
+        subset_str = f"{subset_str}{{2}}.p"
         splits = ["train", "val", "test"]
 
         for res_mult in self.res_mults:
             for lr_exp in self.lr_exps:
-                if self.mode:
-                    paths = [Path(subset_str.format(split_name, lr_exp)) / f"{res_mult}.p" for split_name in splits]
-                else:
-                    paths = [Path(f"{subset_str.format(split_name, lr_exp)}.p") for split_name in splits]
-                for split_name, path in zip(splits, paths):
-                    self.split_dict[split_name] = path
+                paths = [Path(subset_str.format(split_name, lr_exp, res_mult)) for split_name in splits]
                 exists = np.all([path.exists() for path in paths])
                 if not exists:
+                    print(f"Creating splits for {self.dataset_dir / f'{lr_exp}ks'}...")
                     img_dirs = find_img_dirs(self.dataset_dir, np.asarray([lr_exp]), f"{self.mode}/{res_mult}")
                     img_files = find_img_files(img_dirs)
                     img_files = match_file_list(img_files, None, split_key=self.split_key)[0]
@@ -88,15 +84,21 @@ class XmmDataModule(BaseDataModule):
                             p.dump(split.indices, f)
 
     def setup(self, stage: str) -> None:
+        subset_str = f"res/splits/{self.dataset_type}_dataset/{{0}}/{self.dataset.lr_exps[0]}ks"
+        if self.dataset_type == "sim":
+            subset_str = f"{subset_str}/{self.dataset.mode}/1x.p"
+        else:
+            subset_str = f"{subset_str}.p"
+
         if stage == "fit":
-            with open(self.split_dict["train"], "rb") as f:
+            with open(subset_str.format("train"), "rb") as f:
                 train_indices = p.load(f)
                 self.train_subset = Subset(self.dataset, train_indices)
 
-            with open(self.split_dict["val"], "rb") as f:
+            with open(subset_str.format("val"), "rb") as f:
                 val_indices = p.load(f)
                 self.val_subset = Subset(self.dataset, val_indices)
         if stage == "test":
-            with open(self.split_dict["test"], "rb") as f:
+            with open(subset_str.format("test"), "rb") as f:
                 test_indices = p.load(f)
                 self.test_subset = Subset(self.dataset, test_indices)

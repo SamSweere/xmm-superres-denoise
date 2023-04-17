@@ -74,10 +74,10 @@ class XmmSimDataset(Dataset):
         # Get all the image directories
         # Note that if the mode is agn we consider them as the base images
         lr_img_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"/{self.mode}/{self.lr_res_mult}x")
-        lr_img_files = find_img_files(lr_img_dirs)
+        lr_img_files = find_img_files(lr_img_dirs, "_mult_")
 
         hr_img_dirs = find_img_dirs(dataset_dir, self.hr_exp, f"/{self.mode}/{self.hr_res_mult}x")
-        hr_img_files = find_img_files(hr_img_dirs)
+        hr_img_files = find_img_files(hr_img_dirs, "_mult_")
 
         self.lr_img_files, self.hr_img_files, self.base_name_count = match_file_list(lr_img_files, hr_img_files,
                                                                                      "_mult_")  # TODO move to parameters
@@ -161,7 +161,7 @@ class XmmSimDataset(Dataset):
         if background_path:
             img["img"] += load_fits(background_path)["img"]
 
-        if det_mask:
+        if det_mask is not None:
             img["img"] *= det_mask  # Note the *=
 
         # The image has the shape (411, 403), we pad/crop this to (dataset_lr_res, dataset_lr_res)

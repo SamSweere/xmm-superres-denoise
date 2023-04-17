@@ -44,60 +44,14 @@ class BaseDataModule(LightningDataModule):
         self.val_subset = None
         self.test_subset = None
 
-        # Display datasets
-        self.sim_display_dataset = None
-        self.real_display_dataset = None
-        if config["display"]["sim_display_name"]:
-            from datasets import XmmSimDataset
-            self.sim_display_dataset = XmmSimDataset(
-                dataset_dir=Path(config["dir"]) / "display_datasets" / "xmm_sim_display_selection",
-                lr_res=config["lr_res"],
-                hr_res=config["hr_res"],
-                dataset_lr_res=config["dataset_lr_res"],
-                mode=config["mode"],
-                lr_exps=config["display"]["exposure"],
-                hr_exp=config["hr_exp"],
-                agn=False,
-                lr_background=False,
-                hr_background=False,
-                det_mask=config["det_mask"],
-                check_files=config["check_files"],
-                transform=self.transform,
-                normalize=self.normalize
-            )
-        if config["display"]["real_display_name"]:
-            from datasets import XmmDataset
-            self.real_display_dataset = XmmDataset(
-                dataset_dir=Path(config["dir"]) / "display_datasets" / "xmm_split_display_selection",
-                dataset_lr_res=config["dataset_lr_res"],
-                lr_exps=config["display"]["exposure"],
-                hr_exp=None,
-                det_mask=config["det_mask"],
-                check_files=config["check_files"],
-                transform=self.transform,
-                normalize=self.normalize
-            )
-
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return self.get_dataloader(self.train_subset, True)
 
-    def _get_display_dataloaders(self) -> EVAL_DATALOADERS:
-        dataloaders = []
-        if self.real_display_dataset:
-            dataloaders.append(self.get_dataloader(self.real_display_dataset))
-        if self.sim_display_dataset:
-            dataloaders.append(self.get_dataloader(self.sim_display_dataset))
-        return dataloaders
-
     def val_dataloader(self) -> EVAL_DATALOADERS:
-        dataloaders = [self.get_dataloader(self.val_subset)]
-        dataloaders.extend(self._get_display_dataloaders())
-        return dataloaders
+        return self.get_dataloader(self.val_subset)
 
     def test_dataloader(self) -> EVAL_DATALOADERS:
-        dataloaders = [self.get_dataloader(self.test_subset)]
-        dataloaders.extend(self._get_display_dataloaders())
-        return dataloaders
+        return self.get_dataloader(self.test_subset)
 
     def get_dataloader(self, dataset, shuffle=False):
         return DataLoader(
