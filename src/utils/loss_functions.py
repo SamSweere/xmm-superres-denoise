@@ -1,38 +1,38 @@
-import piq
+from typing import Dict, Tuple
+
 import torch
+from piq import psnr, multi_scale_ssim, ssim
+from pytorch_lightning import LightningModule
+from torch.nn.functional import l1_loss, poisson_nll_loss
 
-from utils.ssim import ssim as get_ssim, ms_ssim as get_ms_ssim
+_loss = {
+    "l1": l1_loss,
+    "poisson": poisson_nll_loss,
+    "psnr": psnr,
+    "ssim": ssim,
+    "ms_ssim": multi_scale_ssim
+}
 
 
-class LossFunctionHandler:
-    def __init__(self, data_scaling):
-        # Normalization based on val_sweep set of logical-sweep-80 epoch 49, batch_size = 4, filters = 32, residual_blocks = 4, learning_rate=0.00005
-        # first_epoch = {
-        #     "l1": 0.00001247,
-        #     "poisson": 0.000333,
-        #     "psnr": 28.644,
-        #     "ssim": 0.7027,
-        #     "ms_ssim": 0.93957
-        # }
+def _get_scaling(x1, x2, y1=1.0, y2=0.0):
+    # Based on linear formula y=ax+b
+    a = (y2 - y1) / (x2 - x1)
+    b = y1 - a * x1
 
-        # First epoch based on testing an untrained model with the same parameters as the above: winter-serenity-88
-        # TODO: this does not work well
-        # first_epoch = {
-        #     "l1": 0.00009351,
-        #     "poisson": 0.001509,
-        #     "psnr": 14.056,
-        #     "ssim": 0.1009,
-        #     "ms_ssim": 0.3597
-        # }
-        #
-        # first_epoch = {
-        #     "l1": 1.0,
-        #     "poisson": 1.0,
-        #     "psnr": 0.0,
-        #     "ssim": 0.0,
-        #     "ms_ssim": 0.0
-        # }
+    return a, b
 
+
+class LossFunctionHandler(LightningModule):
+    def __init__(
+            self,
+            data_scaling,
+            l1_p: float = 0.0,
+            poisson_p: float = 0.0,
+            psnr_p: float = 0.0,
+            ssim_p: float = 0.0,
+            ms_ssim_p: float = 0.0
+    ):
+        super(LossFunctionHandler, self).__init__()
         # The scaling and the scaled loss functions
         # These are based on randomly initialized untrained models
         zero_epoch = {
@@ -66,7 +66,8 @@ class LossFunctionHandler:
             },
         }
 
-        # Epoch 38 (training was not completely stable for all runs, probably due to the ADAM optimiser) of the runs: silver-butterfly0=-101, graceful-flower-100, cool-universe-99 and stellar-cloud-98
+        # Epoch 38 (training was not completely stable for all runs, probably due to the ADAM optimiser) of the runs:
+        # silver-butterfly0=-101, graceful-flower-100, cool-universe-99 and stellar-cloud-98
         last_epoch = {
             "linear": {
                 "l1": 0.02097,
@@ -98,143 +99,63 @@ class LossFunctionHandler:
             },
         }
 
-        #
-        # last_epoch = {
-        #     "l1": 0.00001171,
-        #     "poisson": 0.0003323,
-        #     "psnr": 29.342,
-        #     "ssim": 0.7269,
-        #     "ms_ssim": 0.9502
-        # }
+        sum_total_p = l1_p + poisson_p + psnr_p + ssim_p + ms_ssim_p
+        if not sum_total_p > 0.0:
+            raise AttributeError(f"No loss function will be created with "
+                                 f"l1_p={l1_p}, poisson_p={poisson_p}, psnr_p={psnr_p}, "
+                                 f"ssim_p={ssim_p}, ms_ssim_p={ms_ssim_p}!")
 
-        # # Calculate the deltas between the start and end of training, this will be used to scale the loss functions
-        # # with respect to each other
-        # delta_loss = {}
-        # for key in first_epoch.keys():
-        #     delta_loss[key] = abs(last_epoch[key] - first_epoch[key])
+        l1_p = l1_p / sum_total_p
+        poisson_p = poisson_p / sum_total_p
+        psnr_p = psnr_p / sum_total_p
+        ssim_p = ssim_p / sum_total_p
+        ms_ssim_p = ms_ssim_p / sum_total_p
 
-        # We target the loss to be descending starting around 1.0 and ending around 0.0
+        loss_dict: Dict[str, Tuple[float, float, float]] = {}
 
-        self.__scaled_loss_fs = {}
-
-        # L1 loss
-        l1_scaling, l1_correction = self.__get_scaling(
-            x1=zero_epoch[data_scaling]["l1"], x2=last_epoch[data_scaling]["l1"]
-        )
-        self.__scaled_loss_fs["l1"] = (
-            lambda x, y: l1_scaling * torch.nn.L1Loss()(x, y) + l1_correction
-        )
-
-        # Poisson loss
-        poisson_scaling, poisson_correction = self.__get_scaling(
-            x1=zero_epoch[data_scaling]["poisson"],
-            x2=last_epoch[data_scaling]["poisson"],
-        )
-        self.__scaled_loss_fs["poisson"] = (
-            lambda x, y: poisson_scaling
-            * torch.nn.PoissonNLLLoss(log_input=False)(x, y)
-            + poisson_correction
-        )
-
-        # PSNR loss
-        # psnr is a rising metric, therefore inverse the scale
-        psnr_scaling, psnr_correction = self.__get_scaling(
-            x1=zero_epoch[data_scaling]["psnr"], x2=last_epoch[data_scaling]["psnr"]
-        )
-        self.__scaled_loss_fs["psnr"] = (
-            lambda x, y: psnr_scaling * piq.psnr(x=x, y=y, data_range=1.0)
-            + psnr_correction
-        )
-
-        # SSIM settings
-        winsize = 13
-        sigma = 2.5
-        ms_weights = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
-        K = (0.01, 0.05)
-
-        # ssim is a rising metric, therefore inverse the scale
-
-        # SSIM loss
-        ssim_scaling, ssim_correction = self.__get_scaling(
-            x1=zero_epoch[data_scaling]["ssim"], x2=last_epoch[data_scaling]["ssim"]
-        )
-        self.__scaled_loss_fs["ssim"] = (
-            lambda x, y: ssim_scaling
-            * get_ssim(
-                X=x, Y=y, win_size=winsize, win_sigma=sigma, data_range=1.0, K=K
-            )[0]
-            + ssim_correction
-        )
-
-        # MS_SSIM loss
-        ms_ssim_scaling, ms_ssim_correction = self.__get_scaling(
-            x1=zero_epoch[data_scaling]["ms_ssim"],
-            x2=last_epoch[data_scaling]["ms_ssim"],
-        )
-        self.__scaled_loss_fs["ms_ssim"] = (
-            lambda x, y: ms_ssim_scaling
-            * get_ms_ssim(
-                X=x,
-                Y=y,
-                win_size=winsize,
-                win_sigma=sigma,
-                data_range=1.0,
-                weights=ms_weights,
-                K=K,
-            )
-            + ms_ssim_correction
-        )
-
-    def __get_scaling(self, x1, x2, y1=1.0, y2=0.0):
-        # Based on linear formula y=ax+b
-        a = (y2 - y1) / (x2 - x1)
-        b = y1 - a * x1
-
-        return a, b
-
-    def get_loss_f(self, l1_p, poisson_p, psnr_p, ssim_p, ms_ssim_p):
-        # Loss the loss p give the relative percentages
-        sum_total = l1_p + poisson_p + psnr_p + ssim_p + ms_ssim_p
-
-        # Add only losses that have a factor, this prevents the loss metric calculation to then be multplied by 0, wasting compute time
-        loss_names = []
-        loss_scaling = []
         if l1_p > 0.0:
-            loss_names.append("l1")
-            loss_scaling.append(l1_p / sum_total)
+            # L1 loss
+            scaling, correction = _get_scaling(x1=zero_epoch[data_scaling]["l1"], x2=last_epoch[data_scaling]["l1"])
+            loss_dict["l1"] = (l1_p, scaling, correction)
 
         if poisson_p > 0.0:
-            loss_names.append("poisson")
-            loss_scaling.append(poisson_p / sum_total)
+            # Poisson loss
+            scaling, correction = _get_scaling(x1=zero_epoch[data_scaling]["poisson"],
+                                               x2=last_epoch[data_scaling]["poisson"])
+            loss_dict["poisson"] = (poisson_p, scaling, correction)
 
         if psnr_p > 0.0:
-            loss_names.append("psnr")
-            loss_scaling.append(psnr_p / sum_total)
+            # PSNR loss
+            # psnr is a rising metric, therefore inverse the scale
+            scaling, correction = _get_scaling(x1=zero_epoch[data_scaling]["psnr"], x2=last_epoch[data_scaling]["psnr"])
+            loss_dict["psnr"] = (psnr_p, scaling, correction)
 
-        if ssim_p > 0.0:
-            loss_names.append("ssim")
-            loss_scaling.append(ssim_p / sum_total)
+        if ssim_p > 0.0 or ms_ssim_p > 0.0:
+            # SSIM settings
+            if ssim_p > 0.0:
+                # ssim is a rising metric, therefore inverse the scale
 
-        if ms_ssim_p > 0.0:
-            loss_names.append("ms_ssim")
-            loss_scaling.append(ms_ssim_p / sum_total)
+                # SSIM loss
+                scaling, correction = _get_scaling(x1=zero_epoch[data_scaling]["ssim"],
+                                                   x2=last_epoch[data_scaling]["ssim"])
+                loss_dict["ssim"] = (ssim_p, scaling, correction)
 
-        combined_loss_s = ""
-        for scaling, loss_name in zip(loss_scaling, loss_names):
-            if combined_loss_s != "":
-                combined_loss_s += " + "
-            combined_loss_s += str(round(scaling, 4)) + "*" + "scaled_" + loss_name
-        print("combined_loss_f =", combined_loss_s)
+            if ms_ssim_p > 0.0:
+                # MS_SSIM loss
+                scaling, correction = _get_scaling(x1=zero_epoch[data_scaling]["ms_ssim"],
+                                                   x2=last_epoch[data_scaling]["ms_ssim"])
+                loss_dict["ms_ssim"] = (ms_ssim_p, scaling, correction)
 
-        # Combine the loss functions
-        combined_loss_f = lambda x, y: sum(
-            list(
-                scaling * self.__scaled_loss_fs[loss_name](x, y)
-                for scaling, loss_name in zip(loss_scaling, loss_names)
-            )
-        )
-        return combined_loss_f
+        self.loss_dict = loss_dict
 
+        str_loss = ""
+        for loss, scalings in self.loss_dict.items():
+            str_loss += f"{round(scalings[0], 4)} * ({round(scalings[1], 4)} * {loss} + {round(scalings[2], 4)}) + "
+        str_loss = str_loss[:-2]
+        print(f"combined_loss_f = {str_loss}")
 
-if __name__ == "__main__":
-    LossFunctionHandler()
+    def forward(self, pred, true):
+        loss = torch.as_tensor(0).to(self.device)
+        for loss_name, floats in self.loss_dict.items():
+            loss = loss + floats[0] * (floats[1] * _loss[loss_name](pred, true) + floats[2])
+        return loss

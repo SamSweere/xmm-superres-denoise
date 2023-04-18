@@ -10,15 +10,9 @@ def linear_scale(x, inverse=False):
 
 def sqrt_scale(x, inverse=False):
     if type(x) == Tensor:
-        if inverse:
-            return torch.pow(x, 2)
-        else:
-            return torch.sqrt(x)
+        return torch.pow(x, 2) if inverse else torch.sqrt(x)
     else:
-        if inverse:
-            return np.power(x, 2)
-        else:
-            return np.sqrt(x)
+        return np.power(x, 2) if inverse else np.sqrt(x)
 
 
 def asinh_scale(x, a=0.02, inverse=False):
@@ -40,22 +34,11 @@ def log_scale(x, a=1000, inverse=False):
     if type(x) == Tensor:
         a = tensor(a)
         if inverse:
-            return (a**x - 1) / a
+            return (a ** x - 1) / a
         else:
             return torch.log(a * x + 1) / torch.log(a)
     else:
         if inverse:
-            return (a**x - 1) / a
+            return (a ** x - 1) / a
         else:
             return np.log(a * x + 1) / np.log(a)
-
-
-if __name__ == "__main__":
-    print(linear_scale(linear_scale(np.array([1234])), inverse=True))
-    print(linear_scale(linear_scale(Tensor([1234])), inverse=True))
-    print(sqrt_scale(sqrt_scale(np.array([1234])), inverse=True))
-    print(sqrt_scale(sqrt_scale(Tensor([1234])), inverse=True))
-    print(asinh_scale(asinh_scale(np.array([1234])), inverse=True))
-    print(asinh_scale(asinh_scale(Tensor([1234])), inverse=True))
-    print(log_scale(log_scale(np.array([1234])), inverse=True))
-    print(log_scale(log_scale(Tensor([1234])), inverse=True))

@@ -1,489 +1,318 @@
 # Written by: Sam Sweere
-import os
+from collections import defaultdict
+from pathlib import Path
+from typing import Dict, Union, List, Optional
 
 import numpy as np
+import pandas as pd
 import pytorch_lightning as pl
 import torch
-import wandb
 from matplotlib import cm
+from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.utilities.types import EVAL_DATALOADERS
+from torchmetrics.functional import structural_similarity_index_measure as ssim
 
-from transforms import ImageUpsample
-from utils.metriclogger import MetricLogger
+from datasets import XmmDisplayDataModule
 from utils.filehandling import write_xmm_file_to_fits
-from utils.ssim import ssim as get_ssim
+
+_img_val_dict = {
+    "input": {
+        "cm": "plasma",
+        "norm": False,
+        "key": "{0}/input/{1}",
+        "metric": ["psnr_in", "ssim_in"],
+        "caption": "input {0} / {1}"
+    },
+    "generated": {
+        "cm": "plasma",
+        "norm": False,
+        "key": "{0}/generated/{1}",
+        "metric": ["psnr", "ssim"],
+        "caption": "generated {0} / {1}"
+    },
+    "label": {
+        "cm": "plasma",
+        "norm": False,
+        "key": "{0}/label/{1}",
+        "metric": [],
+        "caption": "label"
+    },
+    "difference": {
+        "cm": "seismic",
+        "norm": True,
+        "key": "{0}/difference/{1}",
+        "metric": [],
+        "caption": "difference"
+    },
+    "ssim": {
+        "cm": "seismic",
+        "norm": True,
+        "key": "{0}/ssim map/{1}",
+        "metric": ["ssim"],
+        "caption": "{0}"
+    }
+}
+
+
+def _apply_cm(colormap, image, scale=None, normalize=False):
+    if scale:
+        image = scale(image)
+
+    if normalize:
+        # Normalize the image to 0.0 and 1.0
+        image = image / torch.max(image)
+
+    return cm.get_cmap(colormap)(image)
+
+
+def _convert_images_to_cm(colormap, images, scale=None, normalize=False):
+    images_cm = [_apply_cm(colormap, image.squeeze().cpu(), scale=scale, normalize=normalize) for image in images]
+    return images_cm
+
+
+def to_wandb(logger, img_type, scale_normalizer, images, metrics, stage):
+    key = _img_val_dict[img_type]["key"]
+    metric = _img_val_dict[img_type]["metric"]
+    caption = _img_val_dict[img_type]["caption"]
+    colormap = _img_val_dict[img_type]["cm"]
+    norm = _img_val_dict[img_type]["norm"]
+    key_format = key.format(stage, scale_normalizer)
+
+    images = _convert_images_to_cm(colormap, images, normalize=norm)
+
+    captions = []
+    img_metrics = [metrics[f"{m}"] for m in metric]
+    if len(img_metrics) == 1:
+        captions.extend([caption.format(m1) for m1 in img_metrics[0]])
+    elif len(img_metrics) == 2:
+        captions.extend([caption.format(m1, m2) for m1, m2 in zip(img_metrics[0], img_metrics[1])])
+
+    if captions:
+        logger.log_image(key=key_format, images=images, caption=captions)
+    else:
+        logger.log_image(key=key_format, images=images)
+
+
+def _write_fits(
+        parent_dir: Path,
+        imgs: torch.Tensor,
+        exps: torch.Tensor,
+        imgs_filenames: List[str],
+        res_mult: int,
+        comment: str,
+        out_file_name: str
+) -> None:
+    for img, exp, img_filename in zip(imgs, exps, imgs_filenames):
+        out_path = parent_dir / f"{img_filename[:60]}"
+        out_path.mkdir(parents=True, exist_ok=True)
+        img = img * exp
+        write_xmm_file_to_fits(
+            img=img[0].detach().cpu().numpy(),
+            output_dir=out_path,
+            source_file_name=img_filename,
+            res_mult=res_mult,
+            exposure=exp.detach().item(),
+            comment=comment,
+            out_file_name=out_file_name
+        )
+
+
+def _save_fits_image(
+        parent_dir: Path,
+        lr_imgs: torch.Tensor,
+        preds: torch.Tensor,
+        labels: Optional[torch.Tensor],
+        lr_exps: torch.Tensor,
+        hr_exps: torch.Tensor,
+        filenames: List[str],
+):
+    lr_exps = lr_exps * 1000
+    hr_exps = hr_exps * 1000
+
+    _write_fits(
+        parent_dir=parent_dir,
+        imgs=lr_imgs,
+        exps=lr_exps,
+        imgs_filenames=filenames,
+        res_mult=1,
+        comment="Transformed Input Image (input to model)",
+        out_file_name="input"
+    )
+
+    out_res_mult = int(preds.shape[-1] / lr_imgs.shape[-1])
+
+    _write_fits(
+        parent_dir=parent_dir,
+        imgs=preds,
+        exps=hr_exps,
+        imgs_filenames=filenames,
+        res_mult=out_res_mult,
+        comment="Model Prediction",
+        out_file_name="prediction"
+    )
+
+    if labels is not None:
+        _write_fits(
+            parent_dir=parent_dir,
+            imgs=labels,
+            exps=hr_exps,
+            imgs_filenames=filenames,
+            res_mult=out_res_mult,
+            comment="Reference Image",
+            out_file_name="label"
+        )
 
 
 class ImageLogger(pl.Callback):
     def __init__(
-        self,
-        real_samples,
-        sim_samples,
-        log_every_n_epochs,
-        normalize,
-        scaling_normalizers,
-        data_range,
+            self,
+            datamodule: XmmDisplayDataModule,
+            log_every_n_epochs,
+            normalize,
+            scaling_normalizers,
+            data_range,
     ):
-        super().__init__()
+        super(ImageLogger, self).__init__()
 
-        self.real_samples = real_samples
-        self.sim_samples = sim_samples
+        self.datamodule = datamodule
         self.normalize = normalize
         self.scaling_normalizers = scaling_normalizers
         self.data_range = data_range
 
-        # Save upsampling operation that potentially has to be done
-        lr_res = sim_samples[0]["lr"].shape[-1]
-        hr_res = sim_samples[0]["hr"].shape[-1]
-
-        if lr_res != hr_res:
-            self.upsample = ImageUpsample(scale_factor=int(hr_res / lr_res))
-        else:
-            # "images_combined_cm": images_combined_cm,
-            self.upsample = None
-        self.metriclogger = MetricLogger(
-            normalize=normalize,
-            scaling_normalizers=scaling_normalizers,
-            data_range=data_range,
-        )
-
         self.log_every_n_epochs = log_every_n_epochs
 
-    def _generate_images_scaled(self, x, pred, y, scale_normalizer):
-        # Scale the images
-        x = scale_normalizer.normalize_hr_image(
-            x
-        )  # Note that the x has been upscaled here
-        pred = scale_normalizer.normalize_hr_image(pred)
-        y = scale_normalizer.normalize_hr_image(y)
+    @rank_zero_only
+    def _get_samples(
+            self,
+            pl_module: "pl.LightningModule",
+            dataloaders: EVAL_DATALOADERS
+    ) -> Dict[str, Union[torch.Tensor, List[str]]]:
+        outputs = {
+            "lr": [],
+            "pred": [],
+            "true": [],
+            "lr_exp": [],
+            "hr_exp": [],
+            "filenames": []
+        }
+        for dataloader in dataloaders:
+            for batch in dataloader:
+                lr = batch["lr"].to(pl_module.device)
+                lr_exp = batch["lr_exp"]
 
-        # Calculate the difference images befre we denormalize the images
-        # Calculate the difference of the image.
-        # This is done by ((pred - img)+1)/2 such that if it is the same the value is 0.5 and
-        # the difference is maximal -1, 1
+                pred = pl_module(lr)
 
-        difference = ((pred - y) + 1.0) / 2.0
+                if "hr" in batch:
+                    true = batch["hr"].to(pl_module.device)
+                    hr_exp = batch["hr_exp"]
+                else:
+                    true = pred.detach().clone()
+                    hr_exp = lr_exp
 
-        # Calculate the ssim images from the denormalized images
-        # SSIM settings
-        winsize = 13
-        sigma = 2.5
-        ms_weights = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
-        K = (0.01, 0.05)
+                lr = torch.flip(lr, [-2]).detach()
+                pred = torch.flip(pred, [-2]).detach()
+                true = torch.flip(true, [-2]).detach()
 
-        ssim_img = get_ssim(
-            torch.unsqueeze(pred, 0),
-            torch.unsqueeze(y, 0),
-            win_size=winsize,
-            win_sigma=sigma,
-            data_range=self.data_range,
-            K=K,
-        )[1]
+                outputs["lr"].append(lr)
+                outputs["pred"].append(pred)
+                outputs["true"].append(true)
+                outputs["lr_exp"].append(lr_exp)
+                outputs["hr_exp"].append(hr_exp)
+                outputs["filenames"].extend(batch["lr_img_file_name"])
 
-        return x, pred, y, difference, ssim_img
+        outputs["lr"] = torch.cat(outputs["lr"], dim=0)
+        outputs["pred"] = torch.cat(outputs["pred"], dim=0)
+        outputs["true"] = torch.cat(outputs["true"], dim=0)
+        outputs["lr_exp"] = torch.cat(outputs["lr_exp"], dim=0).to(pl_module.device)
+        outputs["hr_exp"] = torch.cat(outputs["hr_exp"], dim=0).to(pl_module.device)
 
-    def _save_fits_image(
-        self, x, pred, label, lr_exp, hr_exp, name, metrics, generate_label
+        return outputs
+
+    @rank_zero_only
+    def _log_images(
+            self,
+            logger: WandbLogger,
+            pl_module: "pl.LightningModule",
+            dataloaders: EVAL_DATALOADERS,
+            stage: str,
+            first_epoch: bool = False
     ):
-        lr_exp = lr_exp * 1000
-        hr_exp = hr_exp * 1000
+        outputs: Dict[str, Union[torch.Tensor, List[str]]] = self._get_samples(pl_module, dataloaders)
 
-        # flip the images to be correct
-        x = torch.flip(x, [-2])
-        pred = torch.flip(pred, [-2])
-        label = torch.flip(label, [-2])
+        lr = outputs.pop("lr")
+        pred = outputs.pop("pred")
+        true = outputs.pop("true")
 
-        x = (x * lr_exp)[0].detach().cpu().numpy()
-        pred = (pred * hr_exp)[0].detach().cpu().numpy()
-        label = (label * hr_exp)[0].detach().cpu().numpy()
+        lr_exp = outputs.pop("lr_exp")
+        hr_exp = outputs.pop("hr_exp")
 
-        output_dir = os.path.join(
-            wandb.run.dir, "fits_out", name[:60]
-        )  # Limit the length
-        os.makedirs(output_dir)
+        real_indices = lr_exp == hr_exp
+        sim_indices = lr_exp != hr_exp
 
-        # Add the metric header
-        metrics = metrics[0]
-        # metrics_header = {}
-        metricsfile = open(os.path.join(output_dir, "metrics.txt"), "w")
-        for data_scaling in metrics.keys():
+        filenames = np.asarray(outputs.pop("filenames"))
 
-            for metric_name in metrics[data_scaling].keys():
-                final_key = metric_name + "_" + data_scaling
-                # metrics_header[final_key] = metrics[data_scaling][metric_name]
+        for display_type, indices in zip(["real", "sim"], [real_indices, sim_indices]):
+            lr_sub = lr[indices]
+            pred_sub = pred[indices]
+            true_sub = true[indices]
+            lr_exp_sub = lr_exp[indices]
+            hr_exp_sub = hr_exp[indices]
+            filenames_sub = filenames[indices.cpu().numpy()].tolist()
 
-                # Write the metrics also to file
-                metricsfile.write(
-                    final_key + ", " + str(metrics[data_scaling][metric_name]) + "\n"
-                )
+            m = pl_module.metrics_calculator(lr_sub, pred_sub, true_sub, batch=False, log_inputs=True)
 
-        metricsfile.close()
+            lr_sub = self.normalize.denormalize_hr_image(lr_sub)
+            pred_sub = self.normalize.denormalize_hr_image(pred_sub)
+            true_sub = self.normalize.denormalize_hr_image(true_sub)
 
-        write_xmm_file_to_fits(
-            img=x,
-            output_dir=output_dir,
-            source_file_name=name,
-            res_mult=1,
-            exposure=lr_exp.detach().item(),
-            comment="Transformed Input Image (input to model)",
-            out_file_name="input",
-        )
-
-        out_res_mult = int(pred.shape[0] / x.shape[0])
-
-        write_xmm_file_to_fits(
-            img=pred,
-            output_dir=output_dir,
-            source_file_name=name,
-            res_mult=out_res_mult,
-            exposure=hr_exp.detach().item(),
-            comment="Model Prediction",
-            out_file_name="prediction",
-            in_header=None,
-        )
-
-        if generate_label:
-            write_xmm_file_to_fits(
-                img=label,
-                output_dir=output_dir,
-                source_file_name=name,
-                res_mult=out_res_mult,
-                exposure=hr_exp.detach().item(),
-                comment="Reference Image",
-                out_file_name="label",
+            _save_fits_image(
+                parent_dir=Path(logger.experiment.dir) / "fits_out" / f"{stage}" / f"{display_type}",
+                lr_imgs=lr_sub,
+                preds=pred_sub,
+                labels=true_sub if display_type == "sim" else None,
+                lr_exps=lr_exp_sub,
+                hr_exps=hr_exp_sub,
+                filenames=filenames_sub
             )
+            metrics = defaultdict(dict)
+            for stretch_mode, metric_value in m.items():
+                for metric, value in metric_value.items():
+                    metrics[stretch_mode][metric] = torch.mean(value).item()
+            metrics = pd.DataFrame.from_dict(metrics)
+            logger.log_table(key=f"{display_type}_display metrics", dataframe=metrics)
 
-        # Save all files that currently exist in the output folder
-        wandb.save(os.path.join(output_dir, "*"), base_path=output_dir)
-
-    def _generate_images(
-        self, trainer, pl_module, samples, generate_label, save_fits=False
-    ):
-        input_images_filenames = []
-        metrics = []
-
-        input_images = {}
-        generated_images = {}
-        label_images = {}
-        difference_images = {}
-        ssim_images = {}
-
-        for scale_normalizer in self.scaling_normalizers:
-            stretch_name = scale_normalizer.stretch_mode
-            input_images[stretch_name] = []
-            generated_images[stretch_name] = []
-            label_images[stretch_name] = []
-            difference_images[stretch_name] = []
-            ssim_images[stretch_name] = []
-
-        pl_module.eval()
-
-        for sample in samples:
-            imgs = sample["lr"]
-            imgs = imgs.to(device=pl_module.device)
-
-            img_filenames = sample["lr_img_file_name"]
-            # labels = sample['hr']
-
-            preds = pl_module(imgs)
-
-            # Generate the combined images
-            # for x, pred, y in zip(sample['lr_gt'], preds, sample['hr_gt']):
-            ## Ivan change
-            if generate_label:
-                label = sample["hr"]
-                hr_exps = sample["hr_exp"]
-            else:
-            # If we do not want the label images, make the label images the pred images, this simplifies the code
-            # Since we can later not send the label images
-                label = preds
-                hr_exps = sample["lr_exp"]
-
-            for x, pred, y, file_name, lr_exp, hr_exp in zip(
-                imgs, preds, label, img_filenames, sample["lr_exp"], hr_exps
-            ):
-                x = x.to(pl_module.device)
-
-                if len(x.shape) == 3 and x.shape[0] >= 2:
-                    # Remove the exposure mask layer
-                    x = x[0, :, :].reshape(1, x.shape[1], x.shape[2])
-
-                if len(x.shape) >= 4 and x.shape[1] >= 2:
-                    # Remove the exposure mask layer
-                    x = x[:, 0, :, :].reshape(x.shape[0], 1, x.shape[2], x.shape[3])
-
-                pred = pred.to(pl_module.device)
-
-                # Remove the exposure mask if it is present from the second layer
-                if x.shape[0] >= 2:
-                    x = x[0:1, :, :]
-
-                if generate_label:
-                    y = y.to(pl_module.device)
-
-                # flip the images to be correct
-                x = torch.flip(x, [-2])
-                pred = torch.flip(pred, [-2])
-                y = torch.flip(y, [-2])
-
-                # Denormalize the images in order to show the final output images
-                x = self.normalize.denormalize_lr_image(x)
-
-                if save_fits:
-                    # Clone the original output for the savefits
-                    x_org = x.clone()
-
-                pred = self.normalize.denormalize_hr_image(pred)
-
-                y = self.normalize.denormalize_hr_image(y)
-
-                # Upscale the input image to be able to compare it
-                if self.upsample:
-                    x = self.upsample(x)
-
-                metrics_gen = self.metriclogger.get_metrics(x, pred, y, log_inputs=True)
-
-                if save_fits:
-                    self._save_fits_image(
-                        x=x_org,
-                        pred=pred,
-                        label=y,
-                        lr_exp=lr_exp,
-                        hr_exp=hr_exp,
-                        name=file_name,
-                        metrics=metrics_gen,
-                        generate_label=generate_label,
-                    )
-
-                metrics += metrics_gen
-
-                input_images_filenames.append(file_name)
-
+            if first_epoch:
                 for scale_normalizer in self.scaling_normalizers:
                     stretch_name = scale_normalizer.stretch_mode
-                    scaling_f = scale_normalizer.stretch_f
+                    scaled_lr = scale_normalizer.normalize_lr_image(lr_sub)
+                    to_wandb(logger, "input", stretch_name, scaled_lr, m[stretch_name], f"{display_type}")
 
-                    x_s, pred_s, y_s, diff_s, ssim_img_s = self._generate_images_scaled(
-                        x=x, pred=pred, y=y, scale_normalizer=scale_normalizer
-                    )
-                    input_images[stretch_name].append(x_s)
-                    generated_images[stretch_name].append(pred_s)
-                    label_images[stretch_name].append(y_s)
-                    difference_images[stretch_name].append(diff_s)
-                    ssim_images[stretch_name].append(ssim_img_s)
-
-        # Sort all the images based on the filename, this way they always show in the same order over multiple runs
-        # (The dataloader seems not to be determnistic under different batch sizes)
-        # Sort the lists based on the img_filenames
-        img_filenames_arr = np.array(input_images_filenames)
-        inds = list(img_filenames_arr.argsort())
-
-        for scale_normalizer in self.scaling_normalizers:
-            stretch_name = scale_normalizer.stretch_mode
-
-            input_images[stretch_name] = [input_images[stretch_name][i] for i in inds]
-            generated_images[stretch_name] = [
-                generated_images[stretch_name][i] for i in inds
-            ]
-            label_images[stretch_name] = [label_images[stretch_name][i] for i in inds]
-            difference_images[stretch_name] = [
-                difference_images[stretch_name][i] for i in inds
-            ]
-            ssim_images[stretch_name] = [ssim_images[stretch_name][i] for i in inds]
-
-        input_images_cm = {}
-        generated_images_cm = {}
-        label_images_cm = {}
-        ssim_images_cm = {}
-        difference_images_cm = {}
-
-        for scale_normalizer in self.scaling_normalizers:
-            stretch_name = scale_normalizer.stretch_mode
-
-            # Convert the images to plasma colormap
-            plasma = cm.get_cmap("plasma")
-            input_images_cm[stretch_name] = self.convert_images_to_cm(
-                plasma, input_images[stretch_name], normalize=False
-            )
-
-            generated_images_cm[stretch_name] = self.convert_images_to_cm(
-                plasma, generated_images[stretch_name], normalize=False
-            )
-
-            label_images_cm[stretch_name] = self.convert_images_to_cm(
-                plasma, label_images[stretch_name], normalize=False
-            )
-
-            # Choose a colormap for the ssim difference images
-            viridis_r = cm.get_cmap("seismic")
-            ssim_images_cm[stretch_name] = self.convert_images_to_cm(
-                viridis_r, ssim_images[stretch_name]
-            )
-
-            # Choose a colormap diverging colormap
-            seismic = cm.get_cmap("seismic")
-            difference_images_cm[stretch_name] = self.convert_images_to_cm(
-                seismic, difference_images[stretch_name]
-            )
-
-        # Combine all the generated images into a dict file
-        images_dict = {
-            "input_images_cm": input_images_cm,
-            "generated_images_cm": generated_images_cm,
-            "label_images_cm": label_images_cm,
-            "difference_images_cm": difference_images_cm,
-            "ssim_images_cm": ssim_images_cm,
-        }
-
-        return images_dict, metrics
-
-    def apply_cm(self, colormap, image, scale=None, normalize=False):
-        image = np.array(image.detach().cpu())[0]
-        if scale:
-            image = scale(image)
-
-        if normalize:
-            # Normalize the image to 0.0 and 1.0
-            image = image / np.max(image)
-
-        return colormap(image)
-
-    def convert_images_to_cm(self, colormap, images, scale=None, normalize=False):
-        images_cm = []
-        for image in images:
-            if type(image) == dict:
-                images_cm_dict = {}
-                for key in image:
-                    images_cm_dict[key] = self.apply_cm(
-                        colormap, image[key], scale=scale, normalize=normalize
-                    )
-                images_cm.append(images_cm_dict)
+                    if display_type == "sim":
+                        scaled_labels = scale_normalizer.normalize_hr_image(true_sub)
+                        to_wandb(logger, "label", stretch_name, scaled_labels, m[stretch_name], f"{display_type}")
             else:
-                images_cm.append(
-                    self.apply_cm(colormap, image, scale=scale, normalize=normalize)
-                )
+                for scale_normalizer in self.scaling_normalizers:
+                    stretch_name = scale_normalizer.stretch_mode
 
-        return images_cm
+                    scaled_pred = scale_normalizer.normalize_hr_image(pred_sub)
+                    to_wandb(logger, "generated", stretch_name, scaled_pred, m[stretch_name], f"{stage}/{display_type}")
 
-    def _log_images(
-        self, trainer, pl_module, images_dict, metrics, stage, generate_label
-    ):
+                    if display_type == "sim":
+                        scaled_true = scale_normalizer.normalize_hr_image(true_sub)
+                        ssim_image = ssim(preds=scaled_pred, target=scaled_true, sigma=2.5, kernel_size=13,
+                                          data_range=self.data_range, k1=0.01, k2=0.05, return_full_image=True)[1]
+                        to_wandb(logger, "ssim", stretch_name, ssim_image, m[stretch_name], f"{stage}/{display_type}")
+                        difference_image = ((scaled_pred - scaled_true) + 1.0) / 2.0
+                        to_wandb(logger, "difference", stretch_name, difference_image, m[stretch_name],
+                                 f"{stage}/{display_type}")
 
-        image_log_dict = {"global_step": trainer.global_step, "commit": False}
+    @rank_zero_only
+    def on_validation_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        if trainer.current_epoch == 0 and not trainer.sanity_checking:
+            self._log_images(trainer.logger, pl_module, self.datamodule.val_dataloader(), "val", True)
+        if (trainer.current_epoch + 1) % self.log_every_n_epochs == 0:
+            self._log_images(trainer.logger, pl_module, self.datamodule.val_dataloader(), "val")
 
-        for scale_normalizer in self.scaling_normalizers:
-            stretch_name = scale_normalizer.stretch_mode
-
-            # Colormap images
-            image_log_dict[stage + "/input images " + stretch_name] = [
-                wandb.Image(
-                    x,
-                    caption=f"input {round(metrics[stretch_name]['psnr_in'], 2)} / {round(metrics[stretch_name]['ssim_in'], 4)}",
-                )
-                for x, metrics in zip(
-                    images_dict["input_images_cm"][stretch_name], metrics
-                )
-            ]
-
-            image_log_dict[
-                stage + "/generated images " + stretch_name + " (psnr/ssim)"
-            ] = [
-                wandb.Image(
-                    x,
-                    caption=f"generated {round(metrics[stretch_name]['psnr'], 2)} / {round(metrics[stretch_name]['ssim'], 4)}",
-                )
-                for x, metrics in zip(
-                    images_dict["generated_images_cm"][stretch_name], metrics
-                )
-            ]
-
-            if generate_label:
-                image_log_dict[stage + "/label images " + stretch_name] = [
-                    wandb.Image(x, caption="label")
-                    for x in images_dict["label_images_cm"][stretch_name]
-                ]
-
-            image_log_dict[stage + "/difference images " + stretch_name] = [
-                wandb.Image(x, caption="difference")
-                for x in images_dict["difference_images_cm"][stretch_name]
-            ]
-
-            image_log_dict[stage + "/ssim map images " + stretch_name + " (ssim)"] = [
-                wandb.Image(x, caption=f"{round(metrics[stretch_name]['ssim'], 6)}")
-                for x, metrics in zip(
-                    images_dict["ssim_images_cm"][stretch_name], metrics
-                )
-            ]
-
-        trainer.logger.experiment.log(image_log_dict)
-
-    def on_validation_epoch_end(self, trainer, pl_module):
-        # Only log the images every n epochs to reduce the amount of generated data
-        # print("In val epoch end, epoch:", trainer.current_epoch)
-        # try:
-
-        # print("Current epoch:", trainer.current_epoch)
-        # print("self.log_every_n_epochs:", self.log_every_n_epochs)
-        # print("trainer.current_epoch % self.log_every_n_epochs != 0:", trainer.current_epoch % self.log_every_n_epochs != 0)
-
-        if trainer.current_epoch % self.log_every_n_epochs != 0:
-            # print("Not logging images")
-            return
-
-        # print("Logging images")
-
-        sim_images_dict, sim_metrics = self._generate_images(
-            trainer, pl_module, samples=self.sim_samples, generate_label=True
-        )
-        real_images_dict, real_metrics = self._generate_images(
-            trainer, pl_module, samples=self.real_samples, generate_label=True
-        )
-        self._log_images(
-            trainer,
-            pl_module,
-            sim_images_dict,
-            sim_metrics,
-            stage="val_sim",
-            generate_label=True,
-        )
-        self._log_images(
-            trainer,
-            pl_module,
-            real_images_dict,
-            real_metrics,
-            stage="val_real",
-            generate_label=True,
-        )
-        # except Exception as e:
-        #     print("Failed to log validation images: ", e)
-
-    def on_test_epoch_end(self, trainer, pl_module):
-        sim_images_dict, sim_metrics = self._generate_images(
-            trainer,
-            pl_module,
-            samples=self.sim_samples,
-            generate_label=True,
-            save_fits=True,
-        )
-        real_images_dict, real_metrics = self._generate_images(
-            trainer,
-            pl_module,
-            samples=self.real_samples,
-            generate_label=False,
-            save_fits=True,
-        )
-        self._log_images(
-            trainer,
-            pl_module,
-            sim_images_dict,
-            sim_metrics,
-            stage="test_sim",
-            generate_label=True,
-        )
-        self._log_images(
-            trainer,
-            pl_module,
-            real_images_dict,
-            real_metrics,
-            stage="test_real",
-            generate_label=True,
-        )
+    def on_test_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        self._log_images(self.datamodule.test_dataloader(), pl_module, "test")

@@ -48,10 +48,10 @@ class DownsampleSum(object):
             return img
 
         if (
-            input_size != self.input_size
-            or self.input_size == 0
-            or self.kernel_size is None
-            or self.weights is None
+                input_size != self.input_size
+                or self.input_size == 0
+                or self.kernel_size is None
+                or self.weights is None
         ):
             # New input_size we cannot use the cache
             self.input_size = input_size

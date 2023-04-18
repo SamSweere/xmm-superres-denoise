@@ -20,16 +20,16 @@ def plot_img(img, title=None, figsize=(10, 10)):
 
 
 def plot_multiple_img(
-    images,
-    titles=None,
-    rows=None,
-    cols=None,
-    figsize=(10, 10),
-    merge=False,
-    colorbar=True,
-    save_fig=None,
-    show_plot=True,
-    wandb_log=False,
+        images,
+        titles=None,
+        rows=None,
+        cols=None,
+        figsize=(10, 10),
+        merge=False,
+        colorbar=True,
+        save_fig=None,
+        show_plot=True,
+        wandb_log=False,
 ):
     """Plot multiple images
 

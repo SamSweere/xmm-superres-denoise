@@ -15,14 +15,16 @@ from utils.filehandling import write_xmm_file_to_fits_wcs
 #
 # hardcoded location of the detector mask
 #
-cwd = os.path.dirname(os.path.abspath(__file__)) 
-detmask_file = cwd + '/../datasets/detector_mask/1x/pn_mask_500_2000_detxy_1x.ds'
-if not os.path.isfile(detmask_file):
-    print (f'Detector mask file {detmask_file} not found. Cannot continue!')
-    raise FileNotFoundError
+cwd = os.path.dirname(os.path.abspath(__file__))
 
-#%%
-def run_inference_on_file(fits_file,dataset_config,verbose=True):
+
+# detmask_file = cwd + '/../datasets/detector_mask/1x/pn_mask_500_2000_detxy_1x.ds'
+# if not os.path.isfile(detmask_file):
+#     print (f'Detector mask file {detmask_file} not found. Cannot continue!')
+#     raise FileNotFoundError
+
+# %%
+def run_inference_on_file(fits_file, dataset_config, verbose=True):
     '''
     Purpose:
         Run SR or DN inference on an input FITS file with real XMM-Newton image
@@ -45,18 +47,19 @@ def run_inference_on_file(fits_file,dataset_config,verbose=True):
     # some consistency checks
     #
     if not os.path.isfile(fits_file):
-        print (f'Input FITS file {fits_file} not found. Cannot continue!')
+        print(f'Input FITS file {fits_file} not found. Cannot continue!')
         return None
     output_path = os.path.dirname(os.path.abspath(fits_file))
     #
     # raise a warning if the exposure (ONTIME) in the inpt fitsfile is outside 20 ks +/- 5ks
     #
     hdr = fits.getheader(fits_file)
-    ontime = hdr['EXPOSURE']/1000.0 # in ks
+    ontime = hdr['EXPOSURE'] / 1000.0  # in ks
     if (ontime >= 25.0 or ontime <= 15.0):
-        print (f'Warning: the networks were trained on 20 ks exposure images, the exposure time of the input image is {ontime:.2f} ks.')
+        print(
+            f'Warning: the networks were trained on 20 ks exposure images, the exposure time of the input image is {ontime:.2f} ks.')
     else:
-        print (f'Info: the exposure time of the input image is {ontime:.2f} ks.')
+        print(f'Info: the exposure time of the input image is {ontime:.2f} ks.')
     #
     loaded = load_fits(fits_file)
     #
@@ -65,8 +68,11 @@ def run_inference_on_file(fits_file,dataset_config,verbose=True):
     #
     # set up transform and normalize functions, these are adapted for real XMM images
     #
-    transform = [Crop(crop_p=dataset_config["lr_res"] / dataset_config["dataset_lr_res"],mode=dataset_config["crop_mode"]),ToTensor()]
-    normalize = Normalize(lr_max=dataset_config["lr_max"],hr_max=dataset_config["hr_max"],stretch_mode=dataset_config["data_scaling"])
+    transform = [
+        Crop(crop_p=dataset_config["lr_res"] / dataset_config["dataset_lr_res"], mode=dataset_config["crop_mode"]),
+        ToTensor()]
+    normalize = Normalize(lr_max=dataset_config["lr_max"], hr_max=dataset_config["hr_max"],
+                          stretch_mode=dataset_config["data_scaling"])
     #
     # Load the ONNX file with the model
     #
@@ -83,7 +89,7 @@ def run_inference_on_file(fits_file,dataset_config,verbose=True):
     lr_img = reshape_img_to_res(dataset_lr_res=416, img=lr_img, res_mult=1)
     # Make a list to save all the images is, this removes the need for a lot of if statements
     images = [lr_img]
-    exp_channel = det_mask * (lr_exp/1000) / 100
+    exp_channel = det_mask * (lr_exp / 1000) / 100
     exp_channel = reshape_img_to_res(dataset_lr_res=416, img=exp_channel, res_mult=1)
     images.append(exp_channel)
     #
@@ -100,7 +106,7 @@ def run_inference_on_file(fits_file,dataset_config,verbose=True):
     #
     if (do_normalize):
         # Apply the normalization
-        #lr_img = normalize.normalize_lr_image(lr_img,lr_img.max())
+        # lr_img = normalize.normalize_lr_image(lr_img,lr_img.max())
         lr_img = normalize.normalize_lr_image(lr_img)
     # Torch needs the data to have dimensions [1, x, x]
     lr_img = torch.unsqueeze(lr_img, axis=0)
@@ -117,7 +123,7 @@ def run_inference_on_file(fits_file,dataset_config,verbose=True):
     #
     # pytorch dataloader
     #
-    dataloader = torch.utils.data.DataLoader([sample],batch_size=1)
+    dataloader = torch.utils.data.DataLoader([sample], batch_size=1)
     #
     # Run the image through the model
     exposure_in = sample["lr_exp"]
@@ -129,7 +135,7 @@ def run_inference_on_file(fits_file,dataset_config,verbose=True):
         ort_inputs = {input_name: img_in}
         ort_outs = ort_session.run(None, ort_inputs)
 
-        #print (ort_outs[0].shape)
+        # print (ort_outs[0].shape)
 
         img_out = ort_outs[0][0][0]
         #
@@ -144,11 +150,11 @@ def run_inference_on_file(fits_file,dataset_config,verbose=True):
     #
     # input
     if ('fits.gz' in os.path.basename(sample["lr_img_file_name"])):
-        input_out_name = f'{sample["lr_img_file_name"].replace(".fits.gz","")}_input_wcs_{dataset_config["model_name"]}'
+        input_out_name = f'{sample["lr_img_file_name"].replace(".fits.gz", "")}_input_wcs_{dataset_config["model_name"]}'
     elif ('fits' in os.path.basename(sample["lr_img_file_name"])):
-        input_out_name = f'{sample["lr_img_file_name"].replace(".fits","")}_input_wcs_{dataset_config["model_name"]}'
+        input_out_name = f'{sample["lr_img_file_name"].replace(".fits", "")}_input_wcs_{dataset_config["model_name"]}'
     # predicted
-    pred_out_name = input_out_name.replace('_input_','_predict_')
+    pred_out_name = input_out_name.replace('_input_', '_predict_')
     # 
     res = 2
     if ('DN' in dataset_config["model_name"]):
@@ -173,7 +179,7 @@ def run_inference_on_file(fits_file,dataset_config,verbose=True):
         exposure=exposure_out,
         comment=f"XMM {dataset_config['model_name']} model prediction",
         out_file_name=pred_out_name,
-        #out_file_name="prediction",
+        # out_file_name="prediction",
         in_header=sample["lr_header"],
     )
-    return input_out_name,pred_out_name
+    return input_out_name, pred_out_name
