@@ -11,6 +11,6 @@ class FeatureExtractor(nn.Module):
 
     def forward(self, img):
         # Since our images are black and white clone them three times
-        rgb_image = torch.cat(3 * [img], axis=1)
+        rgb_image = torch.cat(3 * [img], dim=1)
 
         return self.vgg19_54(rgb_image)
