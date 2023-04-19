@@ -13,7 +13,6 @@ def _get_scores(
         x: torch.Tensor,
         pred: torch.Tensor,
         y: torch.Tensor,
-        prefix: str,
         data_range,
         log_input=False,
         log_extended=False,
@@ -30,56 +29,54 @@ def _get_scores(
     # try:
     # Metrics calculated using package https://github.com/photosynthesis-team/piq
     metrics = {
-        f"{prefix}psnr": piq.psnr(x=pred, y=y, data_range=data_range, reduction=reduction),
-        f"{prefix}ssim": piq.ssim(x=pred, y=y, kernel_size=kernel_size, kernel_sigma=kernel_sigma,
-                                  data_range=data_range,
-                                  reduction=reduction, k1=k1, k2=k2),
-        f"{prefix}l1": l1_loss(input=pred, target=y, reduction=reduction),
-        f"{prefix}l2": mse_loss(input=pred, target=y, reduction=reduction),
-        f"{prefix}poisson": poisson_nll_loss(input=pred, target=y, log_input=False, reduction=reduction)
+        "psnr": piq.psnr(x=pred, y=y, data_range=data_range, reduction=reduction),
+        "ssim": piq.ssim(x=pred, y=y, kernel_size=kernel_size, kernel_sigma=kernel_sigma, data_range=data_range,
+                         reduction=reduction, k1=k1, k2=k2),
+        "l1": l1_loss(input=pred, target=y, reduction=reduction),
+        "l2": mse_loss(input=pred, target=y, reduction=reduction),
+        "poisson": poisson_nll_loss(input=pred, target=y, log_input=False, reduction=reduction)
     }
 
     if pred.shape[-1] > 192:
         # We can only calculate ms_ssim if the size is bigger than 192 due to the different scales in ms_ssim
-        metrics[f"{prefix}ms_ssim"] = piq.multi_scale_ssim(x=pred, y=y, kernel_size=kernel_size,
-                                                           kernel_sigma=kernel_sigma,
-                                                           data_range=data_range, k1=k1, k2=k2,
-                                                           reduction=reduction)
+        metrics["ms_ssim"] = piq.multi_scale_ssim(x=pred, y=y, kernel_size=kernel_size, kernel_sigma=kernel_sigma,
+                                                  data_range=data_range, k1=k1, k2=k2,
+                                                  reduction=reduction)
 
     if log_extended:
-        metrics[f"{prefix}vif_p"] = piq.vif_p(x=pred, y=y, data_range=data_range, reduction=reduction)
-        metrics[f"{prefix}fsim"] = piq.fsim(x=pred, y=y, data_range=data_range, chromatic=False, reduction=reduction)
-        metrics[f"{prefix}gmsd"] = piq.gmsd(pred, y, data_range=data_range, reduction=reduction)
-        metrics[f"{prefix}ms_gmsd"] = piq.multi_scale_gmsd(pred, y, data_range=data_range, chromatic=False,
-                                                           reduction=reduction)
-        metrics[f"{prefix}haarpsi"] = piq.haarpsi(x=pred, y=y, data_range=data_range, reduction=reduction)
-        metrics[f"{prefix}mdsi"] = piq.mdsi(x=pred, y=y, data_range=data_range, reduction=reduction)
+        metrics["vif_p"] = piq.vif_p(x=pred, y=y, data_range=data_range, reduction=reduction)
+        metrics["fsim"] = piq.fsim(x=pred, y=y, data_range=data_range, chromatic=False, reduction=reduction)
+        metrics["gmsd"] = piq.gmsd(pred, y, data_range=data_range, reduction=reduction)
+        metrics["ms_gmsd"] = piq.multi_scale_gmsd(pred, y, data_range=data_range, chromatic=False,
+                                                  reduction=reduction)
+        metrics["haarpsi"] = piq.haarpsi(x=pred, y=y, data_range=data_range, reduction=reduction)
+        metrics["mdsi"] = piq.mdsi(x=pred, y=y, data_range=data_range, reduction=reduction)
 
     if log_input:
         # Relative psnr in comparison to the input
-        metrics[f"{prefix}psnr_in"] = piq.psnr(x=x, y=y, data_range=data_range, reduction=reduction)
-        metrics[f"{prefix}ssim_in"] = piq.ssim(x=x, y=y, kernel_size=kernel_size, kernel_sigma=kernel_sigma,
-                                               data_range=data_range,
-                                               reduction=reduction, k1=k1, k2=k2)
-        metrics[f"{prefix}l1_in"] = l1_loss(input=x, target=y, reduction=reduction)
-        metrics[f"{prefix}l2_in"] = mse_loss(input=x, target=y, reduction=reduction)
-        metrics[f"{prefix}poisson_in"] = poisson_nll_loss(input=x, target=y, log_input=False, reduction=reduction)
+        metrics["psnr_in"] = piq.psnr(x=x, y=y, data_range=data_range, reduction=reduction)
+        metrics["ssim_in"] = piq.ssim(x=x, y=y, kernel_size=kernel_size, kernel_sigma=kernel_sigma,
+                                      data_range=data_range,
+                                      reduction=reduction, k1=k1, k2=k2)
+        metrics["l1_in"] = l1_loss(input=x, target=y, reduction=reduction)
+        metrics["l2_in"] = mse_loss(input=x, target=y, reduction=reduction)
+        metrics["poisson_in"] = poisson_nll_loss(input=x, target=y, log_input=False, reduction=reduction)
 
         if log_extended:
-            metrics[f"{prefix}vif_p_in"] = piq.vif_p(x=x, y=y, data_range=data_range, reduction=reduction)
-            metrics[f"{prefix}fsim_in"] = piq.fsim(x=x, y=y, data_range=data_range, chromatic=False,
-                                                   reduction=reduction)
-            metrics[f"{prefix}gmsd_in"] = piq.gmsd(x, y, data_range=data_range, reduction=reduction)
-            metrics[f"{prefix}ms_gmsd_in"] = piq.multi_scale_gmsd(x, y, data_range=data_range, chromatic=False,
-                                                                  reduction=reduction)
-            metrics[f"{prefix}haarpsi_in"] = piq.haarpsi(x=x, y=y, data_range=data_range, reduction=reduction)
-            metrics[f"{prefix}mdsi_in"] = piq.mdsi(x=x, y=y, data_range=data_range, reduction=reduction)
+            metrics["vif_p_in"] = piq.vif_p(x=x, y=y, data_range=data_range, reduction=reduction)
+            metrics["fsim_in"] = piq.fsim(x=x, y=y, data_range=data_range, chromatic=False,
+                                          reduction=reduction)
+            metrics["gmsd_in"] = piq.gmsd(x, y, data_range=data_range, reduction=reduction)
+            metrics["ms_gmsd_in"] = piq.multi_scale_gmsd(x, y, data_range=data_range, chromatic=False,
+                                                         reduction=reduction)
+            metrics["haarpsi_in"] = piq.haarpsi(x=x, y=y, data_range=data_range, reduction=reduction)
+            metrics["mdsi_in"] = piq.mdsi(x=x, y=y, data_range=data_range, reduction=reduction)
 
         if pred.shape[-1] > 192:
-            metrics[f"{prefix}ms_ssim_in"] = piq.multi_scale_ssim(x=x, y=y, kernel_size=kernel_size,
-                                                                  kernel_sigma=kernel_sigma,
-                                                                  data_range=data_range, k1=k1, k2=k2,
-                                                                  reduction=reduction)
+            metrics["ms_ssim_in"] = piq.multi_scale_ssim(x=x, y=y, kernel_size=kernel_size,
+                                                         kernel_sigma=kernel_sigma,
+                                                         data_range=data_range, k1=k1, k2=k2,
+                                                         reduction=reduction)
 
     return metrics
 
@@ -143,19 +140,18 @@ class MetricsCalculator(Callable):
         # We need to take this into consideration while calculating the metrics
         # If all images are from the same set, then just take the mean of the scores
         # Otherwise, take the mean of the scores for the corresponding TNG set
-        metrics = defaultdict(dict)
+        metrics = defaultdict(defaultdict)
         for scale_normalizer in self.scaling_normalizers:
             stretch_name = scale_normalizer.stretch_mode
             x_s = scale_normalizer.normalize_hr_image(lr)
             pred_s = scale_normalizer.normalize_hr_image(pred)
             y_s = scale_normalizer.normalize_hr_image(true)
 
-            metrics[stretch_name].update(
+            metrics[f"{prefix}{stretch_name}"].update(
                 _get_scores(
                     x_s,
                     pred_s,
                     y_s,
-                    prefix=f"{prefix}",
                     data_range=1.0,
                     log_input=log_inputs,
                     log_extended=log_extended,
