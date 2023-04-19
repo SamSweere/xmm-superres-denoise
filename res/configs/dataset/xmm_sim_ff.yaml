@@ -5,6 +5,7 @@ hr_res: 832 # This implies the resolution increase
 dataset_lr_res: 416 # The dataset lr resolution, all the images will be padded/cropped to this resolution
 lr_exps:
   - 20 # Exposure of the low resolution images, in ks
+  - 40
 hr_exp: 100 # Exposure of the high resolution images, in ks
 mode: img # The mode, img or agn. If agn the model samples from agn as if it is an image
 agn: True # Include agns in the images

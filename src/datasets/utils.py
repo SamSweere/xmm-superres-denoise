@@ -24,10 +24,10 @@ def find_img_dirs(parent: Path, exps: np.ndarray, pattern: str = "") -> Dict[int
     return res
 
 
-def find_img_files(exp_dirs_dict: Dict[int, Path], split_key) -> Dict[int, List[Path]]:
+def find_img_files(exp_dirs_dict: Dict[int, Path]) -> Dict[int, List[Path]]:
     res: Dict[int, List[Path]] = {}
     for exp, img_dir in exp_dirs_dict.items():
-        res[exp] = get_fits_files(dataset_dir=img_dir, split_key=split_key)
+        res[exp] = get_fits_files(dataset_dir=img_dir)
     return res
 
 
@@ -141,16 +141,14 @@ def reshape_img_to_res(dataset_lr_res, img, res_mult):
 
 
 def get_fits_files(
-        dataset_dir: Path,
-        split_key: str
+        dataset_dir: Path
 ) -> List[Path]:
     if not dataset_dir.is_dir():
         raise FileNotFoundError(f"Dataset directory {dataset_dir} does not exist!")
 
     res: List[Path] = list(dataset_dir.glob("*.fits"))
     res.extend(list(dataset_dir.glob("*.fits.gz")))
-    base_names = get_base_names(res, split_key)
-    print(f"\tDetected {len(res)} fits files in {dataset_dir} for {len(base_names)} base_names")
+    print(f"\tDetected {len(res)} fits files in {dataset_dir}")
 
     return sorted(res)
 

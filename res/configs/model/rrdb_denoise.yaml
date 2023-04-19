@@ -12,4 +12,3 @@ loss_poisson: 0.0
 loss_psnr: 0.0
 loss_ssim: 1.0
 loss_ms_ssim: 0.0
-memory_efficient: False

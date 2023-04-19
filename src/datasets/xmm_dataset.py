@@ -22,7 +22,8 @@ class XmmDataset(Dataset):
             det_mask: bool = False,
             check_files: bool = False,
             transform: List[Callable] = None,
-            normalize: Normalize = None
+            normalize: Normalize = None,
+            split_key: str = "_image_split_"
     ):
         """
         Args:
@@ -39,6 +40,7 @@ class XmmDataset(Dataset):
 
         self.transform = transform if transform else []
         self.normalize = normalize
+        self.split_key = split_key
 
         self.det_mask = det_mask
         self.dataset_lr_res = dataset_lr_res
@@ -49,19 +51,19 @@ class XmmDataset(Dataset):
 
         # Get all the image directories
         # Note that if the mode is agn we consider them as the base images
-        lr_img_dirs = find_img_dirs(dataset_dir, self.lr_exps, "/")
-        lr_img_files = find_img_files(lr_img_dirs)
+        self.lr_img_dirs = find_img_dirs(dataset_dir, self.lr_exps, "/")
+        lr_img_files = find_img_files(self.lr_img_dirs)
 
         if self.hr_exp:
-            hr_img_dirs = find_img_dirs(dataset_dir, self.hr_exp)
-            hr_img_files = find_img_files(hr_img_dirs)
+            self.hr_img_dirs = find_img_dirs(dataset_dir, self.hr_exp)
+            hr_img_files = find_img_files(self.hr_img_dirs)
         else:
             hr_img_files = None
 
         self.lr_img_files, self.hr_img_files, self.base_name_count = match_file_list(
             lr_dict=lr_img_files,
             hr_dict=hr_img_files,
-            split_key="_image_split_"  # TODO Move to parameters
+            split_key=split_key
         )
 
         print(f"\tFound {self.base_name_count} fits images in {dataset_dir}")

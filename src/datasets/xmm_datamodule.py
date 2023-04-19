@@ -5,7 +5,7 @@ import numpy as np
 from torch.utils.data import random_split, Subset
 
 from datasets import BaseDataModule
-from datasets.utils import find_img_dirs, find_img_files, match_file_list
+from datasets.utils import find_img_files, match_file_list
 
 
 class XmmDataModule(BaseDataModule):
@@ -31,9 +31,7 @@ class XmmDataModule(BaseDataModule):
                 normalize=self.normalize
             )
 
-            self.mode = ""
-            self.res_mults = [""]
-            self.split_key = "_image_split_"
+            self.subset_str = f"res/splits/real_dataset/{{0}}/{{1}}.p"
         elif self.dataset_type == "sim":
             from datasets import XmmSimDataset
             self.dataset = XmmSimDataset(
@@ -50,55 +48,69 @@ class XmmDataModule(BaseDataModule):
                 det_mask=config["det_mask"],
                 check_files=self.check_files,
                 transform=self.transform,
-                normalize=self.normalize,
+                normalize=self.normalize
             )
 
-            self.mode = f"/{config['mode']}"
-            self.res_mults = [f"{self.dataset.lr_res_mult}x", f"{self.dataset.hr_res_mult}x"]
-            self.split_key = "_mult_"
+            self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
         else:
             raise ValueError(f"Dataset type {self.dataset_type} not known, options: 'real', 'sim'")
+
+    def _prepare_sim_dataset(self):
+        splits = ["train", "val", "test"]
+        paths = [Path(self.subset_str.format(split_name)) for split_name in splits]
+        exists = np.all([path.exists() for path in paths])
+        if not exists:
+            print(f"Creating splits for {self.dataset_dir}...")
+            print(f"\tDataset has {self.dataset.base_name_count} base_names")
+            print(f"\tDataset has {self.dataset.lr_exps.size} lr_exps")
+            train, val, test = random_split(range(self.dataset.base_name_count), [0.8, 0.1, 0.1])
+            for path, split in zip(paths, [train, val, test]):
+                lr_exp_count = self.dataset.lr_exps.size
+                indices = split.indices
+                for i in range(1, lr_exp_count):
+                    tmp = np.asarray(indices) * (i + 1)
+                    indices.extend(tmp.tolist())
+                print(f"\tSplit {path} contains {len(indices)} images")
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, 'w+b') as f:
+                    p.dump(indices, f)
+
+    def _prepare_real_dataset(self):
+        splits = ["train", "val", "test"]
+        img_files = find_img_files(self.dataset.lr_img_dirs)
+        img_files = match_file_list(img_files, None, self.dataset.split_key)[0]
+        for lr_exp in self.dataset.lr_exps:
+            paths = [Path(self.subset_str.format(split_name, lr_exp)) for split_name in splits]
+            exists = np.all([path.exists() for path in paths])
+            if not exists:
+                print(f"Creating splits for {self.dataset_dir}...")
+                files = img_files[lr_exp]
+                train, val, test = random_split(files, [0.7, 0.15, 0.15])
+                for path, split in zip(paths, [train, val, test]):
+                    indices = split.indices
+                    print(f"\tSplit {path} contains {len(indices)} images")
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(path, 'w+b') as f:
+                        p.dump(indices, f)
 
     def prepare_data(self) -> None:
         # Check that for every used exposure time there is a train/val/test split
         # If there is none, create one
-        subset_str = f"res/splits/{self.dataset_type}_dataset/{{0}}/{{1}}ks"
         if self.dataset_type == "sim":
-            subset_str = f"{subset_str}/{self.dataset.mode}/"
-        subset_str = f"{subset_str}{{2}}.p"
-        splits = ["train", "val", "test"]
-
-        for res_mult in self.res_mults:
-            for lr_exp in self.lr_exps:
-                paths = [Path(subset_str.format(split_name, lr_exp, res_mult)) for split_name in splits]
-                exists = np.all([path.exists() for path in paths])
-                if not exists:
-                    print(f"Creating splits for {self.dataset_dir / f'{lr_exp}ks'}...")
-                    img_dirs = find_img_dirs(self.dataset_dir, np.asarray([lr_exp]), f"{self.mode}/{res_mult}")
-                    img_files = find_img_files(img_dirs)
-                    img_files = match_file_list(img_files, None, split_key=self.split_key)[0]
-                    train, val, test = random_split(img_files, [0.8, 0.1, 0.1])
-                    for path, split in zip(paths, [train, val, test]):
-                        path.parent.mkdir(parents=True, exist_ok=True)
-                        with open(path, 'w+b') as f:
-                            p.dump(split.indices, f)
+            self._prepare_sim_dataset()
+        elif self.dataset_type == "real":
+            self._prepare_real_dataset()
 
     def setup(self, stage: str) -> None:
-        subset_str = f"res/splits/{self.dataset_type}_dataset/{{0}}/{self.dataset.lr_exps[0]}ks"
-        if self.dataset_type == "sim":
-            subset_str = f"{subset_str}/{self.dataset.mode}/1x.p"
-        else:
-            subset_str = f"{subset_str}.p"
-
         if stage == "fit":
-            with open(subset_str.format("train"), "rb") as f:
+            with open(self.subset_str.format("train"), "rb") as f:
                 train_indices = p.load(f)
                 self.train_subset = Subset(self.dataset, train_indices)
 
-            with open(subset_str.format("val"), "rb") as f:
+            with open(self.subset_str.format("val"), "rb") as f:
                 val_indices = p.load(f)
                 self.val_subset = Subset(self.dataset, val_indices)
         if stage == "test":
-            with open(subset_str.format("test"), "rb") as f:
+            with open(self.subset_str.format("test"), "rb") as f:
                 test_indices = p.load(f)
                 self.test_subset = Subset(self.dataset, test_indices)
