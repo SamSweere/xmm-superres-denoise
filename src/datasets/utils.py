@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 from astropy.io import fits
+from pytorch_lightning.utilities import rank_zero_info
 
 
 def find_dir(parent: Path, pattern: str) -> Path:
@@ -34,7 +35,7 @@ def find_img_files(exp_dirs_dict: Dict[int, Path]) -> Dict[int, List[Path]]:
 def check_img_files(img_files: pd.DataFrame, shape: Tuple[int, int],
                     msg: str = ""):
     if msg:
-        print(f"\t{msg}")
+        rank_zero_info(f"\t{msg}")
     for base_name, files in img_files.iterrows():
         for exp, path_list in files.items():
             for path in path_list:
@@ -148,7 +149,7 @@ def get_fits_files(
 
     res: List[Path] = list(dataset_dir.glob("*.fits"))
     res.extend(list(dataset_dir.glob("*.fits.gz")))
-    print(f"\tDetected {len(res)} fits files in {dataset_dir}")
+    rank_zero_info(f"\tDetected {len(res)} fits files in {dataset_dir}")
 
     return sorted(res)
 

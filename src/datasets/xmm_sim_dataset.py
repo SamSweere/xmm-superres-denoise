@@ -4,6 +4,7 @@ from typing import List, Callable
 
 import numpy as np
 import pandas as pd
+from pytorch_lightning.utilities import rank_zero_info
 from torch.utils.data import Dataset
 
 from datasets.utils import find_img_dirs, find_img_files, match_file_list, apply_transform
@@ -84,16 +85,17 @@ class XmmSimDataset(Dataset):
         self.lr_img_files, self.hr_img_files, self.base_name_count = match_file_list(lr_img_files, hr_img_files,
                                                                                      split_key)
 
-        print(f"\tFound {self.base_name_count} image pairs (lr and hr simulation matches) in {dataset_dir}")
+        rank_zero_info(f"\tFound {self.base_name_count} image pairs (lr and hr simulation matches) in {dataset_dir}")
 
         if self.lr_background > 0:
             self.dataset_size = self.base_name_count * self.lr_exps.size * self.lr_background
-            print(f"\tOverall dataset size: img_count * lr_exps_count * lr_background_count = dataset_size")
-            print(f"\t\t{self.base_name_count} * {self.lr_exps.size} * {self.lr_background} = {self.dataset_size}")
+            rank_zero_info(f"\tOverall dataset size: img_count * lr_exps_count * lr_background_count = dataset_size")
+            rank_zero_info(
+                f"\t\t{self.base_name_count} * {self.lr_exps.size} * {self.lr_background} = {self.dataset_size}")
         else:
             self.dataset_size = self.base_name_count * self.lr_exps.size
-            print(f"\tOverall dataset size: img_count * lr_exps_count = dataset_size")
-            print(f"\t\t{self.base_name_count} * {self.lr_exps.size} = {self.dataset_size}")
+            rank_zero_info(f"\tOverall dataset size: img_count * lr_exps_count = dataset_size")
+            rank_zero_info(f"\t\t{self.base_name_count} * {self.lr_exps.size} = {self.dataset_size}")
 
         if self.agn:
             lr_agn_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"/agn/{self.lr_res_mult}x")
@@ -105,7 +107,7 @@ class XmmSimDataset(Dataset):
             self.lr_agn_files, self.hr_agn_files, self.base_agn_count = match_file_list(lr_agn_files,
                                                                                         hr_agn_files,
                                                                                         split_key)
-            print(f"\tFound {self.base_agn_count} agn image pairs (lr and hr simulation matches)")
+            rank_zero_info(f"\tFound {self.base_agn_count} agn image pairs (lr and hr simulation matches)")
 
         if self.lr_background > 0:
             lr_background_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"/background/{self.lr_res_mult}x")
@@ -144,7 +146,7 @@ class XmmSimDataset(Dataset):
                 check_img_files(self.hr_background_files, (411 * self.hr_res_mult, 403 * self.hr_res_mult),
                                 "Checking hr_background_files...")
 
-            print("\tAll files are within specifications!")
+            rank_zero_info("\tAll files are within specifications!")
 
     def load_and_combine_simulations(
             self,

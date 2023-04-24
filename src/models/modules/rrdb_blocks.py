@@ -15,7 +15,7 @@ def make_layer(block, n_layers):
 
 
 def _cat(in_tensors: List[torch.Tensor], out, dummy_tensor):
-    torch.cat(in_tensors, 1, out=out)
+    torch.cat(in_tensors, 1, out=out.resize_(0))
 
 
 def _apply_layer(in_tensors: torch.Tensor, layer, dummy_tensor) -> torch.Tensor:

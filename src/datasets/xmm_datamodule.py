@@ -1,7 +1,8 @@
-import pickle as p
+import pickle
 from pathlib import Path
 
 import numpy as np
+from pytorch_lightning.utilities import rank_zero_info
 from torch.utils.data import random_split, Subset
 
 from datasets import BaseDataModule
@@ -60,20 +61,15 @@ class XmmDataModule(BaseDataModule):
         paths = [Path(self.subset_str.format(split_name)) for split_name in splits]
         exists = np.all([path.exists() for path in paths])
         if not exists:
-            print(f"Creating splits for {self.dataset_dir}...")
-            print(f"\tDataset has {self.dataset.base_name_count} base_names")
-            print(f"\tDataset has {self.dataset.lr_exps.size} lr_exps")
+            rank_zero_info(f"Creating splits for {self.dataset_dir}...")
+            rank_zero_info(f"\tDataset has {self.dataset.base_name_count} base_names")
             train, val, test = random_split(range(self.dataset.base_name_count), [0.8, 0.1, 0.1])
             for path, split in zip(paths, [train, val, test]):
-                lr_exp_count = self.dataset.lr_exps.size
                 indices = split.indices
-                for i in range(1, lr_exp_count):
-                    tmp = np.asarray(indices) * (i + 1)
-                    indices.extend(tmp.tolist())
-                print(f"\tSplit {path} contains {len(indices)} images")
+                rank_zero_info(f"\tSplit {path} contains {len(indices)} images")
                 path.parent.mkdir(parents=True, exist_ok=True)
                 with open(path, 'w+b') as f:
-                    p.dump(indices, f)
+                    pickle.dump(indices, f)
 
     def _prepare_real_dataset(self):
         splits = ["train", "val", "test"]
@@ -83,15 +79,15 @@ class XmmDataModule(BaseDataModule):
             paths = [Path(self.subset_str.format(split_name, lr_exp)) for split_name in splits]
             exists = np.all([path.exists() for path in paths])
             if not exists:
-                print(f"Creating splits for {self.dataset_dir}...")
+                rank_zero_info(f"Creating splits for {self.dataset_dir}...")
                 files = img_files[lr_exp]
                 train, val, test = random_split(files, [0.7, 0.15, 0.15])
                 for path, split in zip(paths, [train, val, test]):
                     indices = split.indices
-                    print(f"\tSplit {path} contains {len(indices)} images")
+                    rank_zero_info(f"\tSplit {path} contains {len(indices)} images")
                     path.parent.mkdir(parents=True, exist_ok=True)
                     with open(path, 'w+b') as f:
-                        p.dump(indices, f)
+                        pickle.dump(indices, f)
 
     def prepare_data(self) -> None:
         # Check that for every used exposure time there is a train/val/test split
@@ -101,16 +97,31 @@ class XmmDataModule(BaseDataModule):
         elif self.dataset_type == "real":
             self._prepare_real_dataset()
 
+    def _load_indices(self, subset: str):
+        exps_size = self.dataset.lr_exps.size
+        rank_zero_info(f"Loading subset '{subset}'...")
+        if self.dataset_type == "sim":
+            with open(self.subset_str.format(subset), 'rb') as f:
+                indices = pickle.load(f)
+                rank_zero_info(f"\tDataset has {self.dataset.base_name_count} base_names "
+                               f"out of which {indices.size} are used in this subset")
+                rank_zero_info(f"\tDataset has {exps_size} lr_exps")
+                indices = np.asarray([indices * (i + 1) for i in range(exps_size)])
+                if exps_size > 1:
+                    indices = np.concatenate(indices)
+                rank_zero_info(f"\t'{subset}' has {indices.size} images.")
+                return indices
+        elif self.dataset_type == "real":
+            # TODO
+            pass
+
     def setup(self, stage: str) -> None:
         if stage == "fit":
-            with open(self.subset_str.format("train"), "rb") as f:
-                train_indices = p.load(f)
-                self.train_subset = Subset(self.dataset, train_indices)
+            train_indices = self._load_indices("train")
+            self.train_subset = Subset(self.dataset, train_indices)
 
-            with open(self.subset_str.format("val"), "rb") as f:
-                val_indices = p.load(f)
-                self.val_subset = Subset(self.dataset, val_indices)
+            val_indices = self._load_indices("val")
+            self.val_subset = Subset(self.dataset, val_indices)
         if stage == "test":
-            with open(self.subset_str.format("test"), "rb") as f:
-                test_indices = p.load(f)
-                self.test_subset = Subset(self.dataset, test_indices)
+            test_indices = self._load_indices("test")
+            self.test_subset = Subset(self.dataset, test_indices)

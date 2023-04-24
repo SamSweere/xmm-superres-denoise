@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 from datasets.utils import load_det_mask, apply_transform, check_img_files
 from datasets.utils import reshape_img_to_res, load_fits, find_img_dirs, find_img_files, match_file_list
 from transforms import Normalize
+from pytorch_lightning.utilities import rank_zero_info
 
 
 class XmmDataset(Dataset):
@@ -36,7 +37,7 @@ class XmmDataset(Dataset):
             check_files (bool) (optional): Check the file integrity of the chosen dataset
         """
         if hr_exp:
-            print("\thr_exps is not empty => Will use hr images")
+            rank_zero_info("\thr_exps is not empty => Will use hr images")
 
         self.transform = transform if transform else []
         self.normalize = normalize
@@ -50,7 +51,6 @@ class XmmDataset(Dataset):
         self.lr_res_mult = 1
 
         # Get all the image directories
-        # Note that if the mode is agn we consider them as the base images
         self.lr_img_dirs = find_img_dirs(dataset_dir, self.lr_exps, "/")
         lr_img_files = find_img_files(self.lr_img_dirs)
 
@@ -66,11 +66,11 @@ class XmmDataset(Dataset):
             split_key=split_key
         )
 
-        print(f"\tFound {self.base_name_count} fits images in {dataset_dir}")
+        rank_zero_info(f"\tFound {self.base_name_count} fits images in {dataset_dir}")
 
         self.dataset_size = self.base_name_count * len(self.lr_exps)
-        print(f"\tOverall dataset size: img_count * lr_exps_count = dataset_size")
-        print(f"\t\t{self.base_name_count} * {len(self.lr_exps)} = {self.dataset_size}")
+        rank_zero_info(f"\tOverall dataset size: img_count * lr_exps_count = dataset_size")
+        rank_zero_info(f"\t\t{self.base_name_count} * {len(self.lr_exps)} = {self.dataset_size}")
 
         # Load the detector masks for the lr and hr resolutions
         if self.det_mask:
@@ -85,7 +85,7 @@ class XmmDataset(Dataset):
             if self.hr_img_files:
                 check_img_files(self.hr_img_files, (411, 403), "Checking hr_img_files...")
 
-            print("\tAll files are within specifications!")
+            rank_zero_info("\tAll files are within specifications!")
 
     def __len__(self):
         return self.dataset_size

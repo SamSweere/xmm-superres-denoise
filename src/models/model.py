@@ -1,10 +1,8 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
-from typing import Tuple, Dict
+from typing import Tuple
 
 import pytorch_lightning as pl
 import torch
-
-from utils.metriclogger import MetricsCalculator
 
 
 class Model(pl.LightningModule):
@@ -13,13 +11,9 @@ class Model(pl.LightningModule):
             config: dict,
             lr_shape: Tuple[int, int],
             hr_shape: Tuple[int, int],
-            loss,
-            metrics_calculator: MetricsCalculator
+            loss
     ):
         super(Model, self).__init__()
-
-        # Holds intermediate outputs
-        self.test_val_step_output: Dict[str, Dict[str, list]] = {}
 
         # Optimizer parameters
         self.learning_rate = config["learning_rate"]
@@ -60,8 +54,6 @@ class Model(pl.LightningModule):
         else:
             raise ValueError(f"Base model name {self.model_name} is not a valid model name!")
 
-        self.metrics_calculator = metrics_calculator
-
     def forward(self, x) -> torch.Tensor:
         return torch.clamp(self.model(x), min=0.0, max=1.0)
 
@@ -71,26 +63,24 @@ class Model(pl.LightningModule):
         self.log("train/loss", loss, prog_bar=True, batch_size=self.batch_size)
         return loss
 
+    def _on_step(self, batch, stage):
+        lr = batch["lr"]
+        preds = self(lr)
+        target = batch.get("hr", preds)
+
+        loss = self.loss(preds, target)
+        self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=self.batch_size, sync_dist=True)
+        return {
+            "lr": lr.detach(),
+            "preds": preds.detach(),
+            "target": target.detach()
+        }
+
     def validation_step(self, batch, batch_idx):
-        self._log_metrics(batch, "val")
+        return self._on_step(batch, "val")
 
     def test_step(self, batch, batch_idx):
-        self._log_metrics(batch, "test")
-
-    def _log_metrics(self, batch, stage):
-        lr = batch["lr"]
-        gen_hr = self(lr)
-        true_hr = batch["hr"]
-
-        loss = self.loss(gen_hr, true_hr)
-        self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=self.batch_size, sync_dist=True)
-
-        log_inputs = (stage == "val" and self.current_epoch == 0) or stage == "test"
-        log_extended = stage == "test"
-
-        metrics = self.metrics_calculator(lr=lr, pred=gen_hr, true=true_hr, prefix=f"{stage}/",
-                                          log_inputs=log_inputs, log_extended=log_extended)
-        self.log_dict(metrics, on_step=False, on_epoch=True, batch_size=self.batch_size, sync_dist=True)
+        return self._on_step(batch, "test")
 
     def configure_optimizers(self):
         # Optimizers

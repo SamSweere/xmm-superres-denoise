@@ -1,10 +1,8 @@
 # Written by: Sam Sweere
-from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Union, List, Optional
 
 import numpy as np
-import pandas as pd
 import pytorch_lightning as pl
 import torch
 from matplotlib import cm
@@ -14,6 +12,7 @@ from pytorch_lightning.utilities.types import EVAL_DATALOADERS
 from torchmetrics.functional import structural_similarity_index_measure as ssim
 
 from datasets import XmmDisplayDataModule
+from metrics import MetricsCalculator
 from utils.filehandling import write_xmm_file_to_fits
 
 _img_val_dict = {
@@ -71,27 +70,15 @@ def _convert_images_to_cm(colormap, images, scale=None, normalize=False):
     return images_cm
 
 
-def to_wandb(logger, img_type, scale_normalizer, images, metrics, stage):
+def to_wandb(logger, img_type, scale_normalizer, images, stage):
     key = _img_val_dict[img_type]["key"]
-    metric = _img_val_dict[img_type]["metric"]
-    caption = _img_val_dict[img_type]["caption"]
     colormap = _img_val_dict[img_type]["cm"]
     norm = _img_val_dict[img_type]["norm"]
     key_format = key.format(stage, scale_normalizer)
 
     images = _convert_images_to_cm(colormap, images, normalize=norm)
 
-    captions = []
-    img_metrics = [metrics[f"{m}"] for m in metric]
-    if len(img_metrics) == 1:
-        captions.extend([caption.format(m1) for m1 in img_metrics[0]])
-    elif len(img_metrics) == 2:
-        captions.extend([caption.format(m1, m2) for m1, m2 in zip(img_metrics[0], img_metrics[1])])
-
-    if captions:
-        logger.log_image(key=key_format, images=images, caption=captions)
-    else:
-        logger.log_image(key=key_format, images=images)
+    logger.log_image(key=key_format, images=images)
 
 
 def _write_fits(
@@ -172,6 +159,7 @@ class ImageLogger(pl.Callback):
             normalize,
             scaling_normalizers,
             data_range,
+            metrics_calculator: MetricsCalculator
     ):
         super(ImageLogger, self).__init__()
 
@@ -181,6 +169,7 @@ class ImageLogger(pl.Callback):
         self.data_range = data_range
 
         self.log_every_n_epochs = log_every_n_epochs
+        self.metrics_calculator = metrics_calculator
 
     @rank_zero_only
     def _get_samples(
@@ -260,8 +249,6 @@ class ImageLogger(pl.Callback):
             hr_exp_sub = hr_exp[indices]
             filenames_sub = filenames[indices.cpu().numpy()].tolist()
 
-            m = pl_module.metrics_calculator(lr_sub, pred_sub, true_sub, batch=False, log_inputs=True)
-
             lr_sub = self.normalize.denormalize_hr_image(lr_sub)
             pred_sub = self.normalize.denormalize_hr_image(pred_sub)
             true_sub = self.normalize.denormalize_hr_image(true_sub)
@@ -275,44 +262,38 @@ class ImageLogger(pl.Callback):
                 hr_exps=hr_exp_sub,
                 filenames=filenames_sub
             )
-            metrics = defaultdict(dict)
-            for stretch_mode, metric_value in m.items():
-                for metric, value in metric_value.items():
-                    metrics[stretch_mode][metric] = torch.mean(value).item()
-            metrics = pd.DataFrame.from_dict(metrics)
-            logger.log_table(key=f"{display_type}_display metrics", dataframe=metrics)
 
             if first_epoch:
                 for scale_normalizer in self.scaling_normalizers:
                     stretch_name = scale_normalizer.stretch_mode
                     scaled_lr = scale_normalizer.normalize_lr_image(lr_sub)
-                    to_wandb(logger, "input", stretch_name, scaled_lr, m[stretch_name], f"{display_type}")
+                    to_wandb(logger, "input", stretch_name, scaled_lr, f"{display_type}")
 
                     if display_type == "sim":
                         scaled_labels = scale_normalizer.normalize_hr_image(true_sub)
-                        to_wandb(logger, "label", stretch_name, scaled_labels, m[stretch_name], f"{display_type}")
+                        to_wandb(logger, "label", stretch_name, scaled_labels, f"{display_type}")
             else:
                 for scale_normalizer in self.scaling_normalizers:
                     stretch_name = scale_normalizer.stretch_mode
 
                     scaled_pred = scale_normalizer.normalize_hr_image(pred_sub)
-                    to_wandb(logger, "generated", stretch_name, scaled_pred, m[stretch_name], f"{stage}/{display_type}")
+                    to_wandb(logger, "generated", stretch_name, scaled_pred, f"{stage}/{display_type}")
 
                     if display_type == "sim":
                         scaled_true = scale_normalizer.normalize_hr_image(true_sub)
                         ssim_image = ssim(preds=scaled_pred, target=scaled_true, sigma=2.5, kernel_size=13,
                                           data_range=self.data_range, k1=0.01, k2=0.05, return_full_image=True)[1]
-                        to_wandb(logger, "ssim", stretch_name, ssim_image, m[stretch_name], f"{stage}/{display_type}")
+                        to_wandb(logger, "ssim", stretch_name, ssim_image, f"{stage}/{display_type}")
                         difference_image = ((scaled_pred - scaled_true) + 1.0) / 2.0
-                        to_wandb(logger, "difference", stretch_name, difference_image, m[stretch_name],
-                                 f"{stage}/{display_type}")
+                        to_wandb(logger, "difference", stretch_name, difference_image, f"{stage}/{display_type}")
 
     @rank_zero_only
     def on_validation_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
-        if trainer.current_epoch == 0 and not trainer.sanity_checking:
-            self._log_images(trainer.logger, pl_module, self.datamodule.val_dataloader(), "val", True)
-        if (trainer.current_epoch + 1) % self.log_every_n_epochs == 0:
-            self._log_images(trainer.logger, pl_module, self.datamodule.val_dataloader(), "val")
+        if not trainer.sanity_checking:
+            if trainer.current_epoch == 0:
+                self._log_images(trainer.logger, pl_module, self.datamodule.val_dataloader(), "val", True)
+            if ((trainer.current_epoch + 1) % self.log_every_n_epochs) == 0:
+                self._log_images(trainer.logger, pl_module, self.datamodule.val_dataloader(), "val")
 
     def on_test_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         self._log_images(self.datamodule.test_dataloader(), pl_module, "test")
