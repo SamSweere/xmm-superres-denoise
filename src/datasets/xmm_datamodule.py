@@ -6,7 +6,7 @@ from pytorch_lightning.utilities import rank_zero_info
 from torch.utils.data import random_split, Subset
 
 from datasets import BaseDataModule
-from datasets.utils import find_img_files, match_file_list
+from datasets.utils import find_img_files, match_file_list, save_splits
 
 
 class XmmDataModule(BaseDataModule):
@@ -64,12 +64,7 @@ class XmmDataModule(BaseDataModule):
             rank_zero_info(f"Creating splits for {self.dataset_dir}...")
             rank_zero_info(f"\tDataset has {self.dataset.base_name_count} base_names")
             train, val, test = random_split(range(self.dataset.base_name_count), [0.8, 0.1, 0.1])
-            for path, split in zip(paths, [train, val, test]):
-                indices = split.indices
-                rank_zero_info(f"\tSplit {path} contains {len(indices)} images")
-                path.parent.mkdir(parents=True, exist_ok=True)
-                with open(path, 'w+b') as f:
-                    pickle.dump(indices, f)
+            save_splits(paths, [train, val, test])
 
     def _prepare_real_dataset(self):
         splits = ["train", "val", "test"]
@@ -82,12 +77,7 @@ class XmmDataModule(BaseDataModule):
                 rank_zero_info(f"Creating splits for {self.dataset_dir}...")
                 files = img_files[lr_exp]
                 train, val, test = random_split(files, [0.7, 0.15, 0.15])
-                for path, split in zip(paths, [train, val, test]):
-                    indices = split.indices
-                    rank_zero_info(f"\tSplit {path} contains {len(indices)} images")
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(path, 'w+b') as f:
-                        pickle.dump(indices, f)
+                save_splits(paths, [train, val, test])
 
     def prepare_data(self) -> None:
         # Check that for every used exposure time there is a train/val/test split

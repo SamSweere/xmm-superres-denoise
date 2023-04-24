@@ -1,3 +1,4 @@
+import pickle
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Union, Optional, Callable
 
@@ -6,6 +7,16 @@ import pandas as pd
 import torch
 from astropy.io import fits
 from pytorch_lightning.utilities import rank_zero_info
+from torch.utils.data import Subset
+
+
+def save_splits(paths: List[Path], splits: List[Subset]):
+    for path, split in zip(paths, splits):
+        indices = split.indices
+        rank_zero_info(f"\tSplit {path} contains {len(indices)} images")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, 'w+b') as f:
+            pickle.dump(indices, f)
 
 
 def find_dir(parent: Path, pattern: str) -> Path:
