@@ -46,6 +46,7 @@ if __name__ == "__main__":  # This is needed in order to run it on multiple gpu'
 
     checkpoint_callback = ModelCheckpoint(
         monitor="val/loss",
+        dirpath="res/checkpoints/",
         filename=model_config["name"] + "-{epoch:05d}-{val/loss:.5f}",
         mode="min"
     )
