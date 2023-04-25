@@ -9,6 +9,6 @@ b2: 0.999
 # Loss function relative percentages
 loss_l1: 0.0
 loss_poisson: 0.0
-loss_psnr: 1.0
+loss_psnr: 0.5
 loss_ssim: 0.0
-loss_ms_ssim: 0.0
+loss_ms_ssim: 0.5
