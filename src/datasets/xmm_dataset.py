@@ -3,12 +3,12 @@ from random import sample
 from typing import List, Optional, Callable
 
 import numpy as np
+from pytorch_lightning.utilities import rank_zero_info
 from torch.utils.data import Dataset
 
 from datasets.utils import load_det_mask, apply_transform, check_img_files
 from datasets.utils import reshape_img_to_res, load_fits, find_img_dirs, find_img_files, match_file_list
 from transforms import Normalize
-from pytorch_lightning.utilities import rank_zero_info
 
 
 class XmmDataset(Dataset):
@@ -65,8 +65,6 @@ class XmmDataset(Dataset):
             hr_dict=hr_img_files,
             split_key=split_key
         )
-
-        rank_zero_info(f"\tFound {self.base_name_count} fits images in {dataset_dir}")
 
         self.dataset_size = self.base_name_count * len(self.lr_exps)
         rank_zero_info(f"\tOverall dataset size: img_count * lr_exps_count = dataset_size")

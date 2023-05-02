@@ -85,8 +85,6 @@ class XmmSimDataset(Dataset):
         self.lr_img_files, self.hr_img_files, self.base_name_count = match_file_list(lr_img_files, hr_img_files,
                                                                                      split_key)
 
-        rank_zero_info(f"\tFound {self.base_name_count} image pairs (lr and hr simulation matches) in {dataset_dir}")
-
         if self.lr_background > 0:
             self.dataset_size = self.base_name_count * self.lr_exps.size * self.lr_background
             rank_zero_info(f"\tOverall dataset size: img_count * lr_exps_count * lr_background_count = dataset_size")
