@@ -61,8 +61,7 @@ class XmmDataModule(BaseDataModule):
         paths = [Path(self.subset_str.format(split_name)) for split_name in splits]
         exists = np.all([path.exists() for path in paths])
         if not exists:
-            rank_zero_info(f"Creating splits for {self.dataset_dir}...")
-            rank_zero_info(f"\tDataset has {self.dataset.base_name_count} base_names")
+            rank_zero_info(f"Creating splits for {self.dataset_dir} with {self.dataset.base_name_count} base_names...")
             train, val, test = random_split(range(self.dataset.base_name_count), [0.8, 0.1, 0.1])
             save_splits(paths, [train, val, test])
 
@@ -89,21 +88,29 @@ class XmmDataModule(BaseDataModule):
 
     def _load_indices(self, subset: str):
         exps_size = self.dataset.lr_exps.size
-        rank_zero_info(f"Loading subset '{subset}'...")
         if self.dataset_type == "sim":
             with open(self.subset_str.format(subset), 'rb') as f:
                 indices = pickle.load(f)
-                rank_zero_info(f"\tDataset has {self.dataset.base_name_count} base_names "
-                               f"out of which {indices.size} are used in this subset")
-                rank_zero_info(f"\tDataset has {exps_size} lr_exps")
-                indices = np.asarray([indices * (i + 1) for i in range(exps_size)])
                 if exps_size > 1:
+                    indices = np.asarray([indices * (i + 1) for i in range(exps_size)])
                     indices = np.concatenate(indices)
-                rank_zero_info(f"\t'{subset}' has {indices.size} images.")
+                rank_zero_info(f"\tDataset has {self.dataset.base_name_count} base_names "
+                               f"out of which {indices.size // exps_size} are used in {subset}_subset. "
+                               f"Due to {exps_size}, this subset has {indices.size} images.")
                 return indices
         elif self.dataset_type == "real":
-            # TODO
-            pass
+            used_lr_basenames = self.dataset.lr_img_files.index
+            lr_exp = self.dataset.lr_exps[0]
+            lr_img_files = find_img_files(self.dataset.lr_img_dirs)
+            lr_img_files = match_file_list({lr_exp: lr_img_files[lr_exp]}, None, self.dataset.split_key)[0]
+            with open(self.subset_str.format(subset, lr_exp), 'rb') as f:
+                indices = pickle.load(f)
+            used_indices = used_lr_basenames.get_indexer(lr_img_files.index)
+            indices = np.asarray(list(set(indices) & set(used_indices)))
+            if exps_size > 1:
+                indices = np.asarray([indices * (i + 1) for i in range(exps_size)])
+                indices = np.concatenate(indices)
+            return indices
 
     def setup(self, stage: str) -> None:
         if stage == "fit":

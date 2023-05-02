@@ -169,13 +169,15 @@ def get_base_names(
         img_dict: Union[Dict[int, List[Path]], List[Path]],
         split_key: str
 ) -> Set[str]:
-    base_names = set()
     if isinstance(img_dict, dict):
+        base_names = []
         for exp, file_names in img_dict.items():
-            for file_name in file_names:
-                base_name = file_name.name.split(split_key)[0]
-                base_names.add(base_name)
+            base_names.append(set([file_name.name.split(split_key)[0] for file_name in file_names]))
+        # Since we can't be sure that every base_name is represented for every exposure, we have to make sure that no
+        # exposure has an empty list of files
+        base_names = set.intersection(*base_names)
     else:
+        base_names = set()
         for file_name in img_dict:
             base_name = file_name.name.split(split_key)[0]
             base_names.add(base_name)
@@ -207,14 +209,14 @@ def match_file_list(
         split_key: str
 ) -> Tuple[pd.DataFrame, Optional[pd.DataFrame], int]:
     lr_base_names = get_base_names(lr_dict, split_key)
-    hr_base_names = get_base_names(hr_dict, split_key) if hr_dict else lr_base_names
+    hr_base_names = get_base_names(hr_dict, split_key) if hr_dict is not None else lr_base_names
     base_names = lr_base_names & hr_base_names
 
     if not base_names:
         raise ValueError(f"No base_names could be found in both given dictionaries with split_key \"{split_key}\"!")
 
     lr_dict = filter_img_dict(lr_dict, base_names, split_key)
-    hr_dict = filter_img_dict(hr_dict, base_names, split_key) if hr_dict else None
+    hr_dict = filter_img_dict(hr_dict, base_names, split_key) if hr_dict is not None else None
 
     lr_df = pd.DataFrame.from_dict(lr_dict).sort_index()
     hr_df = pd.DataFrame.from_dict(hr_dict).sort_index() if hr_dict else None
