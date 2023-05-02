@@ -89,7 +89,7 @@ class GeneratorRRDB_SR(_GeneratorRRDB):
         for _ in range(num_upsample):
             upsample_layers += [
                 nn.Conv2d(num_filters, num_filters * 4, 3, 1, 1),
-                nn.LeakyReLU(),
+                nn.LeakyReLU(inplace=True),
                 nn.PixelShuffle(upscale_factor=2),
             ]
         self.upsampling = nn.Sequential(*upsample_layers)
@@ -126,9 +126,6 @@ class GeneratorRRDB_DN(_GeneratorRRDB):
     def forward(self, x):
         fea = super().forward(x)
         out = self.conv_last(fea)
-
-        if self.in_channels > 1:
-            x = x[:, 0, :, :].reshape(x.shape[0], 1, x.shape[2], x.shape[3])
 
         out = out + x
         out = torch.clamp(out, min=0.0, max=1.0)

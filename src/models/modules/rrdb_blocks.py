@@ -14,12 +14,9 @@ def make_layer(block, n_layers):
     return nn.Sequential(*layers)
 
 
-def _cat(in_tensors: List[torch.Tensor], out, dummy_tensor):
-    torch.cat(in_tensors, 1, out=out.resize_(0))
-
-
-def _apply_layer(in_tensors: torch.Tensor, layer, dummy_tensor) -> torch.Tensor:
-    return layer(in_tensors)
+def _apply_layer(in_tensors: List[torch.Tensor], layer) -> torch.Tensor:
+    concat = cp(torch.cat, tensors=in_tensors, dim=1, use_reentrant=False)
+    return layer(concat)
 
 
 class ResidualDenseBlock_5C(nn.Module):
@@ -40,33 +37,16 @@ class ResidualDenseBlock_5C(nn.Module):
     def forward(self, x: torch.Tensor):
         x1 = self.lrelu(self.conv1(x))
         if self.mem_efficient:
-            out1 = torch.zeros_like(x)
-            out2 = torch.zeros_like(x)
-
-            cp(_cat, [x, x1], out1, torch.ones(1, requires_grad=True))
-            x2 = cp(_apply_layer, out1, self.conv2, torch.ones(1, requires_grad=True))
-            self.lrelu(x2)
-
-            cp(_cat, [out1, x2], out2, torch.ones(1, requires_grad=True))
-            del x2
-            x3 = cp(_apply_layer, out2, self.conv3, torch.ones(1, requires_grad=True))
-            self.lrelu(x3)
-
-            cp(_cat, [out2, x3], out1, torch.ones(1, requires_grad=True))
-            del x3
-            x4 = cp(_apply_layer, out1, self.conv4, torch.ones(1, requires_grad=True))
-            self.lrelu(x4)
-
-            cp(_cat, [out1, x4], out2, torch.ones(1, requires_grad=True))
-            del x4
-            del out1
-            x5 = cp(_apply_layer, out2, self.conv5, torch.ones(1, requires_grad=True))
-            del out2
+            x2 = self.lrelu(cp(_apply_layer, [x, x1], self.conv2, use_reentrant=False))
+            x3 = self.lrelu(cp(_apply_layer, [x, x1, x2], self.conv3, use_reentrant=False))
+            x4 = self.lrelu(cp(_apply_layer, [x, x1, x2, x3], self.conv4, use_reentrant=False))
+            x5 = cp(_apply_layer, [x, x1, x2, x3, x4], self.conv5, use_reentrant=False)
         else:
             x2 = self.lrelu(self.conv2(torch.cat((x, x1), 1)))
             x3 = self.lrelu(self.conv3(torch.cat((x, x1, x2), 1)))
             x4 = self.lrelu(self.conv4(torch.cat((x, x1, x2, x3), 1)))
             x5 = self.conv5(torch.cat((x, x1, x2, x3, x4), 1))
+
         return x5 * 0.2 + x
 
 
