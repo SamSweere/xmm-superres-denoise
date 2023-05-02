@@ -110,7 +110,7 @@ class Model(pl.LightningModule):
             return loss
         else:
             self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=self.batch_size,
-                     on_step=False, on_epoch=True)
+                     on_step=False, on_epoch=True, sync_dist=True)
             if stage == "val":
                 lr = lr if self.current_epoch == 0 else None
                 self.mc.update_val(preds=preds, lr=lr, target=target)
