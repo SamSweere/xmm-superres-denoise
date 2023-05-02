@@ -13,7 +13,7 @@ from models import Model
 from transforms import Normalize, ImageUpsample
 from utils import ImageLogger
 from utils.filehandling import read_yaml
-from utils.loss_functions import LossFunctionHandler
+from utils.loss_functions import create_loss
 
 if __name__ == "__main__":  # This is needed in order to run it on multiple gpu's
     parser = ArgumentParser()
@@ -35,14 +35,12 @@ if __name__ == "__main__":  # This is needed in order to run it on multiple gpu'
     rank_zero_info("Creating data module...")
     datamodule = XmmDataModule(dataset_config)
 
-    lfh = LossFunctionHandler(
-        data_scaling=dataset_config["data_scaling"],
-        l1_p=model_config["loss_l1"],
-        poisson_p=model_config["loss_poisson"],
-        psnr_p=model_config["loss_psnr"],
-        ssim_p=model_config["loss_ssim"],
-        ms_ssim_p=model_config["loss_ms_ssim"]
-    )
+    loss = create_loss(data_scaling=dataset_config["data_scaling"],
+                       l1_p=model_config["loss_l1"],
+                       poisson_p=model_config["loss_poisson"],
+                       psnr_p=model_config["loss_psnr"],
+                       ssim_p=model_config["loss_ssim"],
+                       ms_ssim_p=model_config["loss_ms_ssim"])
 
     checkpoint_callback = ModelCheckpoint(
         monitor="val/loss",
@@ -67,7 +65,8 @@ if __name__ == "__main__":  # This is needed in order to run it on multiple gpu'
         data_range=hr_max,
         dataset_normalizer=datamodule.normalize,
         scaling_normalizers=scaling_normalizers,
-        upsample=upsample
+        upsample=upsample,
+        prefix="test" if trainer_config["checkpoint_path"] else "val"
     )
 
     il = ImageLogger(
@@ -83,7 +82,8 @@ if __name__ == "__main__":  # This is needed in order to run it on multiple gpu'
         model_config,
         lr_shape=lr_shape,
         hr_shape=hr_shape,
-        loss=lfh
+        loss=loss,
+        metrics=mc
     )
 
     # model = model.to(torch.device("cuda"))
@@ -105,7 +105,7 @@ if __name__ == "__main__":  # This is needed in order to run it on multiple gpu'
             logger=wandb_logger,  # W&B integration
             accelerator=trainer_config["accelerator"],
             devices=1,
-            callbacks=[mc, il]
+            callbacks=[il]
         )
         trainer.test(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])
     else:
@@ -125,6 +125,6 @@ if __name__ == "__main__":  # This is needed in order to run it on multiple gpu'
             # deterministic=True,  # keep it deterministic
             # benchmark=(not config["debug"]) and True,
             # fast_dev_run=config["fast_dev_run"],
-            callbacks=[checkpoint_callback, mc, il]
+            callbacks=[checkpoint_callback, il]
         )
         trainer.fit(model, datamodule=datamodule)

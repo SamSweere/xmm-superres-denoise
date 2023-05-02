@@ -1,25 +1,22 @@
-from collections import defaultdict
-from typing import Dict, List, Union
-from typing import Optional, Any
+from typing import List, Union
+from typing import Optional
 
-import pytorch_lightning as pl
 import torch
-from pytorch_lightning.loggers import Logger
-from pytorch_lightning.utilities.types import STEP_OUTPUT
-from torchmetrics import Metric
+from torchmetrics import MetricCollection
 
 from metrics.metrics import MDSI, PSNR, SSIM, MultiScaleSSIM, MAE, MSE, PoissonNLLLoss, VIF, FSIM, GMSD, \
     MultiScaleGMSD, HaarPSI
 from transforms import ImageUpsample, Normalize
 
 
-class MetricsCalculator(pl.Callback):
+class MetricsCalculator:
     def __init__(
             self,
             data_range: Union[int, float],
             dataset_normalizer: Normalize,
             scaling_normalizers: List[Normalize],
-            upsample: ImageUpsample
+            upsample: ImageUpsample,
+            prefix: str
     ):
         super(MetricsCalculator, self).__init__()
 
@@ -28,147 +25,120 @@ class MetricsCalculator(pl.Callback):
         self.scaling_normalizers = scaling_normalizers
         self.upsample = upsample
 
-        self.metrics: Dict[str, Metric] = {}
-        self.extended_metrics: Dict[str, Metric] = {}
-        self.input_metrics: Dict[str, Metric] = {}
-        self.input_extended_metrics: Dict[str, Metric] = {}
+        metrics = MetricCollection({
+            "psnr": PSNR(),
+            "ssim": SSIM(),
+            "ms_ssim": MultiScaleSSIM(),
+            "l1": MAE(),
+            "l2": MSE(),
+            "poisson": PoissonNLLLoss()
+        })
+
+        extended_metrics = MetricCollection({
+            "vif_p": VIF(),
+            "fsim": FSIM(),
+            "gmsd": GMSD(),
+            "ms_gmsd": MultiScaleGMSD(),
+            "haarpsi": HaarPSI(),
+            "msdi": MDSI()
+        })
+
+        input_metrics = MetricCollection({
+            "psnr_in": PSNR(),
+            "ssim_in": SSIM(),
+            "l1_in": MAE(),
+            "l2_in": MSE(),
+            "poisson_in": PoissonNLLLoss()
+        })
+
+        input_extended_metrics = MetricCollection({
+            "vif_p_in": VIF(),
+            "fsim_in": FSIM(),
+            "gmsd_in": GMSD(),
+            "ms_gmsd_in": MultiScaleGMSD(),
+            "haarpsi_in": HaarPSI(),
+            "msdi_in": MDSI()
+        })
+
+        self.metrics = []
+        self.extended_metrics = []
+        self.input_metrics = []
+        self.input_extended_metrics = []
+        self.normalizer_dict = {scaling_normalizer.stretch_mode: scaling_normalizer
+                                for scaling_normalizer in scaling_normalizers}
 
         for normalizer in scaling_normalizers:
             mode = normalizer.stretch_mode
+            self.metrics.append(metrics.clone(prefix=f"{mode}/"))
+            self.extended_metrics.append(extended_metrics.clone(prefix=f"{mode}/"))
+            self.input_metrics.append(input_metrics.clone(prefix=f"{mode}/"))
+            self.input_extended_metrics.append(input_extended_metrics.clone(prefix=f"{mode}/"))
 
-            self.metrics.update({
-                f"{mode}/psnr": PSNR(),
-                f"{mode}/ssim": SSIM(),
-                f"{mode}/ms_ssim": MultiScaleSSIM(),
-                f"{mode}/l1": MAE(),
-                f"{mode}/l2": MSE(),
-                f"{mode}/poisson": PoissonNLLLoss()
-            })
+        self.metrics = MetricCollection(*self.metrics, prefix=f"{prefix}/")
+        self.extended_metrics = MetricCollection(*self.extended_metrics, prefix=f"{prefix}/")
+        self.input_metrics = MetricCollection(*self.input_metrics, prefix=f"{prefix}/")
+        self.input_extended_metrics = MetricCollection(*self.input_extended_metrics, prefix=f"{prefix}/")
 
-            self.extended_metrics.update({
-                f"{mode}/vif_p": VIF(),
-                f"{mode}/fsim": FSIM(),
-                f"{mode}/gmsd": GMSD(),
-                f"{mode}/ms_gmsd": MultiScaleGMSD(),
-                f"{mode}/haarpsi": HaarPSI(),
-                f"{mode}/msdi": MDSI()
-            })
+    def _update(
+            self,
+            preds: torch.Tensor,
+            lr: Optional[torch.Tensor],
+            target: torch.Tensor,
+            extended: bool = False
+    ):
+        self._update_metric_collection(preds=preds, target=target, metric_collection=self.metrics)
 
-            self.input_metrics.update({
-                f"{mode}/psnr_in": PSNR(),
-                f"{mode}/ssim_in": SSIM(),
-                f"{mode}/l1_in": MAE(),
-                f"{mode}/l2_in": MSE(),
-                f"{mode}/poisson_in": PoissonNLLLoss()
-            })
+        if extended:
+            self._update_metric_collection(preds=preds, target=target, metric_collection=self.extended_metrics)
 
-            self.input_extended_metrics.update({
-                f"{mode}/vif_p_in": VIF(),
-                f"{mode}/fsim_in": FSIM(),
-                f"{mode}/gmsd_in": GMSD(),
-                f"{mode}/ms_gmsd_in": MultiScaleGMSD(),
-                f"{mode}/haarpsi_in": HaarPSI(),
-                f"{mode}/msdi_in": MDSI()
-            })
+        if lr is not None:
+            lr = self.dataset_normalizer.denormalize_lr_image(lr)
+            lr = self.upsample(lr)
+            self._update_metric_collection(preds=lr, target=target, metric_collection=self.input_metrics)
 
-    def _reset_metrics(self):
-        for metric in self.metrics.values():
-            metric.reset()
-        for metric in self.extended_metrics.values():
-            metric.reset()
-        for metric in self.input_metrics.values():
-            metric.reset()
-        for metric in self.input_extended_metrics.values():
-            metric.reset()
+            if extended:
+                self._update_metric_collection(preds=lr, target=target, metric_collection=self.input_extended_metrics)
 
-    def _on_batch_end(
+    def _update_metric_collection(
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            metric_dicts: List[Dict[str, Metric]]
+            metric_collection: MetricCollection
     ):
-        if preds.size()[-1] != target.size()[-1]:
-            preds = self.dataset_normalizer.denormalize_lr_image(preds)
-            preds = self.upsample(preds)
-        else:
-            preds = self.dataset_normalizer.denormalize_hr_image(preds)
+        preds = preds.clamp(min=0.0, max=self.data_range)
+        target = target.clamp(min=0.0, max=self.data_range)
 
-        target = self.dataset_normalizer.denormalize_hr_image(target)
+        for name, metric in metric_collection.items(copy_state=False):
+            mode = name.split("/")[1]
+            normalizer = self.normalizer_dict[mode]
+            preds_scaled = normalizer.normalize_hr_image(preds)
+            target_scaled = normalizer.normalize_hr_image(target)
+            metric = metric.to(preds_scaled.device)
+            metric.update(preds=preds_scaled, target=target_scaled)
 
-        preds.clamp_(min=0.0, max=self.data_range)
-        target.clamp_(min=0.0, max=self.data_range)
-
-        for normalizer in self.scaling_normalizers:
-            mode = normalizer.stretch_mode
-            preds = normalizer.normalize_hr_image(preds)
-            target = normalizer.normalize_hr_image(target)
-            for metric_dict in metric_dicts:
-                for name, metric in metric_dict.items():
-                    if name.startswith(mode):
-                        metric = metric.to(preds.device)
-                        metric.update(preds=preds, target=target, data_range=1.0, reduction="mean")
-
-    def _on_end(
+    def update_val(
             self,
-            logger: Logger,
-            stage: str,
-            metric_dicts: List[Dict[str, Metric]]
-    ):
-        metrics = defaultdict(float)
-        for metric_dict in metric_dicts:
-            for name, metric in metric_dict.items():
-                metrics[f"{stage}/{name}"] = metric.compute().float()
-        logger.log_metrics(metrics)
-        self._reset_metrics()
-
-    def on_validation_batch_end(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            outputs: Optional[STEP_OUTPUT],
-            batch: Any,
-            batch_idx: int,
-            dataloader_idx: int,
+            preds: torch.Tensor,
+            lr: Optional[torch.Tensor],
+            target: torch.Tensor
     ) -> None:
-        if not trainer.sanity_checking:
-            self._on_batch_end(
-                preds=outputs["preds"],
-                target=outputs["target"],
-                metric_dicts=[self.metrics]
-            )
-
-            if trainer.current_epoch == 0:
-                self._on_batch_end(
-                    preds=outputs["lr"],
-                    target=outputs["target"],
-                    metric_dicts=[self.input_metrics]
-                )
-
-    def on_validation_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
-        if not trainer.sanity_checking:
-            metrics = [self.input_metrics, self.metrics] if trainer.current_epoch == 0 else [self.metrics]
-            self._on_end(trainer.logger, "val", metrics)
-
-    def on_test_batch_end(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            outputs: Optional[STEP_OUTPUT],
-            batch: Any,
-            batch_idx: int,
-            dataloader_idx: int,
-    ) -> None:
-        self._on_batch_end(
-            preds=outputs["preds"],
-            target=outputs["target"],
-            metric_dicts=[self.metrics, self.extended_metrics]
-        )
-        self._on_batch_end(
-            preds=outputs["lr"],
-            target=outputs["target"],
-            metric_dicts=[self.input_metrics, self.input_extended_metrics]
+        self._update(
+            preds=preds,
+            lr=lr,
+            target=target,
+            extended=False
         )
 
-    def on_test_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
-        self._on_end(trainer.logger, "test",
-                     [self.metrics, self.extended_metrics, self.input_metrics, self.input_extended_metrics])
+    def update_test(
+            self,
+            preds: torch.Tensor,
+            lr: Optional[torch.Tensor],
+            target: torch.Tensor
+    ) -> None:
+        self._update(
+            preds=preds,
+            lr=lr,
+            target=target,
+            extended=True
+        )
+        self.update_val(preds=preds, lr=lr, target=target)

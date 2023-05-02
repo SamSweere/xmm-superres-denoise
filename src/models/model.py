@@ -1,8 +1,12 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
-from typing import Tuple
+from typing import Tuple, Optional
 
 import pytorch_lightning as pl
 import torch
+from torch import Tensor
+from torchmetrics import Metric
+
+from metrics import MetricsCalculator
 
 
 class Model(pl.LightningModule):
@@ -11,9 +15,17 @@ class Model(pl.LightningModule):
             config: dict,
             lr_shape: Tuple[int, int],
             hr_shape: Tuple[int, int],
-            loss
+            loss: Metric,
+            metrics: MetricsCalculator
     ):
         super(Model, self).__init__()
+
+        self.mc = metrics
+        # Has to be set for the metrics to work
+        self.metrics = metrics.metrics
+        self.input_metrics = metrics.input_metrics
+        self.input_extended_metrics = metrics.input_extended_metrics
+        self.extended_metrics = metrics.extended_metrics
 
         # Optimizer parameters
         self.learning_rate = config["learning_rate"]
@@ -58,29 +70,56 @@ class Model(pl.LightningModule):
         return torch.clamp(self.model(x), min=0.0, max=1.0)
 
     def training_step(self, batch, batch_idx):
-        gen_hr = self(batch["lr"])
-        loss = self.loss(gen_hr, batch["hr"])
-        self.log("train/loss", loss, prog_bar=True, batch_size=self.batch_size)
+        loss = self._on_step(batch, "train")
+        self.loss.reset()
         return loss
 
-    def _on_step(self, batch, stage):
+    def on_train_epoch_end(self) -> None:
+        self._on_epoch_end()
+
+    def validation_step(self, batch, batch_idx):
+        self._on_step(batch, "val")
+
+    def on_validation_epoch_end(self) -> None:
+        self._on_epoch_end()
+        self.log_dict(self.mc.metrics, batch_size=self.batch_size)
+        if self.current_epoch == 0:
+            self.log_dict(self.mc.input_metrics, batch_size=self.batch_size)
+
+    def test_step(self, batch, batch_idx):
+        self._on_step(batch, "test")
+
+    def on_test_epoch_end(self) -> None:
+        self._on_epoch_end()
+        self.log_dict(self.mc.metrics, batch_size=self.batch_size)
+        self.log_dict(self.mc.extended_metrics, batch_size=self.batch_size)
+        self.log_dict(self.mc.input_metrics, batch_size=self.batch_size)
+        self.log_dict(self.mc.input_extended_metrics, batch_size=self.batch_size)
+
+    def _on_step(self, batch, stage) -> Optional[Tensor]:
         lr = batch["lr"]
         preds = self(lr)
         target = batch.get("hr", preds)
 
-        loss = self.loss(preds, target)
-        self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=self.batch_size, sync_dist=True)
-        return {
-            "lr": lr.detach(),
-            "preds": preds.detach(),
-            "target": target.detach()
-        }
+        loss = self.loss(preds=preds, target=target)
 
-    def validation_step(self, batch, batch_idx):
-        return self._on_step(batch, "val")
+        # if not self.trainer.sanity_checking:
+        if stage == "train":
+            self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=self.batch_size,
+                     on_step=True, on_epoch=False)
+            return loss
+        else:
+            self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=self.batch_size,
+                     on_step=False, on_epoch=True)
+            if stage == "val":
+                lr = lr if self.current_epoch == 0 else None
+                self.mc.update_val(preds=preds, lr=lr, target=target)
 
-    def test_step(self, batch, batch_idx):
-        return self._on_step(batch, "test")
+            elif stage == "test":
+                self.mc.update_test(preds=preds, lr=lr, target=target)
+
+    def _on_epoch_end(self) -> None:
+        self.loss.reset()
 
     def configure_optimizers(self):
         # Optimizers
