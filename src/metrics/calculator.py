@@ -74,10 +74,10 @@ class MetricsCalculator:
             self.input_metrics.append(input_metrics.clone(prefix=f"{mode}/"))
             self.input_extended_metrics.append(input_extended_metrics.clone(prefix=f"{mode}/"))
 
-        self.metrics = MetricCollection(*self.metrics, prefix=f"{prefix}/")
-        self.extended_metrics = MetricCollection(*self.extended_metrics, prefix=f"{prefix}/")
-        self.input_metrics = MetricCollection(*self.input_metrics, prefix=f"{prefix}/")
-        self.input_extended_metrics = MetricCollection(*self.input_extended_metrics, prefix=f"{prefix}/")
+        self.metrics = MetricCollection(self.metrics, prefix=f"{prefix}/")
+        self.extended_metrics = MetricCollection(self.extended_metrics, prefix=f"{prefix}/")
+        self.input_metrics = MetricCollection(self.input_metrics, prefix=f"{prefix}/")
+        self.input_extended_metrics = MetricCollection(self.input_extended_metrics, prefix=f"{prefix}/")
 
     def _update(
             self,
