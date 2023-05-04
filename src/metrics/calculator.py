@@ -86,18 +86,20 @@ class MetricsCalculator:
             target: torch.Tensor,
             extended: bool = False
     ):
-        self._update_metric_collection(preds=preds, target=target, metric_collection=self.metrics)
+        p = self.dataset_normalizer.denormalize_hr_image(preds)
+        t = self.dataset_normalizer.denormalize_hr_image(target)
+        self._update_metric_collection(preds=p, target=t, metric_collection=self.metrics)
 
         if extended:
-            self._update_metric_collection(preds=preds, target=target, metric_collection=self.extended_metrics)
+            self._update_metric_collection(preds=p, target=t, metric_collection=self.extended_metrics)
 
         if lr is not None:
-            lr = self.dataset_normalizer.denormalize_lr_image(lr)
-            lr = self.upsample(lr)
-            self._update_metric_collection(preds=lr, target=target, metric_collection=self.input_metrics)
+            l = self.dataset_normalizer.denormalize_lr_image(lr)
+            l = self.upsample(l)
+            self._update_metric_collection(preds=l, target=t, metric_collection=self.input_metrics)
 
             if extended:
-                self._update_metric_collection(preds=lr, target=target, metric_collection=self.input_extended_metrics)
+                self._update_metric_collection(preds=l, target=t, metric_collection=self.input_extended_metrics)
 
     def _update_metric_collection(
             self,
@@ -105,40 +107,33 @@ class MetricsCalculator:
             target: torch.Tensor,
             metric_collection: MetricCollection
     ):
-        preds = preds.clamp(min=0.0, max=self.data_range)
-        target = target.clamp(min=0.0, max=self.data_range)
-
-        for name, metric in metric_collection.items(copy_state=False):
-            mode = name.split("/")[1]
+        p = torch.clamp(preds, min=0.0, max=self.data_range)
+        t = torch.clamp(target, min=0.0, max=self.data_range)
+        for metric_name, metric in metric_collection.items(copy_state=False):
+            mode = metric_name.split("/")[1]
             normalizer = self.normalizer_dict[mode]
-            preds_scaled = normalizer.normalize_hr_image(preds)
-            target_scaled = normalizer.normalize_hr_image(target)
-            metric = metric.to(preds_scaled.device)
-            metric.update(preds=preds_scaled, target=target_scaled)
+            preds_scaled = normalizer.normalize_hr_image(p)
+            target_scaled = normalizer.normalize_hr_image(t)
+            metric(preds=preds_scaled, target=target_scaled)
 
-    def update_val(
+    def update(
             self,
             preds: torch.Tensor,
             lr: Optional[torch.Tensor],
-            target: torch.Tensor
-    ) -> None:
-        self._update(
-            preds=preds,
-            lr=lr,
-            target=target,
-            extended=False
-        )
-
-    def update_test(
-            self,
-            preds: torch.Tensor,
-            lr: Optional[torch.Tensor],
-            target: torch.Tensor
-    ) -> None:
-        self._update(
-            preds=preds,
-            lr=lr,
-            target=target,
-            extended=True
-        )
-        self.update_val(preds=preds, lr=lr, target=target)
+            target: torch.Tensor,
+            stage: str
+    ):
+        if stage == "val":
+            self._update(
+                preds=preds,
+                lr=lr,
+                target=target,
+                extended=False
+            )
+        elif stage == "test":
+            self._update(
+                preds=preds,
+                lr=lr,
+                target=target,
+                extended=True
+            )

@@ -71,30 +71,13 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self._on_step(batch, "train")
-        self.loss.reset()
         return loss
-
-    def on_train_epoch_end(self) -> None:
-        self._on_epoch_end()
 
     def validation_step(self, batch, batch_idx):
         self._on_step(batch, "val")
 
-    def on_validation_epoch_end(self) -> None:
-        self._on_epoch_end()
-        self.log_dict(self.mc.metrics, batch_size=self.batch_size)
-        if self.current_epoch == 0:
-            self.log_dict(self.mc.input_metrics, batch_size=self.batch_size)
-
     def test_step(self, batch, batch_idx):
         self._on_step(batch, "test")
-
-    def on_test_epoch_end(self) -> None:
-        self._on_epoch_end()
-        self.log_dict(self.mc.metrics, batch_size=self.batch_size)
-        self.log_dict(self.mc.extended_metrics, batch_size=self.batch_size)
-        self.log_dict(self.mc.input_metrics, batch_size=self.batch_size)
-        self.log_dict(self.mc.input_extended_metrics, batch_size=self.batch_size)
 
     def _on_step(self, batch, stage) -> Optional[Tensor]:
         lr = batch["lr"]
@@ -103,23 +86,31 @@ class Model(pl.LightningModule):
 
         loss = self.loss(preds=preds, target=target)
 
-        # if not self.trainer.sanity_checking:
         if stage == "train":
-            self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=self.batch_size,
+            self.log(f"{stage}/loss", self.loss, prog_bar=True, batch_size=self.batch_size,
                      on_step=True, on_epoch=False)
             return loss
         else:
-            self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=self.batch_size,
+            self.log(f"{stage}/loss", self.loss, prog_bar=True, batch_size=self.batch_size,
                      on_step=False, on_epoch=True, sync_dist=True)
-            if stage == "val":
-                lr = lr if self.current_epoch == 0 else None
-                self.mc.update_val(preds=preds, lr=lr, target=target)
 
-            elif stage == "test":
-                self.mc.update_test(preds=preds, lr=lr, target=target)
+            log_inputs = self.current_epoch == 0 or stage == "test"
+            log_extended = stage == "test"
+            lr = lr if log_inputs else None
 
-    def _on_epoch_end(self) -> None:
-        self.loss.reset()
+            self.mc.update(preds=preds, lr=lr, target=target, stage=stage)
+
+            self.log_dict(self.metrics, batch_size=self.batch_size, on_step=False, on_epoch=True, sync_dist=True)
+
+            if log_inputs:
+                self.log_dict(self.input_metrics, batch_size=self.batch_size, on_step=False, on_epoch=True,
+                              sync_dist=True)
+
+            if log_extended:
+                self.log_dict(self.extended_metrics, batch_size=self.batch_size, on_step=False, on_epoch=True,
+                              sync_dist=True)
+                self.log_dict(self.input_extended_metrics, batch_size=self.batch_size, on_step=False, on_epoch=True,
+                              sync_dist=True)
 
     def configure_optimizers(self):
         # Optimizers
