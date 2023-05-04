@@ -1,5 +1,3 @@
-from typing import Union
-
 import piq
 import torch
 from torch.nn.functional import mse_loss, poisson_nll_loss, l1_loss
@@ -14,10 +12,11 @@ class _Metric(Metric):
     def __init__(
             self,
             scaling: float = 1.0,
-            correction: float = 0.0
+            correction: float = 0.0,
     ):
         super(_Metric, self).__init__()
-        self.add_state("metric", default=[], dist_reduce_fx="cat")
+        self.add_state("metric", default=torch.tensor(0, dtype=torch.float), dist_reduce_fx="sum")
+        self.add_state("total", default=torch.tensor(0, dtype=torch.float), dist_reduce_fx="sum")
         self.scaling = scaling
         self.correction = correction
 
@@ -25,17 +24,20 @@ class _Metric(Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
         raise NotImplementedError
 
     def compute(self) -> torch.Tensor:
-        unscaled = torch.cat([values.flatten() for values in self.metric])
-        scaled = self.scaling * unscaled + self.correction
-        return torch.mean(scaled)
+        scaled = self.scaling * self.metric
+        mean_scaled = scaled / self.total
+        corrected = mean_scaled + self.correction
+        return corrected
 
     def __repr__(self):
-        return f"{self.scaling} * {self.__class__.__name__} + {self.correction}"
+        scaling = f"{self.scaling} * " if self.scaling != 1.0 else ""
+        name = {self.__class__.__name__}
+        correction = f"+ {self.correction}" if self.correction != 0.0 else ""
+        return f"{scaling}{name}{correction}"
 
 
 class VIF(_Metric):
@@ -47,9 +49,9 @@ class VIF(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(piq.vif_p(x=preds, y=target, data_range=data_range, reduction=reduction))
+        self.metric += piq.vif_p(x=preds, y=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class SSIM(_Metric):
@@ -76,10 +78,10 @@ class SSIM(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(piq.ssim(x=preds, y=target, kernel_size=self.kernel_size, kernel_sigma=self.kernel_sigma,
-                                    data_range=data_range, reduction=reduction, k1=self.k1, k2=self.k2))
+        self.metric += piq.ssim(x=preds, y=target, kernel_size=self.kernel_size, kernel_sigma=self.kernel_sigma,
+                                reduction=reduction, k1=self.k1, k2=self.k2)
+        self.total += preds.size()[0]
 
 
 class MultiScaleSSIM(_Metric):
@@ -107,12 +109,12 @@ class MultiScaleSSIM(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(piq.multi_scale_ssim(x=preds, y=target, kernel_size=self.kernel_size,
-                                                kernel_sigma=self.kernel_sigma, data_range=data_range,
-                                                reduction=reduction,
-                                                k1=self.k1, k2=self.k2))
+        self.metric += piq.multi_scale_ssim(x=preds, y=target, kernel_size=self.kernel_size,
+                                            kernel_sigma=self.kernel_sigma,
+                                            reduction=reduction,
+                                            k1=self.k1, k2=self.k2)
+        self.total += preds.size()[0]
 
 
 class PSNR(_Metric):
@@ -124,9 +126,9 @@ class PSNR(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(piq.psnr(x=preds, y=target, data_range=data_range, reduction=reduction))
+        self.metric += piq.psnr(x=preds, y=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class PoissonNLLLoss(_Metric):
@@ -136,9 +138,9 @@ class PoissonNLLLoss(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(poisson_nll_loss(input=preds, target=target, log_input=False, reduction=reduction))
+        self.metric += poisson_nll_loss(input=preds, target=target, log_input=False, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class MSE(_Metric):
@@ -151,9 +153,9 @@ class MSE(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(mse_loss(input=preds, target=target, reduction=reduction))
+        self.metric += mse_loss(input=preds, target=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class MDSI(_Metric):
@@ -165,9 +167,9 @@ class MDSI(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(piq.mdsi(x=preds, y=target, data_range=data_range, reduction=reduction))
+        self.metric += piq.mdsi(x=preds, y=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class MAE(_Metric):
@@ -180,9 +182,9 @@ class MAE(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(l1_loss(input=preds, target=target, reduction=reduction))
+        self.metric += l1_loss(input=preds, target=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class HaarPSI(_Metric):
@@ -194,9 +196,9 @@ class HaarPSI(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(piq.haarpsi(x=preds, y=target, data_range=data_range, reduction=reduction))
+        self.metric += piq.haarpsi(x=preds, y=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class GMSD(_Metric):
@@ -208,9 +210,9 @@ class GMSD(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(piq.gmsd(x=preds, y=target, data_range=data_range, reduction=reduction))
+        self.metric += piq.gmsd(x=preds, y=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class MultiScaleGMSD(_Metric):
@@ -222,10 +224,10 @@ class MultiScaleGMSD(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(piq.multi_scale_gmsd(x=preds, y=target, data_range=data_range, chromatic=False,
-                                                reduction=reduction))
+        self.metric += piq.multi_scale_gmsd(x=preds, y=target, chromatic=False,
+                                            reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class FSIM(_Metric):
@@ -237,6 +239,6 @@ class FSIM(_Metric):
             self,
             preds: torch.Tensor,
             target: torch.Tensor,
-            data_range: Union[int, float] = 1.0,
             reduction: str = "mean") -> None:
-        self.metric.append(piq.fsim(x=preds, y=target, data_range=data_range, chromatic=False, reduction=reduction))
+        self.metric += piq.fsim(x=preds, y=target, chromatic=False, reduction=reduction)
+        self.total += preds.size()[0]
