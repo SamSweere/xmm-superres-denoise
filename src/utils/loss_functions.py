@@ -113,20 +113,16 @@ def create_loss(
         # Poisson loss
         scaling, correction = _get_scaling(x1=_zero_epoch[data_scaling]["poisson"],
                                            x2=_last_epoch[data_scaling]["poisson"])
-        if metrics is None:
-            metrics = PoissonNLLLoss(scaling=poisson_p * scaling, correction=correction)
-        else:
-            metrics = metrics + PoissonNLLLoss(scaling=poisson_p * scaling, correction=correction)
+        m = PoissonNLLLoss(scaling=poisson_p * scaling, correction=correction)
+        metrics = m if metrics is None else metrics + m
 
     if psnr_p > 0.0:
         # PSNR loss
         # psnr is a rising metric, therefore inverse the scale
         scaling, correction = _get_scaling(x1=_zero_epoch[data_scaling]["psnr"],
                                            x2=_last_epoch[data_scaling]["psnr"])
-        if metrics is None:
-            metrics = PSNR(scaling=psnr_p * scaling, correction=correction)
-        else:
-            metrics = metrics + PSNR(scaling=psnr_p * scaling, correction=correction)
+        m = PSNR(scaling=psnr_p * scaling, correction=correction)
+        metrics = m if metrics is None else metrics + m
 
     if ssim_p > 0.0 or ms_ssim_p > 0.0:
         # SSIM settings
@@ -136,17 +132,13 @@ def create_loss(
             # SSIM loss
             scaling, correction = _get_scaling(x1=_zero_epoch[data_scaling]["ssim"],
                                                x2=_last_epoch[data_scaling]["ssim"])
-            if metrics is None:
-                metrics = SSIM(scaling=ssim_p * scaling, correction=correction)
-            else:
-                metrics = metrics + SSIM(scaling=ssim_p * scaling, correction=correction)
+            m = SSIM(scaling=ssim_p * scaling, correction=correction)
+            metrics = m if metrics is None else metrics + m
 
         if ms_ssim_p > 0.0:
             # MS_SSIM loss
             scaling, correction = _get_scaling(x1=_zero_epoch[data_scaling]["ms_ssim"],
                                                x2=_last_epoch[data_scaling]["ms_ssim"])
-            if metrics is None:
-                metrics = MultiScaleSSIM(scaling=ms_ssim_p * scaling, correction=correction)
-            else:
-                metrics = metrics + MultiScaleSSIM(scaling=ms_ssim_p * scaling, correction=correction)
+            m = MultiScaleSSIM(scaling=ms_ssim_p * scaling, correction=correction)
+            metrics = m if metrics is None else metrics + m
     return metrics

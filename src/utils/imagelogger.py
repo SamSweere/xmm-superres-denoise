@@ -12,7 +12,6 @@ from pytorch_lightning.utilities.types import EVAL_DATALOADERS
 from torchmetrics.functional import structural_similarity_index_measure as ssim
 
 from datasets import XmmDisplayDataModule
-from metrics import MetricsCalculator
 from utils.filehandling import write_xmm_file_to_fits
 
 _img_val_dict = {
@@ -159,7 +158,6 @@ class ImageLogger(pl.Callback):
             normalize,
             scaling_normalizers,
             data_range,
-            metrics_calculator: MetricsCalculator
     ):
         super(ImageLogger, self).__init__()
 
@@ -169,7 +167,6 @@ class ImageLogger(pl.Callback):
         self.data_range = data_range
 
         self.log_every_n_epochs = log_every_n_epochs
-        self.metrics_calculator = metrics_calculator
 
     @rank_zero_only
     def _get_samples(
