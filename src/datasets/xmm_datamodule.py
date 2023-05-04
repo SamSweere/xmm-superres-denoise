@@ -96,7 +96,7 @@ class XmmDataModule(BaseDataModule):
                     indices = np.concatenate(indices)
                 rank_zero_info(f"\tDataset has {self.dataset.base_name_count} base_names "
                                f"out of which {indices.size // exps_size} are used in {subset}_subset. "
-                               f"Due to {exps_size}, this subset has {indices.size} images.")
+                               f"Due to {exps_size} exps, this subset has {indices.size} images.")
                 return indices
         elif self.dataset_type == "real":
             used_lr_basenames = self.dataset.lr_img_files.index
