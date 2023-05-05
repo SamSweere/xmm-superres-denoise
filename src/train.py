@@ -5,7 +5,7 @@ import wandb
 from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
-from lightning.pytorch.utilities import rank_zero_info
+from lightning.pytorch.utilities import rank_zero_info, rank_zero_warn
 
 from datasets import XmmDataModule, XmmDisplayDataModule
 from metrics import MetricsCalculator
@@ -116,6 +116,9 @@ if __name__ == "__main__":
     )
 
     if args.routine == "fit":
+        if trainer_config["checkpoint_path"] is None:
+            rank_zero_warn("You have not given a checkpoint_path in the trainer config! If it was on purpose, then"
+                           "you can ignore this warning.")
         trainer.fit(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])
     elif args.routine == "test":
         trainer.test(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])
