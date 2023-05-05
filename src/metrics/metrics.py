@@ -1,6 +1,6 @@
 import piq
 import torch
-import torch.nn as nn
+from torch.nn.functional import mse_loss, poisson_nll_loss, l1_loss
 from torchmetrics import Metric
 
 
@@ -11,7 +11,6 @@ class _Metric(Metric):
 
     def __init__(
             self,
-            fn,
             scaling: float = 1.0,
             correction: float = 0.0,
     ):
@@ -20,14 +19,12 @@ class _Metric(Metric):
         self.add_state("total", default=torch.tensor(0, dtype=torch.float), dist_reduce_fx="sum")
         self.scaling = scaling
         self.correction = correction
-        self.fn = fn
 
     def update(
             self,
             preds: torch.Tensor,
             target: torch.Tensor) -> None:
-        self.metric += self.fn(x=preds, y=target)
-        self.total += preds.size()[0]
+        raise NotImplementedError
 
     def compute(self) -> torch.Tensor:
         scaled = self.scaling * self.metric
@@ -37,8 +34,9 @@ class _Metric(Metric):
 
     def __repr__(self):
         scaling = f"{self.scaling} * " if self.scaling != 1.0 else ""
-        correction = f" + {self.correction}" if self.correction != 0.0 else ""
-        return f"{scaling}{self.fn}{correction}"
+        name = {self.__class__.__name__}
+        correction = f"+ {self.correction}" if self.correction != 0.0 else ""
+        return f"{scaling}{name}{correction}"
 
 
 class VIF(_Metric):
@@ -46,13 +44,13 @@ class VIF(_Metric):
     Compute Visual Information Fidelity in pixel domain for a batch of images.
     """
 
-    def __init__(
+    def update(
             self,
-            scaling: float = 1.0,
-            correction: float = 0.0
-    ):
-        fn = piq.VIFLoss()
-        super(VIF, self).__init__(fn=fn, scaling=scaling, correction=correction)
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += piq.vif_p(x=preds, y=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class SSIM(_Metric):
@@ -69,8 +67,20 @@ class SSIM(_Metric):
             k1: float = 0.01,
             k2: float = 0.05
     ):
-        fn = piq.SSIMLoss(kernel_size=kernel_size, kernel_sigma=kernel_sigma, k1=k1, k2=k2)
-        super(SSIM, self).__init__(fn=fn, scaling=scaling, correction=correction)
+        super(SSIM, self).__init__(scaling=scaling, correction=correction)
+        self.kernel_size = kernel_size
+        self.kernel_sigma = kernel_sigma
+        self.k1 = k1
+        self.k2 = k2
+
+    def update(
+            self,
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += piq.ssim(x=preds, y=target, kernel_size=self.kernel_size, kernel_sigma=self.kernel_sigma,
+                                reduction=reduction, k1=self.k1, k2=self.k2)
+        self.total += preds.size()[0]
 
 
 class MultiScaleSSIM(_Metric):
@@ -85,12 +95,25 @@ class MultiScaleSSIM(_Metric):
             kernel_size: int = 13,
             kernel_sigma: float = 2.5,
             k1: float = 0.01,
-            k2: float = 0.05,
-            scale_weights: torch.Tensor = None
+            k2: float = 0.05
     ):
-        fn = piq.MultiScaleSSIMLoss(kernel_size=kernel_size, kernel_sigma=kernel_sigma, k1=k1, k2=k2,
-                                    scale_weights=scale_weights)
-        super(MultiScaleSSIM, self).__init__(fn=fn, scaling=scaling, correction=correction)
+        super(MultiScaleSSIM, self).__init__(scaling=scaling, correction=correction)
+
+        self.kernel_size = kernel_size
+        self.kernel_sigma = kernel_sigma
+        self.k1 = k1
+        self.k2 = k2
+
+    def update(
+            self,
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += piq.multi_scale_ssim(x=preds, y=target, kernel_size=self.kernel_size,
+                                            kernel_sigma=self.kernel_sigma,
+                                            reduction=reduction,
+                                            k1=self.k1, k2=self.k2)
+        self.total += preds.size()[0]
 
 
 class PSNR(_Metric):
@@ -98,25 +121,25 @@ class PSNR(_Metric):
     Compute Peak Signal-to-Noise Ratio for a batch of images.
     """
 
-    def __init__(
+    def update(
             self,
-            scaling: float = 1.0,
-            correction: float = 0.0
-    ):
-        fn = piq.psnr
-        super(PSNR, self).__init__(fn=fn, scaling=scaling, correction=correction)
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += piq.psnr(x=preds, y=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class PoissonNLLLoss(_Metric):
     higher_is_better = False
 
-    def __init__(
+    def update(
             self,
-            scaling: float = 1.0,
-            correction: float = 0.0
-    ):
-        fn = nn.PoissonNLLLoss(log_input=False)
-        super(PoissonNLLLoss, self).__init__(fn=fn, scaling=scaling, correction=correction)
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += poisson_nll_loss(input=preds, target=target, log_input=False, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class MSE(_Metric):
@@ -125,13 +148,13 @@ class MSE(_Metric):
     """
     higher_is_better = False
 
-    def __init__(
+    def update(
             self,
-            scaling: float = 1.0,
-            correction: float = 0.0
-    ):
-        fn = nn.MSELoss()
-        super(MSE, self).__init__(fn=fn, scaling=scaling, correction=correction)
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += mse_loss(input=preds, target=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class MDSI(_Metric):
@@ -139,13 +162,13 @@ class MDSI(_Metric):
     Compute Mean Deviation Similarity Index (MDSI) for a batch of images.
     """
 
-    def __init__(
+    def update(
             self,
-            scaling: float = 1.0,
-            correction: float = 0.0
-    ):
-        fn = piq.MDSILoss()
-        super(MDSI, self).__init__(fn=fn, scaling=scaling, correction=correction)
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += piq.mdsi(x=preds, y=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class MAE(_Metric):
@@ -154,13 +177,13 @@ class MAE(_Metric):
     """
     higher_is_better: bool = False
 
-    def __init__(
+    def update(
             self,
-            scaling: float = 1.0,
-            correction: float = 0.0
-    ):
-        fn = nn.L1Loss()
-        super(MAE, self).__init__(fn=fn, scaling=scaling, correction=correction)
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += l1_loss(input=preds, target=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class HaarPSI(_Metric):
@@ -168,13 +191,13 @@ class HaarPSI(_Metric):
     Compute Haar Wavelet-Based Perceptual Similarity Inputs
     """
 
-    def __init__(
+    def update(
             self,
-            scaling: float = 1.0,
-            correction: float = 0.0
-    ):
-        fn = piq.HaarPSILoss()
-        super(HaarPSI, self).__init__(fn=fn, scaling=scaling, correction=correction)
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += piq.haarpsi(x=preds, y=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class GMSD(_Metric):
@@ -182,13 +205,13 @@ class GMSD(_Metric):
     Compute Gradient Magnitude Similarity Deviation
     """
 
-    def __init__(
+    def update(
             self,
-            scaling: float = 1.0,
-            correction: float = 0.0
-    ):
-        fn = piq.GMSDLoss()
-        super(GMSD, self).__init__(fn=fn, scaling=scaling, correction=correction)
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += piq.gmsd(x=preds, y=target, reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class MultiScaleGMSD(_Metric):
@@ -196,13 +219,14 @@ class MultiScaleGMSD(_Metric):
     Computation of Multi scale GMSD.
     """
 
-    def __init__(
+    def update(
             self,
-            scaling: float = 1.0,
-            correction: float = 0.0
-    ):
-        fn = piq.MultiScaleGMSDLoss(chromatic=False)
-        super(MultiScaleGMSD, self).__init__(fn=fn, scaling=scaling, correction=correction)
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += piq.multi_scale_gmsd(x=preds, y=target, chromatic=False,
+                                            reduction=reduction)
+        self.total += preds.size()[0]
 
 
 class FSIM(_Metric):
@@ -210,10 +234,10 @@ class FSIM(_Metric):
     Compute Feature Similarity Index Measure for a batch of images.
     """
 
-    def __init__(
+    def update(
             self,
-            scaling: float = 1.0,
-            correction: float = 0.0
-    ):
-        fn = piq.FSIMLoss(chromatic=False)
-        super(FSIM, self).__init__(fn=fn, scaling=scaling, correction=correction)
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        self.metric += piq.fsim(x=preds, y=target, chromatic=False, reduction=reduction)
+        self.total += preds.size()[0]
