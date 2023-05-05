@@ -2,7 +2,7 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-from pytorch_lightning.utilities import rank_zero_info
+from lightning.pytorch.utilities import rank_zero_info
 from torch.utils.data import random_split, Subset
 
 from datasets import BaseDataModule

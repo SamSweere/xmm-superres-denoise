@@ -1,7 +1,7 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
 from typing import Tuple, Optional
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 from torch import Tensor
 from torchmetrics import Metric

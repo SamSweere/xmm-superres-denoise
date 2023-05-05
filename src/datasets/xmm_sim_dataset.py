@@ -4,7 +4,7 @@ from typing import List, Callable
 
 import numpy as np
 import pandas as pd
-from pytorch_lightning.utilities import rank_zero_info
+from lightning.pytorch.utilities import rank_zero_info
 from torch.utils.data import Dataset
 
 from datasets.utils import find_img_dirs, find_img_files, match_file_list, apply_transform

@@ -3,7 +3,7 @@ from random import sample
 from typing import List, Optional, Callable
 
 import numpy as np
-from pytorch_lightning.utilities import rank_zero_info
+from lightning.pytorch.utilities import rank_zero_info
 from torch.utils.data import Dataset
 
 from datasets.utils import load_det_mask, apply_transform, check_img_files

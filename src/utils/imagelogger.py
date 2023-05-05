@@ -3,12 +3,12 @@ from pathlib import Path
 from typing import Dict, Union, List, Optional
 
 import numpy as np
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
+from lightning.pytorch.loggers.wandb import WandbLogger
+from lightning.pytorch.utilities import rank_zero_only
+from lightning.pytorch.utilities.types import EVAL_DATALOADERS
 from matplotlib import cm
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.utilities import rank_zero_only
-from pytorch_lightning.utilities.types import EVAL_DATALOADERS
 from torchmetrics.functional import structural_similarity_index_measure as ssim
 
 from datasets import XmmDisplayDataModule

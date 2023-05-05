@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pytorch_lightning.utilities.types import TRAIN_DATALOADERS, EVAL_DATALOADERS
+from lightning.pytorch.utilities.types import TRAIN_DATALOADERS, EVAL_DATALOADERS
 
 from datasets import BaseDataModule
 

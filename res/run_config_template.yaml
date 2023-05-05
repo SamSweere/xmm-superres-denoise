@@ -1,0 +1,37 @@
+wandb:
+  # API key to log into wandb. !CAUTION! Do not push this private key to GitHub!
+  api_key:
+  project:
+  # Directory where logs will be saved to
+  # If left empty WandbLogger will use the default wandb directory
+  log_dir:
+  # Set to true if wandb should be in online mode
+  online: True
+  log_model: True
+  run:
+    id:
+
+trainer:
+  accelerator: auto
+  strategy: auto
+  checkpoint_path:
+  devices: auto
+  epochs: 50
+  log_images_every_n_epochs: 5
+
+dataset:
+  batch_size: 1
+  #Checks if all the files in the chosen dataset are in good state
+  check_files: False
+  name: xmm_sim_ff
+  debug: False
+  dir:
+  display:
+    sim_display_name: xmm_sim_display_selection
+    real_display_name: xmm_split_display_selection
+    exposure:
+      - 20
+
+model:
+  name: esr_gen
+  memory_efficient: False

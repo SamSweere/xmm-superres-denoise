@@ -2,10 +2,10 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import wandb
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.utilities import rank_zero_info
+from lightning import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.loggers.wandb import WandbLogger
+from lightning.pytorch.utilities import rank_zero_info
 
 from datasets import XmmDataModule, XmmDisplayDataModule
 from metrics import MetricsCalculator
@@ -15,7 +15,7 @@ from utils import ImageLogger
 from utils.filehandling import read_yaml
 from utils.loss_functions import create_loss
 
-if __name__ == "__main__":  # This is needed in order to run it on multiple gpu's
+if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("path_to_run_config", type=Path, help="Path to the run config yaml.")
     args = parser.parse_args()
@@ -86,8 +86,6 @@ if __name__ == "__main__":  # This is needed in order to run it on multiple gpu'
         metrics=mc
     )
 
-    # model = model.to(torch.device("cuda"))
-
     if wandb_config["online"]:
         wandb.login(key=wandb_config["api_key"])
 
@@ -121,7 +119,7 @@ if __name__ == "__main__":  # This is needed in order to run it on multiple gpu'
             accelerator=trainer_config["accelerator"],
             devices=trainer_config["devices"],
             max_epochs=trainer_config["epochs"],
-            strategy="ddp_find_unused_parameters_false",
+            strategy=trainer_config["strategy"],
             # deterministic=True,  # keep it deterministic
             # benchmark=(not config["debug"]) and True,
             # fast_dev_run=config["fast_dev_run"],

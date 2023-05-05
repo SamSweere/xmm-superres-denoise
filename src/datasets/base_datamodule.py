@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from pytorch_lightning import LightningDataModule
-from pytorch_lightning.utilities.types import TRAIN_DATALOADERS, EVAL_DATALOADERS
+from lightning.pytorch import LightningDataModule
+from lightning.pytorch.utilities.types import TRAIN_DATALOADERS, EVAL_DATALOADERS
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
 
