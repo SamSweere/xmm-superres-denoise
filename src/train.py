@@ -42,11 +42,14 @@ if __name__ == "__main__":
                        ssim_p=model_config["loss_ssim"],
                        ms_ssim_p=model_config["loss_ms_ssim"])
 
+    rank_zero_info(f"Created loss function {loss}")
+
     checkpoint_callback = ModelCheckpoint(
         monitor="val/loss",
-        dirpath="res/checkpoints/",
-        filename=model_config["name"] + "-{epoch:05d}-{val/loss:.5f}",
-        mode="min"
+        dirpath=f"res/checkpoints/{model_config['name']}/{dataset_config['lr_exps']}->{dataset_config['hr_exp']}/",
+        filename=f"epoch{{epoch:05d}}-val_loss{{val/loss:.5f}}",
+        mode="min",
+        auto_insert_metric_name=False
     )
 
     lr_max = dataset_config["lr_max"]
@@ -74,8 +77,7 @@ if __name__ == "__main__":
         log_every_n_epochs=trainer_config["log_images_every_n_epochs"],
         normalize=datamodule.normalize,
         scaling_normalizers=scaling_normalizers,
-        data_range=hr_max,
-        metrics_calculator=mc
+        data_range=hr_max
     )
 
     model = Model(
@@ -103,7 +105,7 @@ if __name__ == "__main__":
             logger=wandb_logger,  # W&B integration
             accelerator=trainer_config["accelerator"],
             devices=1,
-            callbacks=[il]
+            callbacks=il
         )
         trainer.test(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])
     else:

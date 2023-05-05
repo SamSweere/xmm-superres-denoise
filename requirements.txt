@@ -13,3 +13,4 @@ numpy
 pyyaml
 torchmetrics
 tqdm
+onnx
