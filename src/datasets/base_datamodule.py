@@ -53,6 +53,9 @@ class BaseDataModule(LightningDataModule):
     def test_dataloader(self) -> EVAL_DATALOADERS:
         return self.get_dataloader(self.test_subset)
 
+    def predict_dataloader(self) -> EVAL_DATALOADERS:
+        return self.get_dataloader(self.test_subset)
+
     def get_dataloader(self, dataset, shuffle=False):
         return DataLoader(
             dataset,

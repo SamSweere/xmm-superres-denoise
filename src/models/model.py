@@ -79,6 +79,9 @@ class Model(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         self._on_step(batch, "test")
 
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> None:
+        batch["preds"] = self(batch["lr"])
+
     def _on_step(self, batch, stage) -> Optional[Tensor]:
         lr = batch["lr"]
         preds = self(lr)
@@ -109,8 +112,10 @@ class Model(pl.LightningModule):
             if log_extended:
                 self.log_dict(self.extended_metrics, batch_size=self.batch_size, on_step=False, on_epoch=True,
                               sync_dist=True)
-                self.log_dict(self.input_extended_metrics, batch_size=self.batch_size, on_step=False, on_epoch=True,
-                              sync_dist=True)
+
+                if log_inputs:
+                    self.log_dict(self.input_extended_metrics, batch_size=self.batch_size, on_step=False, on_epoch=True,
+                                  sync_dist=True)
 
     def configure_optimizers(self):
         # Optimizers

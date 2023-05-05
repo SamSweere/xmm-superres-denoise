@@ -229,8 +229,7 @@ class XmmSimDataset(Dataset):
             "hr": hr_img,
             "lr_exp": lr_img_sample["exp"] // 1000,
             "hr_exp": hr_img_sample["exp"] // 1000,
-            "lr_img_file_name": lr_img_sample["file_name"],
-            "tng_set": lr_img_sample["file_name"].split("_")[0],
+            "lr_img_file_name": lr_img_sample["file_name"]
         }
 
         return item

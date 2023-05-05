@@ -119,6 +119,6 @@ class XmmDataModule(BaseDataModule):
 
             val_indices = self._load_indices("val")
             self.val_subset = Subset(self.dataset, val_indices)
-        if stage == "test":
+        if stage == "test" or "predict":
             test_indices = self._load_indices("test")
             self.test_subset = Subset(self.dataset, test_indices)

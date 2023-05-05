@@ -17,10 +17,11 @@ from utils.loss_functions import create_loss
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("path_to_run_config", type=Path, help="Path to the run config yaml.")
+    parser.add_argument("routine", choices=["fit", "test", "predict"], help="What routing to execute")
+    parser.add_argument("run_config", type=Path, help="Path to the run config yaml.")
     args = parser.parse_args()
 
-    run_config: dict = read_yaml(args.path_to_run_config)
+    run_config: dict = read_yaml(args.run_config)
     wandb_config: dict = run_config["wandb"]
 
     dataset_config: dict = run_config["dataset"]
@@ -44,14 +45,6 @@ if __name__ == "__main__":
 
     rank_zero_info(f"Created loss function {loss}")
 
-    checkpoint_callback = ModelCheckpoint(
-        monitor="val/loss",
-        dirpath=f"res/checkpoints/{model_config['name']}/{dataset_config['lr_exps']}->{dataset_config['hr_exp']}/",
-        filename=f"epoch{{epoch:05d}}-val_loss{{val/loss:.5f}}",
-        mode="min",
-        auto_insert_metric_name=False
-    )
-
     lr_max = dataset_config["lr_max"]
     hr_max = dataset_config["hr_max"]
     lr_shape = (dataset_config["lr_res"], dataset_config["lr_res"])
@@ -69,7 +62,7 @@ if __name__ == "__main__":
         dataset_normalizer=datamodule.normalize,
         scaling_normalizers=scaling_normalizers,
         upsample=upsample,
-        prefix="test" if trainer_config["checkpoint_path"] else "val"
+        prefix="val" if args.routine == "fit" else "test"
     )
 
     il = ImageLogger(
@@ -91,40 +84,40 @@ if __name__ == "__main__":
     if wandb_config["online"]:
         wandb.login(key=wandb_config["api_key"])
 
-    if trainer_config["checkpoint_path"]:
-        wandb_logger = WandbLogger(
-            project=wandb_config["project"],
-            log_model=wandb_config["online"] and wandb_config["log_model"],
-            save_dir=wandb_config["log_dir"],
-            offline=not wandb_config["online"],
-            config=run_config,
-            resume="allow",
-            id=wandb_config["run"]["id"]
+    wandb_logger = WandbLogger(
+        project=wandb_config["project"],
+        log_model=wandb_config["online"] and wandb_config["log_model"],
+        save_dir=wandb_config["log_dir"],
+        offline=not wandb_config["online"],
+        config=run_config,
+        resume="must" if wandb_config["run"]["id"] is not None else None,
+        id=wandb_config["run"]["id"]
+    )
+
+    callbacks = [il]
+
+    if args.routine == "fit":
+        checkpoint_callback = ModelCheckpoint(
+            monitor="val/loss",
+            dirpath=f"res/checkpoints/{model_config['name']}/{dataset_config['lr_exps']}->{dataset_config['hr_exp']}/",
+            filename=f"epoch:{{epoch:05d}}-val_loss:{{val/loss:.5f}}",
+            mode="min",
+            auto_insert_metric_name=False
         )
-        trainer = Trainer(
-            logger=wandb_logger,  # W&B integration
-            accelerator=trainer_config["accelerator"],
-            devices=1,
-            callbacks=il
-        )
+        callbacks.append(checkpoint_callback)
+
+    trainer = Trainer(
+        logger=wandb_logger,
+        accelerator=trainer_config["accelerator"],
+        devices=trainer_config["devices"] if args.routine == "fit" else 1,
+        max_epochs=trainer_config["epochs"],
+        strategy=trainer_config["strategy"],
+        callbacks=callbacks
+    )
+
+    if args.routine == "fit":
+        trainer.fit(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])
+    elif args.routine == "test":
         trainer.test(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])
     else:
-        wandb_logger = WandbLogger(
-            project=wandb_config["project"],
-            log_model=wandb_config["online"] and wandb_config["log_model"],
-            save_dir=wandb_config["log_dir"],
-            offline=not wandb_config["online"],
-            config=run_config
-        )
-        trainer = Trainer(
-            logger=wandb_logger,  # W&B integration
-            accelerator=trainer_config["accelerator"],
-            devices=trainer_config["devices"],
-            max_epochs=trainer_config["epochs"],
-            strategy=trainer_config["strategy"],
-            # deterministic=True,  # keep it deterministic
-            # benchmark=(not config["debug"]) and True,
-            # fast_dev_run=config["fast_dev_run"],
-            callbacks=[checkpoint_callback, il]
-        )
-        trainer.fit(model, datamodule=datamodule)
+        trainer.predict(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])
