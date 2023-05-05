@@ -2,8 +2,8 @@
 from pathlib import Path
 from typing import Dict, Union, List, Optional
 
-import numpy as np
 import lightning.pytorch as pl
+import numpy as np
 import torch
 from lightning.pytorch.loggers.wandb import WandbLogger
 from lightning.pytorch.utilities import rank_zero_only
@@ -18,37 +18,27 @@ _img_val_dict = {
     "input": {
         "cm": "plasma",
         "norm": False,
-        "key": "{0}/input/{1}",
-        "metric": ["psnr_in", "ssim_in"],
-        "caption": "input {0} / {1}"
+        "key": "{0}/input/{1}"
     },
     "generated": {
         "cm": "plasma",
         "norm": False,
-        "key": "{0}/generated/{1}",
-        "metric": ["psnr", "ssim"],
-        "caption": "generated {0} / {1}"
+        "key": "{0}/generated/{1}"
     },
     "label": {
         "cm": "plasma",
         "norm": False,
-        "key": "{0}/label/{1}",
-        "metric": [],
-        "caption": "label"
+        "key": "{0}/label/{1}"
     },
     "difference": {
         "cm": "seismic",
         "norm": True,
-        "key": "{0}/difference/{1}",
-        "metric": [],
-        "caption": "difference"
+        "key": "{0}/difference/{1}"
     },
     "ssim": {
         "cm": "seismic",
         "norm": True,
-        "key": "{0}/ssim map/{1}",
-        "metric": ["ssim"],
-        "caption": "{0}"
+        "key": "{0}/ssim map/{1}"
     }
 }
 
@@ -87,7 +77,8 @@ def _write_fits(
         imgs_filenames: List[str],
         res_mult: int,
         comment: str,
-        out_file_name: str
+        out_file_name: str,
+        in_header=None
 ) -> None:
     for img, exp, img_filename in zip(imgs, exps, imgs_filenames):
         out_path = parent_dir / f"{img_filename[:60]}"
@@ -100,7 +91,8 @@ def _write_fits(
             res_mult=res_mult,
             exposure=exp.detach().item(),
             comment=comment,
-            out_file_name=out_file_name
+            out_file_name=out_file_name,
+            in_header=in_header
         )
 
 
@@ -112,9 +104,18 @@ def _save_fits_image(
         lr_exps: torch.Tensor,
         hr_exps: torch.Tensor,
         filenames: List[str],
+        lr_in_header=None,
+        hr_in_header=None
 ):
     lr_exps = lr_exps * 1000
     hr_exps = hr_exps * 1000
+
+    if lr_in_header is not None:
+        for key, value in lr_in_header.items():
+            if isinstance(value, torch.Tensor):
+                lr_in_header[key] = value.detach().cpu().numpy()[0]
+            else:
+                lr_in_header[key] = value[0]
 
     _write_fits(
         parent_dir=parent_dir,
@@ -123,7 +124,8 @@ def _save_fits_image(
         imgs_filenames=filenames,
         res_mult=1,
         comment="Transformed Input Image (input to model)",
-        out_file_name="input"
+        out_file_name="input",
+        in_header=lr_in_header
     )
 
     out_res_mult = int(preds.shape[-1] / lr_imgs.shape[-1])
@@ -135,7 +137,8 @@ def _save_fits_image(
         imgs_filenames=filenames,
         res_mult=out_res_mult,
         comment="Model Prediction",
-        out_file_name="prediction"
+        out_file_name="prediction",
+        in_header=lr_in_header
     )
 
     if labels is not None:
@@ -146,7 +149,8 @@ def _save_fits_image(
             imgs_filenames=filenames,
             res_mult=out_res_mult,
             comment="Reference Image",
-            out_file_name="label"
+            out_file_name="label",
+            in_header=hr_in_header
         )
 
 
@@ -246,7 +250,7 @@ class ImageLogger(pl.Callback):
             hr_exp_sub = hr_exp[indices]
             filenames_sub = filenames[indices.cpu().numpy()].tolist()
 
-            lr_sub = self.normalize.denormalize_hr_image(lr_sub)
+            lr_sub = self.normalize.denormalize_lr_image(lr_sub)
             pred_sub = self.normalize.denormalize_hr_image(pred_sub)
             true_sub = self.normalize.denormalize_hr_image(true_sub)
 
@@ -294,3 +298,53 @@ class ImageLogger(pl.Callback):
 
     def on_test_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         self._log_images(self.datamodule.test_dataloader(), pl_module, "test")
+
+    def on_predict_batch_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch: Dict[str, Union[torch.Tensor, List[str]]],
+            batch_idx: int,
+            dataloader_idx: int = 0,
+    ) -> None:
+        lr = batch["lr"]
+        preds = batch["preds"]
+        hr = batch.get("hr", None)
+        filenames = batch["lr_img_file_name"]
+        lr_in_header = batch.get("lr_header", None)
+        hr_in_header = batch.get("hr_header", None)
+
+        lr_exp = batch["lr_exp"]
+        hr_exp = batch["hr_exp"] if "hr" in batch else lr_exp
+
+        lr = self.normalize.denormalize_lr_image(lr)
+        preds = self.normalize.denormalize_hr_image(preds)
+        hr = self.normalize.denormalize_hr_image(hr) if "hr" in batch else None
+
+        display_type = "sim" if "hr" in batch else "real"
+
+        _save_fits_image(
+            parent_dir=Path(trainer.logger.experiment.dir) / "fits_out" / "predict" / f"{display_type}",
+            lr_imgs=lr,
+            preds=preds,
+            labels=hr,
+            lr_exps=lr_exp,
+            hr_exps=hr_exp,
+            filenames=filenames,
+            lr_in_header=lr_in_header,
+            hr_in_header=hr_in_header
+        )
+
+        imgs = [_apply_cm(_img_val_dict["input"]["cm"], lr.cpu(), normalize=_img_val_dict["input"]["norm"]),
+                _apply_cm(_img_val_dict["generated"]["cm"], preds.cpu(), normalize=_img_val_dict["generated"]["norm"])]
+        captions = ["lr", "gen"]
+        if "hr" in batch:
+            imgs.append(_apply_cm(_img_val_dict["label"]["cm"], hr.cpu(), normalize=_img_val_dict["label"]["norm"]))
+            captions.append("label")
+            difference_image = ((preds - hr) + 1.0) / 2.0
+            imgs.append(_apply_cm(_img_val_dict["difference"]["cm"], difference_image.cpu(),
+                                  normalize=_img_val_dict["difference"]["norm"]))
+            captions.append("diff")
+
+        trainer.logger.log_image(key=f"pred/{filenames[0][:60]}", images=imgs, caption=captions)
