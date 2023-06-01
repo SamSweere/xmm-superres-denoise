@@ -26,9 +26,9 @@ run_test_dataset: False #Enable this when finalizing the models
 
 server_runs_dir: /xmm-super/runs # /lhome/ssweere/data/runs # /home/sam/Documents/ESA/data/runs #/home/sam/Documents/ESA/data/runs # '/home/sam/Documents/ESA/data/runs', "/home/ssweere/remote_home/data/runs" ## The run specific folder will be created automatically
 pc_runs_dir: None
-epochs: 50
+epochs: 5
 # multiple GPUs
-gpus: [4,5,6,7] # [0] #[3] #[2] #[0] #[0] #cpu: null, gpu: [0] (give the gpu number)
+gpus: [3,6,7] # [0] #[3] #[2] #[0] #[0] #cpu: null, gpu: [0] (give the gpu number)
 batch_size: 4
 log_every_n_steps: 100
 log_images_every_n_epoch: 5
