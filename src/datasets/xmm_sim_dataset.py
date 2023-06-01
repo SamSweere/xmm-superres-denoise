@@ -7,7 +7,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from datasets.utils import (
+from src.datasets.utils import (
     get_fits_files,
     match_file_list,
     load_fits,
@@ -491,6 +491,7 @@ class XmmSimDataset(Dataset):
                             shape=(411, 403),
                         )
 
+            print("")
             print("Checking hr agn files:")
             for big_img_path in tqdm(self.hr_agn_files):
                 for img_path in big_img_path:
@@ -500,6 +501,7 @@ class XmmSimDataset(Dataset):
                     )
 
         if self.lr_background:
+            print("")
             print("Checking lr background files:")
             for exp_index in range(len(self.lr_exps)):
                 print(f"Checking exp {self.lr_exps[exp_index]}")
@@ -518,96 +520,3 @@ class XmmSimDataset(Dataset):
                 )
 
         print("All files are within specifications!")
-
-    # def get_mean_std(self, plot=False, histogram=False):
-    #     # Calculates the mean and standard deviation of the dataset
-    #     hr_means = []
-    #     lr_means = []
-    #     hr_stds = []
-    #     lr_stds = []
-    #
-    #     lr_acc_img = None
-    #     hr_acc_img = None
-    #
-    #     for idx in tqdm(range(len(self))):
-    #         lr_img, hr_img = self.load_lr_hr_xmm_sample(idx)
-    #
-    #         if histogram:
-    #             if lr_acc_img is None:
-    #                 lr_acc_img = lr_img
-    #             else:
-    #                 lr_acc_img += lr_img
-    #
-    #             if hr_acc_img is None:
-    #                 hr_acc_img = hr_img
-    #             else:
-    #                 hr_acc_img += hr_img
-    #
-    #         # TODO: only clip to get the correct mean and std
-    #         lr_img = np.clip(lr_img, a_min=0.0, a_max=0.2)
-    #         hr_img = np.clip(hr_img, a_min=0.0, a_max=0.05)
-    #
-    #         hr_means.append(np.mean(hr_img))
-    #         lr_means.append(np.mean(lr_img))
-    #
-    #         hr_stds.append(np.std(hr_img))
-    #         lr_stds.append(np.std(lr_img))
-    #
-    #     if histogram:
-    #         lr_acc_vals = lr_acc_img.flatten()
-    #         hr_acc_vals = hr_acc_img.flatten()
-    #         # lr_max_bin_value = np.max(lr_acc_img)
-    #         # hr_max_bin_value = np.max(hr_acc_img)
-    #         # lr_vals = np.zeros(int(np.ceil(lr_max_bin_value))+1)
-    #         # hr_vals = np.zeros(int(np.ceil(hr_max_bin_value))+1)
-    #         #
-    #         # for y in range(lr_acc_img.shape[0]):
-    #         #     for x in range(lr_acc_img.shape[1]):
-    #         #         val = int(lr_acc_img[x][y])
-    #         #         lr_acc_img[val] += 1
-    #         #
-    #         # for y in range(hr_img.shape[0]):
-    #         #     for x in range(hr_img.shape[1]):
-    #         #         val = int(hr_img[x][y])
-    #         #         hr_vals[val] += 1
-    #
-    #     hr_mean = np.mean(hr_means)
-    #     lr_mean = np.mean(lr_means)
-    #
-    #     hr_std = np.mean(hr_stds)
-    #     lr_std = np.mean(lr_stds)
-    #
-    #     print(
-    #         f"The lr images of {self.dataset_name} have a mean of {lr_mean} with a standard deviation of {lr_std}")
-    #     print(
-    #         f"The hr images of {self.dataset_name} have a mean of {hr_mean} with a standard deviation of {hr_std}")
-    #
-    #     if plot:
-    #         import matplotlib.pyplot as plt
-    #
-    #         plt.hist(np.sort(lr_means), bins=100)
-    #         plt.title("LR Mean")
-    #         plt.show()
-    #
-    #         plt.hist(np.sort(lr_stds), bins=100)
-    #         plt.title("LR Standard Deviation")
-    #         plt.show()
-    #
-    #         plt.hist(np.sort(hr_means), bins=100)
-    #         plt.title("HR Mean")
-    #         plt.show()
-    #
-    #         plt.hist(np.sort(hr_stds), bins=100)
-    #         plt.title("HR Standard Deviation")
-    #         plt.show()
-    #
-    #         if histogram:
-    #             plt.hist(np.sort(lr_acc_vals), bins=1000)
-    #             plt.title("LR Accumilated Values")
-    #             plt.show()
-    #
-    #             plt.hist(np.sort(hr_acc_vals), bins=1000)
-    #             plt.title("HR Accumilated Values")
-    #             plt.show()
-    #
-    #     return lr_mean, lr_std, hr_mean, hr_std

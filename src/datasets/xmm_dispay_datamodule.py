@@ -1,10 +1,10 @@
 from torchvision.transforms import transforms
 
-from datasets.base_datamodule import BaseDataModule
-from datasets.xmm_sim_dataset import XmmSimDataset
-from transforms.normalize import Normalize
-from transforms.crop import Crop
-from transforms.totensor import ToTensor
+from src.datasets.base_datamodule import BaseDataModule
+from src.datasets.xmm_sim_dataset import XmmSimDataset
+from src.transforms.normalize import Normalize
+from src.transforms.crop import Crop
+from src.transforms.totensor import ToTensor
 
 
 class XmmDisplayDataModule(BaseDataModule):

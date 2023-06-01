@@ -1,11 +1,8 @@
-# Added by me:
-*.fits
-xmm_test/
+# Newly added:
 .idea/
 wandb/
-data/
-esr_gen/
-rrdb_denoise/
+xmm_superres_venv/
+data/output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -292,6 +292,7 @@ def main(config):
             ## Ivan's change
             accelerator="gpu",
             devices=config["gpus"],
+            strategy="dp",
             ##gpus=config["gpus"],
             max_epochs=config["epochs"],  # number of epochs
             deterministic=False,  # keep it deterministic
@@ -324,6 +325,7 @@ def main(config):
             ## Ivan's change
             accelerator="gpu",
             devices=config["gpus"],
+            strategy="dp",
             ##gpus=config["gpus"],
             max_epochs=config["epochs"],  # number of epochs
             # deterministic=True,  # keep it deterministic

@@ -5,7 +5,7 @@ import torch
 from astropy.io import fits
 from torch.utils.data import Dataset
 
-from datasets.utils import (
+from src.datasets.utils import (
     get_fits_files,
     match_file_list,
     reshape_img_to_res,
@@ -179,6 +179,7 @@ class XmmDataset(Dataset):
                     )
 
         if self.include_hr:
+            print("")
             print("Checking hr img files:")
             for big_img_path in tqdm(self.hr_img_files):
                 for img_path in big_img_path:

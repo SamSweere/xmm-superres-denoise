@@ -4,7 +4,7 @@ import math
 import torch
 from torch import nn
 
-from models.modules.rrdb_blocks import RRDB, make_layer
+from src.models.modules.rrdb_blocks import RRDB, make_layer
 
 
 class GeneratorRRDB_SR(nn.Module):

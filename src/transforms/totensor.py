@@ -1,6 +1,5 @@
 # Based on: https://pytorch.org/vision/0.10/_modules/torchvision/transforms/transforms.html#ToTensor
 import torch
-import torchvision.transforms.functional as F
 
 
 class ToTensor:
