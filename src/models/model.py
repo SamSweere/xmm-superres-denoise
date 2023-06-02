@@ -15,17 +15,18 @@ class Model(pl.LightningModule):
             config: dict,
             lr_shape: Tuple[int, int],
             hr_shape: Tuple[int, int],
-            loss: Metric,
-            metrics: MetricsCalculator
+            loss: Optional[Metric],
+            metrics: Optional[MetricsCalculator]
     ):
         super(Model, self).__init__()
 
         self.mc = metrics
         # Has to be set for the metrics to work
-        self.metrics = metrics.metrics
-        self.input_metrics = metrics.input_metrics
-        self.input_extended_metrics = metrics.input_extended_metrics
-        self.extended_metrics = metrics.extended_metrics
+        if metrics is not None:
+            self.metrics = metrics.metrics
+            self.input_metrics = metrics.input_metrics
+            self.input_extended_metrics = metrics.input_extended_metrics
+            self.extended_metrics = metrics.extended_metrics
 
         # Optimizer parameters
         self.learning_rate = config["learning_rate"]

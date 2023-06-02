@@ -1,6 +1,6 @@
 from pathlib import Path
 from random import sample, randint
-from typing import List, Callable
+from typing import List, Callable, Optional
 
 import numpy as np
 import pandas as pd
@@ -31,7 +31,7 @@ class XmmSimDataset(Dataset):
             det_mask: bool = False,
             check_files: bool = False,
             transform: List[Callable] = None,
-            normalize: Normalize = None,
+            normalize: Optional[Normalize] = None,
             split_key: str = "_mult_"
     ):
         """
@@ -44,8 +44,9 @@ class XmmSimDataset(Dataset):
             mode (string): The mode, img or agn. If agn the model samples from agn as if it is an image
             lr_exps (list): Exposure of the low resolution images, in ks, if list it is the range of exposure times
             hr_exp (int): Exposure of the high resolution images, in ks
-            agn (bool): Add agns to the images
+            lr_agn (int): Amount of agns to be used with one low resolution image. Set to 0 to use no agns.
             lr_background (int): Add background to low resolution
+            hr_agn (bool): Include agns in the high resolution images
             hr_background (bool): Add background to high resolution
             det_mask (bool): Multiply the final image with the detectormask
             check_files (bool) (optional): Check the file integrity of the chosen dataset
