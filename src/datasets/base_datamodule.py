@@ -20,23 +20,23 @@ class BaseDataModule(LightningDataModule):
         self.persistent_workers = not config["debug"]
 
         self.batch_size = config["batch_size"]
-        self.dataset_type = config["dataset_type"]
+        self.dataset_type = config["type"]
 
         self.transform = [
             Crop(
-                crop_p=config["lr_res"] / config["dataset_lr_res"],
+                crop_p=1.0,  # TODO
                 mode=config["crop_mode"],
             ),
             ToTensor()
         ]
 
         self.normalize = Normalize(
-            lr_max=config["lr_max"],
-            hr_max=config["hr_max"],
-            stretch_mode=config["data_scaling"],
+            lr_max=config["lr"]["max"],
+            hr_max=config["hr"]["max"],
+            stretch_mode=config["scaling"],
         )
 
-        self.dataset_dir = Path(config["dir"]) / config["dataset_name"]
+        self.dataset_dir = Path(config["dir"]) / config["name"]
         self.check_files = config["check_files"]
 
         self.dataset = None

@@ -1,37 +1,82 @@
+# Configure the WandbLogger by PyTorch Lightning. See
+# https://lightning.ai/docs/pytorch/stable/extensions/generated/lightning.pytorch.loggers.WandbLogger.html
+# for more information.
+# Just the api_key is used by the wandb instance itself and not by WandbLogger.
 wandb:
-  # API key to log into wandb. !CAUTION! Do not push this private key to GitHub!
+  # (Mandatory) API key to log into wandb. !CAUTION! Do not push this private key to GitHub!
   api_key:
   project:
-  # Directory where logs will be saved to
-  # If left empty WandbLogger will use the default wandb directory
-  log_dir:
-  # Set to true if wandb should be in online mode
-  online: True
-  log_model: True
+  online:
+  log_model:
   run:
     id:
 
+# See https://lightning.ai/docs/pytorch/stable/common/trainer.html#trainer-flags for more information.
+# Just log_images_every_n_epochs is used by our ImageLogger and not by the PyTorch-Lightning Trainer.
 trainer:
-  accelerator: auto
-  strategy: auto
+  accelerator:
+  strategy:
   checkpoint_path:
-  devices: auto
-  epochs: 50
-  log_images_every_n_epochs: 5
+  devices:
+  epochs:
+  # How often should the display images (see dataset -> display) be run through the network.
+  log_images_every_n_epochs:
 
 dataset:
-  batch_size: 1
+  batch_size:
   #Checks if all the files in the chosen dataset are in good state
-  check_files: False
-  name: xmm_sim_ff
-  debug: False
+  check_files:
+  # Options: 'center', 'random', 'boresight'
+  crop_mode:
+  # Apply the detector mask. Options: True, False
+  det_mask:
+  # Set debug to true if debugging. Will make your life easier. Options: True, False
+  debug:
+  # The parent folder of all datasets
   dir:
   display:
-    sim_display_name: xmm_sim_display_selection
-    real_display_name: xmm_split_display_selection
+    # These images are used in our ImageLogger. After log_images_every_n_epochs (see trainer -> log_images_every_n_epochs)
+    # we iterate through these images, predict on them and log the inputs (just once), predictions, differences,
+    # and true_hr (if available)
+    sim_display_name:
+    real_display_name:
     exposure:
-      - 20
+      -
+  lr:
+    # Amount of agns to be used with one low resolution image. Set to 0 to use no agns.
+    agn:
+    # Amount of backgrounds to be used with one low resolution image. Set to 0 to use no background.
+    background:
+    exps:
+      -
+    max:
+    # The dataset lr resolution, all the images will be padded/cropped to this resolution
+    # Must be multiples of 32
+    res:
+  hr:
+    # Include agns in the high resolution images
+    agn:
+    # Include background for high resolution images
+    background:
+    # Exposure of the high resolution images, in ks. If left empty no high resolution images will be used.
+    exp:
+
+    max:
+    # This implies the resolution increase
+    res:
+  # The mode, img or agn. If agn the model samples from agn as if it is an image.
+  # Only relevant for datasets with type == sim
+  mode:
+  name:
+  # Options: None and 'linear', 'sqrt', 'asinh', 'log'
+  scaling:
+  # Options: real, sim
+  type:
 
 model:
-  name: esr_gen
-  memory_efficient: False
+  # Choose a model by the file name of the .yaml, which contains the model's configuration.
+  # The .yaml file has to be located in <project-directory>/res/configs/model/
+  name:
+  # Decide if the model should use torch.checkpoints (see https://pytorch.org/docs/stable/checkpoint.html)
+  # Start with False, if unsure. If False leads to an OOM-Exception, then set to True.
+  memory_efficient:

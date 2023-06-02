@@ -16,14 +16,14 @@ class XmmDataModule(BaseDataModule):
     ):
         super(XmmDataModule, self).__init__(config)
 
-        self.lr_exps = config["lr_exps"]
-        self.hr_exp = config["hr_exp"]
+        self.lr_exps = config["lr"]["exps"]
+        self.hr_exp = config["hr"]["exp"]
 
         if self.dataset_type == "real":
             from datasets import XmmDataset
             self.dataset = XmmDataset(
                 dataset_dir=self.dataset_dir,
-                dataset_lr_res=config["dataset_lr_res"],
+                dataset_lr_res=config["lr"]["res"],
                 lr_exps=self.lr_exps,
                 hr_exp=self.hr_exp,
                 det_mask=config["det_mask"],
@@ -37,15 +37,16 @@ class XmmDataModule(BaseDataModule):
             from datasets import XmmSimDataset
             self.dataset = XmmSimDataset(
                 dataset_dir=self.dataset_dir,
-                lr_res=config["lr_res"],
-                hr_res=config["hr_res"],
-                dataset_lr_res=config["dataset_lr_res"],
+                lr_res=config["lr"]["res"],
+                hr_res=config["hr"]["res"],
+                dataset_lr_res=config["lr"]["res"],
                 mode=config["mode"],
                 lr_exps=self.lr_exps,
                 hr_exp=self.hr_exp,
-                agn=config["agn"],
-                lr_background=config["lr_background"],
-                hr_background=config["hr_background"],
+                lr_agn=config["lr"]["agn"],
+                hr_agn=config["hr"]["agn"],
+                lr_background=config["lr"]["background"],
+                hr_background=config["hr"]["background"],
                 det_mask=config["det_mask"],
                 check_files=self.check_files,
                 transform=self.transform,

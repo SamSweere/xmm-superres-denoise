@@ -13,7 +13,7 @@ class XmmDisplayDataModule(BaseDataModule):
         super(XmmDisplayDataModule, self).__init__(config)
 
         check_files = config["check_files"]
-        dataset_lr_res = config["dataset_lr_res"]
+        dataset_lr_res = config["lr"]["res"]
         lr_exps = config["display"]["exposure"]
         det_mask = config["det_mask"]
 
@@ -25,13 +25,14 @@ class XmmDisplayDataModule(BaseDataModule):
             dataset_dir = Path(config["dir"]) / "display_datasets" / f"{config['display']['sim_display_name']}"
             self.sim_display_dataset = XmmSimDataset(
                 dataset_dir=dataset_dir,
-                lr_res=config["lr_res"],
-                hr_res=config["hr_res"],
+                lr_res=config["lr"]["res"],
+                hr_res=config["hr"]["res"],
                 dataset_lr_res=dataset_lr_res,
                 mode=config["mode"],
                 lr_exps=lr_exps,
-                hr_exp=config["hr_exp"],
-                agn=False,
+                hr_exp=config["hr"]["exp"],
+                lr_agn=False,
+                hr_agn=False,
                 lr_background=False,
                 hr_background=False,
                 det_mask=det_mask,

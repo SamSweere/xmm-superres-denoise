@@ -17,7 +17,7 @@ from utils.loss_functions import create_loss
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("routine", choices=["fit", "test", "predict"], help="What routing to execute")
+    parser.add_argument("routine", choices=["fit", "test"], help="What routine to execute")
     parser.add_argument("run_config", type=Path, help="Path to the run config yaml.")
     args = parser.parse_args()
 
@@ -25,7 +25,6 @@ if __name__ == "__main__":
     wandb_config: dict = run_config["wandb"]
 
     dataset_config: dict = run_config["dataset"]
-    dataset_config.update(read_yaml(Path("res") / "configs" / "dataset" / f"{dataset_config['name']}.yaml"))
 
     model_config: dict = run_config["model"]
     model_config.update(read_yaml(Path("res") / "configs" / "model" / f"{model_config['name']}.yaml"))
@@ -33,10 +32,22 @@ if __name__ == "__main__":
 
     trainer_config: dict = run_config["trainer"]
 
+    if wandb_config["online"]:
+        wandb.login(key=wandb_config["api_key"])
+
+    wandb_logger = WandbLogger(
+        project=wandb_config["project"],
+        log_model=wandb_config["online"] and wandb_config["log_model"],
+        offline=not wandb_config["online"],
+        config=run_config,
+        resume="must" if wandb_config["run"]["id"] is not None else None,
+        id=wandb_config["run"]["id"]
+    )
+
     rank_zero_info("Creating data module...")
     datamodule = XmmDataModule(dataset_config)
 
-    loss = create_loss(data_scaling=dataset_config["data_scaling"],
+    loss = create_loss(data_scaling=dataset_config["scaling"],
                        l1_p=model_config["loss_l1"],
                        poisson_p=model_config["loss_poisson"],
                        psnr_p=model_config["loss_psnr"],
@@ -45,17 +56,17 @@ if __name__ == "__main__":
 
     rank_zero_info(f"Created loss function {loss}")
 
-    lr_max = dataset_config["lr_max"]
-    hr_max = dataset_config["hr_max"]
-    lr_shape = (dataset_config["lr_res"], dataset_config["lr_res"])
-    hr_shape = (dataset_config["hr_res"], dataset_config["hr_res"])
+    lr_max = dataset_config["lr"]["max"]
+    hr_max = dataset_config["hr"]["max"]
+    lr_shape = (dataset_config["lr"]["res"], dataset_config["lr"]["res"])
+    hr_shape = (dataset_config["hr"]["res"], dataset_config["hr"]["res"])
     scaling_normalizers = [
         Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode=s_mode) for s_mode in ["linear", "sqrt", "asinh", "log"]
     ]
 
     upsample = None
-    if dataset_config["lr_res"] != dataset_config["hr_res"]:
-        upsample = ImageUpsample(scale_factor=int(dataset_config["hr_res"] / dataset_config["lr_res"]))
+    if dataset_config["lr"]["res"] != dataset_config["hr"]["res"]:
+        upsample = ImageUpsample(scale_factor=int(dataset_config["hr"]["res"] / dataset_config["lr"]["res"]))
 
     mc = MetricsCalculator(
         data_range=hr_max,
@@ -63,14 +74,6 @@ if __name__ == "__main__":
         scaling_normalizers=scaling_normalizers,
         upsample=upsample,
         prefix="val" if args.routine == "fit" else "test"
-    )
-
-    il = ImageLogger(
-        datamodule=XmmDisplayDataModule(dataset_config),
-        log_every_n_epochs=trainer_config["log_images_every_n_epochs"],
-        normalize=datamodule.normalize,
-        scaling_normalizers=scaling_normalizers,
-        data_range=hr_max
     )
 
     model = Model(
@@ -81,30 +84,24 @@ if __name__ == "__main__":
         metrics=mc
     )
 
-    if wandb_config["online"]:
-        wandb.login(key=wandb_config["api_key"])
-
-    wandb_logger = WandbLogger(
-        project=wandb_config["project"],
-        log_model=wandb_config["online"] and wandb_config["log_model"],
-        save_dir=wandb_config["log_dir"],
-        offline=not wandb_config["online"],
-        config=run_config,
-        resume="must" if wandb_config["run"]["id"] is not None else None,
-        id=wandb_config["run"]["id"]
-    )
-
-    callbacks = [il]
+    callbacks = None
 
     if args.routine == "fit":
+        il = ImageLogger(
+            datamodule=XmmDisplayDataModule(dataset_config),
+            log_every_n_epochs=trainer_config["log_images_every_n_epochs"],
+            normalize=datamodule.normalize,
+            scaling_normalizers=scaling_normalizers,
+            data_range=hr_max
+        )
         checkpoint_callback = ModelCheckpoint(
             monitor="val/loss",
-            dirpath=f"res/checkpoints/{model_config['name']}/{dataset_config['lr_exps']}->{dataset_config['hr_exp']}/",
+            dirpath=f"{wandb_logger.experiment.dir}/checkpoints",
             filename=f"epoch:{{epoch:05d}}-val_loss:{{val/loss:.5f}}",
             mode="min",
             auto_insert_metric_name=False
         )
-        callbacks.append(checkpoint_callback)
+        callbacks = [il, checkpoint_callback]
 
     trainer = Trainer(
         logger=wandb_logger,
@@ -116,11 +113,9 @@ if __name__ == "__main__":
     )
 
     if args.routine == "fit":
-        if trainer_config["checkpoint_path"] is None:
-            rank_zero_warn("You have not given a checkpoint_path in the trainer config! If it was on purpose, then"
+        if trainer_config["checkpoint_path"] is not None:
+            rank_zero_warn("You have given a checkpoint_path in the trainer config! If it was on purpose, then "
                            "you can ignore this warning.")
         trainer.fit(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])
-    elif args.routine == "test":
-        trainer.test(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])
     else:
-        trainer.predict(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])
+        trainer.test(model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"])

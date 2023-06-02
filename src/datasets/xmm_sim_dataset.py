@@ -24,7 +24,8 @@ class XmmSimDataset(Dataset):
             mode: str,
             lr_exps: List[int],
             hr_exp: int,
-            agn: bool,
+            lr_agn: int,
+            hr_agn: bool,
             lr_background: int,
             hr_background: bool,
             det_mask: bool = False,
@@ -62,7 +63,8 @@ class XmmSimDataset(Dataset):
         self.lr_exps: np.ndarray = np.asarray(lr_exps)
         self.hr_exp: np.ndarray = np.asarray([hr_exp])
 
-        self.agn = agn
+        self.lr_agn = lr_agn
+        self.hr_agn = hr_agn
         self.det_mask = det_mask
         self.lr_background = lr_background
         self.hr_background = hr_background
@@ -85,17 +87,14 @@ class XmmSimDataset(Dataset):
         self.lr_img_files, self.hr_img_files, self.base_name_count = match_file_list(lr_img_files, hr_img_files,
                                                                                      split_key)
 
-        if self.lr_background > 0:
-            self.dataset_size = self.base_name_count * self.lr_exps.size * self.lr_background
-            rank_zero_info(f"\tOverall dataset size: img_count * lr_exps_count * lr_background_count = dataset_size")
-            rank_zero_info(
-                f"\t\t{self.base_name_count} * {self.lr_exps.size} * {self.lr_background} = {self.dataset_size}")
-        else:
-            self.dataset_size = self.base_name_count * self.lr_exps.size
-            rank_zero_info(f"\tOverall dataset size: img_count * lr_exps_count = dataset_size")
-            rank_zero_info(f"\t\t{self.base_name_count} * {self.lr_exps.size} = {self.dataset_size}")
+        self.dataset_size = self.base_name_count * self.lr_exps.size
+        msg1 = f"Overall dataset size: img_count * lr_exps_count"
+        msg2 = f"{self.base_name_count} * {self.lr_exps.size}"
 
-        if self.agn:
+        if self.lr_agn > 0:
+            msg1 = msg1 + " * lr_agn_count"
+            msg2 = msg2 + f" * {self.lr_agn}"
+            self.dataset_size = self.dataset_size * self.lr_agn
             lr_agn_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"/agn/{self.lr_res_mult}x")
             lr_agn_files = find_img_files(lr_agn_dirs)
 
@@ -108,6 +107,9 @@ class XmmSimDataset(Dataset):
             rank_zero_info(f"\tFound {self.base_agn_count} agn image pairs (lr and hr simulation matches)")
 
         if self.lr_background > 0:
+            msg1 = msg1 + " * lr_background_count"
+            msg2 = msg2 + f" * {self.lr_background}"
+            self.dataset_size = self.dataset_size * self.lr_background
             lr_background_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"/background/{self.lr_res_mult}x")
             lr_background_files = find_img_files(lr_background_dirs)
             amt = min([len(file_list) for file_list in lr_background_files.values()])
@@ -132,8 +134,10 @@ class XmmSimDataset(Dataset):
             check_img_files(self.hr_img_files, (411 * self.hr_res_mult, 403 * self.hr_res_mult),
                             "Checking hr_img_files...")
 
-            if self.agn:
+            if self.lr_agn > 0:
                 check_img_files(self.lr_agn_files, (411, 403), "Checking lr_agn_files...")
+
+            if self.hr_agn:
                 check_img_files(self.hr_agn_files, (411 * self.hr_res_mult, 403 * self.hr_res_mult),
                                 "Checking hr_agn_files...")
 
@@ -145,6 +149,9 @@ class XmmSimDataset(Dataset):
                                 "Checking hr_background_files...")
 
             rank_zero_info("\tAll files are within specifications!")
+
+        rank_zero_info(f"\t{msg1} = dataset_size")
+        rank_zero_info(f"\t\t{msg2} = {self.dataset_size}")
 
     def load_and_combine_simulations(
             self,
@@ -183,10 +190,14 @@ class XmmSimDataset(Dataset):
 
         lr_agn_path = None  # Define them as None in the case that self.agn is False
         hr_agn_path = None
-        if self.agn:
+        if self.lr_agn > 0 or self.hr_agn:
             agn_idx = randint(0, self.base_agn_count - 1)
-            lr_agn_path = sample(self.lr_agn_files.iloc[agn_idx].iloc[lr_exp], 1)[0]
-            hr_agn_path = sample(self.hr_agn_files.iloc[agn_idx].iloc[0], 1)[0]
+
+            if self.lr_agn > 0:
+                lr_agn_path = sample(self.lr_agn_files.iloc[agn_idx].iloc[lr_exp], 1)[0]
+
+            if self.hr_agn:
+                hr_agn_path = sample(self.hr_agn_files.iloc[agn_idx].iloc[0], 1)[0]
 
         lr_background_path = None
         if self.lr_background > 0:
