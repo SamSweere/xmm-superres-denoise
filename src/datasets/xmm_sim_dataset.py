@@ -79,10 +79,10 @@ class XmmSimDataset(Dataset):
 
         # Get all the image directories
         # Note that if the mode is agn we consider them as the base images
-        self.lr_img_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"/{self.mode}/{self.lr_res_mult}x")
+        self.lr_img_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"{self.mode}/{self.lr_res_mult}x")
         lr_img_files = find_img_files(self.lr_img_dirs)
 
-        self.hr_img_dirs = find_img_dirs(dataset_dir, self.hr_exp, f"/{self.mode}/{self.hr_res_mult}x")
+        self.hr_img_dirs = find_img_dirs(dataset_dir, self.hr_exp, f"{self.mode}/{self.hr_res_mult}x")
         hr_img_files = find_img_files(self.hr_img_dirs)
 
         self.lr_img_files, self.hr_img_files, self.base_name_count = match_file_list(lr_img_files, hr_img_files,
@@ -96,10 +96,10 @@ class XmmSimDataset(Dataset):
             msg1 = msg1 + " * lr_agn_count"
             msg2 = msg2 + f" * {self.lr_agn}"
             self.dataset_size = self.dataset_size * self.lr_agn
-            lr_agn_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"/agn/{self.lr_res_mult}x")
+            lr_agn_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"agn/{self.lr_res_mult}x")
             lr_agn_files = find_img_files(lr_agn_dirs)
 
-            hr_agn_dirs = find_img_dirs(dataset_dir, self.hr_exp, f"/agn/{self.hr_res_mult}x")
+            hr_agn_dirs = find_img_dirs(dataset_dir, self.hr_exp, f"agn/{self.hr_res_mult}x")
             hr_agn_files = find_img_files(hr_agn_dirs)
 
             self.lr_agn_files, self.hr_agn_files, self.base_agn_count = match_file_list(lr_agn_files,
@@ -111,7 +111,7 @@ class XmmSimDataset(Dataset):
             msg1 = msg1 + " * lr_background_count"
             msg2 = msg2 + f" * {self.lr_background}"
             self.dataset_size = self.dataset_size * self.lr_background
-            lr_background_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"/background/{self.lr_res_mult}x")
+            lr_background_dirs = find_img_dirs(dataset_dir, self.lr_exps, f"background/{self.lr_res_mult}x")
             lr_background_files = find_img_files(lr_background_dirs)
             amt = min([len(file_list) for file_list in lr_background_files.values()])
             self.lr_background_files = {}
@@ -120,7 +120,7 @@ class XmmSimDataset(Dataset):
             self.lr_background_files = pd.DataFrame.from_dict(self.lr_background_files)
 
         if self.hr_background:
-            hr_background_dirs = find_img_dirs(dataset_dir, self.hr_exp, f"/background/{self.hr_res_mult}x")
+            hr_background_dirs = find_img_dirs(dataset_dir, self.hr_exp, f"background/{self.hr_res_mult}x")
             hr_img_files = find_img_files(hr_background_dirs)
             self.hr_background_files = pd.DataFrame.from_dict(hr_img_files)
 
