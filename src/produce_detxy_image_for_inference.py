@@ -74,10 +74,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     get_detxy_for_obs_id(
-        obs_id=args.obs_id,
-        obs_dir=args.wdir / args.obs_id,
-        proc_dir=args.wdir / args.obs_id / "proc",
-        pps_dir=args.wdir / args.obs_id / "pps",
+        obs_id=args.obsid,
+        obs_dir=args.wdir / args.obsid,
+        proc_dir=args.wdir / args.obsid / "proc",
+        pps_dir=args.wdir / args.obsid / "pps",
         instrument="all",
         max_expo=args.expo_time
     )
