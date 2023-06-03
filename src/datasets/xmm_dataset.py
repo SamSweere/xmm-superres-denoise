@@ -51,7 +51,7 @@ class XmmDataset(Dataset):
         self.lr_res_mult = 1
 
         # Get all the image directories
-        self.lr_img_dirs = find_img_dirs(dataset_dir, self.lr_exps, "/")
+        self.lr_img_dirs = find_img_dirs(dataset_dir, self.lr_exps)
         lr_img_files = find_img_files(self.lr_img_dirs)
 
         if self.hr_exp:

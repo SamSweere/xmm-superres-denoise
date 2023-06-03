@@ -1,6 +1,7 @@
 import pickle
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Union, Optional, Callable
+from zipfile import ZipFile
 
 import numpy as np
 import pandas as pd
@@ -20,19 +21,35 @@ def save_splits(paths: List[Path], splits: List[Subset]):
 
 
 def find_dir(parent: Path, pattern: str) -> Path:
-    dirs = list(parent.glob(pattern))
-    if not dirs:
-        raise NotADirectoryError(f"Could not find any directory in \"{parent}\" which matches pattern \"{pattern}\"!")
-    d = dirs[0]
-    if not d:
-        raise NotADirectoryError(f"Could not find directory in \"{parent}\" with pattern \"{pattern}\"!")
-    return d
+    glob_res = parent.glob(pattern)
+    dir_path = None
+    zip_file = None
+    for res in glob_res:
+        if res.is_dir():
+            dir_path = res
+            break
+        if res.name.endswith(".zip"):
+            zip_file = res
+    if dir_path is None and zip_file is not None:
+        rank_zero_info(f"Extracting {zip_file} to {parent}...")
+        with ZipFile(zip_file, 'r') as zip_f:
+            zip_f.extractall(parent)
+        dir_path = parent / pattern.replace("*", "")  # Remove the asterisk used to find the corresponding .zip file.
+        # zip_file.unlink()  # Use the deletion with care!
+
+    if dir_path is None:
+        raise NotADirectoryError(f"Could not find any directory in {parent} matching {pattern}")
+
+    return dir_path
 
 
 def find_img_dirs(parent: Path, exps: np.ndarray, pattern: str = "") -> Dict[int, Path]:
     res: Dict[int, Path] = {}
     for exp in exps:
-        res[exp] = find_dir(parent, f"{exp}ks{pattern}")
+        exp_dir = find_dir(parent=parent, pattern=f"{exp}ks*")
+        if pattern:
+            exp_dir = find_dir(exp_dir, f"{pattern}")
+        res[exp] = exp_dir
     return res
 
 
