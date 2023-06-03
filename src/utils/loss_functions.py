@@ -1,18 +1,8 @@
-from typing import Optional
+from typing import Optional, Dict, Union
 
-from piq import psnr, multi_scale_ssim, ssim
-from torch.nn.functional import l1_loss, poisson_nll_loss
 from torchmetrics import Metric
 
-from metrics import MAE, PoissonNLLLoss, PSNR, SSIM, MultiScaleSSIM
-
-_loss = {
-    "l1": l1_loss,
-    "poisson": poisson_nll_loss,
-    "psnr": psnr,
-    "ssim": ssim,
-    "ms_ssim": multi_scale_ssim
-}
+from metrics import MAE, PoissonNLLLoss, PSNR, SSIM, MultiScaleSSIM, VGGLoss
 
 # The scaling and the scaled loss functions
 # These are based on randomly initialized untrained models
@@ -91,16 +81,20 @@ def _get_scaling(x1, x2, y1=1.0, y2=0.0):
 
 def create_loss(
         data_scaling,
-        l1_p: float = 0.0,
-        poisson_p: float = 0.0,
-        psnr_p: float = 0.0,
-        ssim_p: float = 0.0,
-        ms_ssim_p: float = 0.0
+        loss_config: Dict[str, Union[int, dict]],
 ) -> Metric:
-    total = l1_p + poisson_p + psnr_p + ssim_p + ms_ssim_p
+    l1_p = loss_config["l1"]
+    poisson_p = loss_config["poisson"]
+    psnr_p = loss_config["psnr"]
+    ssim_p = loss_config["ssim"]
+    ms_ssim_p = loss_config["ms_ssim"]
+
+    vgg_config = loss_config["vgg"]
+    vgg_p = vgg_config["p"]
+    total = l1_p + poisson_p + psnr_p + ssim_p + ms_ssim_p + vgg_p
     if not 0.0 < total <= 1.0:
         raise ValueError(f"Sum of l1_p={l1_p}, poisson_p={poisson_p}, psnr_p={psnr_p}, ssim_p={ssim_p}, "
-                         f"ms_ssim_p={ms_ssim_p} has to be in ]0.0, 1.0] but is {total}!")
+                         f"ms_ssim_p={ms_ssim_p}, vgg_p={vgg_p} has to be in ]0.0, 1.0] but is {total}!")
 
     metrics: Optional[Metric] = None
 
@@ -130,5 +124,9 @@ def create_loss(
         scaling, correction = _get_scaling(x1=_zero_epoch[data_scaling]["ms_ssim"],
                                            x2=_last_epoch[data_scaling]["ms_ssim"])
         m = MultiScaleSSIM(scaling=ms_ssim_p * scaling, correction=correction)
+        metrics = m if metrics is None else metrics + m
+
+    if vgg_p:
+        m = VGGLoss(vgg_model=vgg_config["vgg_model"], batch_norm=vgg_config["batch_norm"], layers=vgg_config["layers"])
         metrics = m if metrics is None else metrics + m
     return metrics

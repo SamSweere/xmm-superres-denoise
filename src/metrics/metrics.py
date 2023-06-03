@@ -2,6 +2,8 @@ import piq
 import torch
 from torch.nn.functional import mse_loss, poisson_nll_loss, l1_loss
 from torchmetrics import Metric
+from torchvision import transforms
+from torchvision.models import vgg, VGG
 
 
 class _Metric(Metric):
@@ -240,4 +242,56 @@ class FSIM(_Metric):
             target: torch.Tensor,
             reduction: str = "mean") -> None:
         self.metric += piq.fsim(x=preds, y=target, chromatic=False, reduction=reduction)
+        self.total += preds.size()[0]
+
+
+class VGGLoss(_Metric):
+
+    def __init__(
+            self,
+            vgg_model: str = "vgg19",
+            batch_norm: bool = False,
+            layers: int = 8,
+            scaling: float = 1.0,
+            correction: float = 0.0
+    ):
+        super(VGGLoss, self).__init__(scaling=scaling, correction=correction)
+
+        if vgg_model not in ["vgg11", "vgg13", "vgg16", "vgg19"]:
+            raise ValueError(f"Unknown vgg-model: {vgg_model}")
+
+        if batch_norm:
+            vgg_model = f"{vgg_model}_bn"
+
+        models = {
+            "vgg11": vgg.vgg11,
+            "vgg11_bn": vgg.vgg11_bn,
+            "vgg13": vgg.vgg13,
+            "vgg13_bn": vgg.vgg13_bn,
+            "vgg16": vgg.vgg16,
+            "vgg16_bn": vgg.vgg16_bn,
+            "vgg19": vgg.vgg19,
+            "vgg19_bn": vgg.vgg19_bn,
+        }
+
+        # mean and std come from ImageNet dataset since VGG is trained on that data
+        self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+
+        self.m: VGG = models[vgg_model]().features[:layers + 1]
+        self.m.eval()
+        self.m.requires_grad_(False)
+
+    def update(
+            self,
+            preds: torch.Tensor,
+            target: torch.Tensor,
+            reduction: str = "mean") -> None:
+        if preds.shape[1] != 3:
+            preds = preds.repeat(1, 3, 1, 1)
+            target = target.repeat(1, 3, 1, 1)
+
+        preds = self.m(self.normalize(preds))
+        target = self.m(self.normalize(target))
+
+        self.metric += mse_loss(input=preds, target=target, reduction=reduction)
         self.total += preds.size()[0]

@@ -30,6 +30,8 @@ if __name__ == "__main__":
     model_config.update(read_yaml(Path("res") / "configs" / "model" / f"{model_config['name']}.yaml"))
     model_config["batch_size"] = dataset_config["batch_size"]
 
+    loss_config = model_config["loss"]
+
     trainer_config: dict = run_config["trainer"]
 
     if wandb_config["online"]:
@@ -47,12 +49,7 @@ if __name__ == "__main__":
     rank_zero_info("Creating data module...")
     datamodule = XmmDataModule(dataset_config)
 
-    loss = create_loss(data_scaling=dataset_config["scaling"],
-                       l1_p=model_config["loss_l1"],
-                       poisson_p=model_config["loss_poisson"],
-                       psnr_p=model_config["loss_psnr"],
-                       ssim_p=model_config["loss_ssim"],
-                       ms_ssim_p=model_config["loss_ms_ssim"])
+    loss = create_loss(data_scaling=dataset_config["scaling"], loss_config=loss_config)
 
     rank_zero_info(f"Created loss function {loss}")
 
