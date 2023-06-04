@@ -1,89 +1,128 @@
-# Notes on running inference to predict SR and DN images for XMM-Newton EPIC-pn
+# Deep Learning-Based Super-Resolution (SR) and De-Noising (DN) for XMM-Newton Images: running inference
 
-The training, validation and testing of the models are described in greater detial in [Sweere et al. (2022)](https://ui.adsabs.harvard.edu/abs/2022MNRAS.tmp.2335S/abstract).
+The results of this research are described in the paper <em>``Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton Images"</em>, [2022, MNRAS, 517, 4054](https://doi.org/10.1093/mnras/stac2437). Pre-print available in [arXiv](https://arxiv.org/pdf/2205.01152.pdf).
 
-This note is to explain how to run the inference and predict super-resolution or denoised XMM-Newton EPIC-pn images.
+More implementation details are described in Sam Sweere's master's thesis included in this repository.
 
-The way the networks were trained dictates the input for the inference: 
+Here we only provide the necessary code and models to run inference on XMM-Newton EPIC-pn images (see below for requirements).
 
-* It must be a pn image in detector coordinates `(DETX,DETY)` with pre-defined pixel binsize of 80 (in units of 0.05 arcsec), with output shape `(403,411)` pixels.
-* Only energy band [0.5,2] keV was used in training.
-* Exposure 20 ks, shorter or longer exposures may work too, but the networks (both SR and DN) were trained with 20 ks images. Both networks were trained using exposure-corrected images (however, no vignetting correction was applied). Therefore, in a certain range of exposures around 20 ks the results should be good.
+## Requirements
 
+The inference does not need GPU to run.
 
-## Workflow to produce the input image
+### Python packages
 
-The following steps requre XMM-SAS to be available.
+These are listed in [requirements.txt](requirements.txt), the inference code is tested with python 3.10. We strongly suggest to install the packages in a separate conda of virtual python environment.
 
-1. Download and extract XMM pipeline products (PPS) from the [XMM-Newton archive](http://nxsa.esac.esa.int/nxsa-web/#home).
-2. Identify the good-time-intervals (GTI) when the flaring background is not affecting the pn observation. This step will use the PPS flaring background time-series file and the PPS derived count-rate threshold.
-3. (Optionally) select only events up to 20 ks exposure (taking into account the bad intervals!)
-4. Filter the PPS calibrated event list with the GTI and with some additional criteria, the hardcoded expression in `xmmsas_tools.filter_events_gti()` is 
-`(FLAG == 0) && gti({gti_file},TIME) && (PI>150) && (PATTERN <= 4)`
-5. Using the filtered event list, produce an image in detector coordinates with `xmmsas_tools.make_detxy_image()`
+### XMM-Newton image requirements
 
-All these steps can be performed by the user with his own XMM-SAS procedures as long as the output image is in detector coordinates and with dimensions `(403,411)` pixels and exposure of 20 ks. 
+The models were trained and validated on EPIC-pn images in energy band `[0.5,2]` in detector coordinates (`DETX`,`DETY`) with pixel size of 4"/pixel.
 
-### Notes:
- 
-* By default, the SAS-produced image in detector coordinates will not have proper RA-DEC sky coordinate system. The function in `xmmsas_tools.make_detxy_image()` has an additional step to add a proper RA-DEC WCS.
-* The workflow, as implemented in `xmmsas-toos`, is using python `subprocess` and not the XMM-SAS python wrapper `pysas.Wrapper` due to some portability issues with the latter.
+The training for the denoising part was performed on images of 20 ks exposure, predicting images as if they were exposed for 50 ks. The training images were cleaned for periods of high background using the XMM-Newton pipeline-derived thresholds, before limiting them to 20 ks exposure. You may still be able to run the DN inference on images with exposure different from 20 ks, because the training and validation was done on count-rate images. However, the results may not be as good if the exposure is too different from 20 ks.
 
-## Run the inference 
+The SR-predicted images will have two times smaller pixel size and two times smaller PSF, and will be free of background, although some low level spurious residuals may be present in the output.
 
-This part does not require XMM-SAS.
+Both the SR and DN training were performed on specially cropped and zero-padded images to avoid unnecessary empty spaces. Therefore the output predicted images will not match the default input image in pixel coordinates. That is why we provide on output the cropped and padded input image, so that a direct pixel-to-pixel comparison could be made. 
 
-Execute `python run_inference_on_real <detxy_file_name> --which SR|DN`
+Both the input and output cropped images are in detector coordinates with proper `RA-DEC` equatorial world coordinate system.
 
-Depending on `--which` the process will produce a predicted image with twice the nominal XMM resolution (SR) or a predicted denoised image (DN).
+### Creating XMM-Newton images for inference
 
-## Caveats:
+The python script `make_detxy_image_pps.py` can be used to create an image suitable as an input for the inference. To run it, you will need to have the XMM-SAS and all its requirements installed, as explained in [these pages](https://www.cosmos.esa.int/web/xmm-newton/download-and-install-sas). 
 
-### Super-resolution
+The script uses the python wrapper for running the SAS tasks, `pysas`. If running `python -c 'import pysas'` ends with an error, then you have to fix your XMM-SAS installation.
 
-* The predicted SR image will have x2 smaller pixel size: 2"/pixel compared to the nominal 4"/pixel and ideally should have the PSF twice as smaller, e.g. FWHM should be 3" instead of 6". The predicted image will be with dimensions `(416,416)` (the input `403x411` is zero-padded).
-* The SR image will be cleaned from background
-* The network was trained on simulated images of 20 ks, predicting SR images with shorter (or longer) exposures should work in principle, but may lead to increased noise and possibly spurious features.
-* The network was trained on images in energy band [0.5,2] keV. Predicting SR images in other bands should work in principle but the results may not be as good: increased noise and spurious features.
+The script has as an input the `OBS_ID`. It will access the XMM Science Archive and download the pipeline products (PPS) using `astroquery.esa.xmm_newton`, or will use already downloaded PPS files if `--pps_dir` points to a folder with existing PPS files. The user can specify the temporary folder where all the intermediate files will be stored (calibration files index, calibrated event lists, lightcurves etc). 
 
-### Denoising
+The PPS calibrated event list will be filtered for periods of high background using the PPS-derived threshold (available in the PPS products) and an image in `DETX`,`DETY` coordinates in energy band `[0.5,2]` keV (`PI >= 500 && PI <= 2000`) will be created with the default pixel size of 4"/pixel, filtering the evens with `FLAG == 0` and `PATTERN <= 4`.
 
-* The predicted DN image will be with dimensions `(416,416)` (the input `403x411` is zero-padded) and pixel size as the input, i.e. 4"/pixel.
-* No changes in the PSF size.
-* The network was trained on simulated images with 20ks exposure predicting images with 50ks, i.e. in principle shuold lead to an increase of the signal-to-noise ratio by a factor of 1.6. Using DN model on images with significantly different exposure (smaller or larger) may lead to undesirable effects.
-* We are currently training a new network to predict 50ks exposure images from 10ks input (SNR increase a factor of 2.2).
+As a final step, the header of the detector coordinates image will be updated with correct `RA-DEC` WCS. This is necessary as the default detector coordinate images from XMM-SAS do not contain usable WCS.
 
-
-## Practical usage of the code
-
-The simplest use is to run `python inference_end2end_obsid.py`.
+Here is the help for `make_detxy_image_pps.py`: 
 
 ```
-usage: inference_end2end_obsid.py [-h] [--wdir WDIR] [--expo_time EXPO_TIME] obsid
+usage: make_detxy_pn_image_pps.py [-h] [--low_pi LOW_PI] [--high_pi HIGH_PI] [--expo_time EXPO_TIME] [--binSize BINSIZE] [--save_dir SAVE_DIR]
+                                  [--pps_dir PPS_DIR]
+                                  obsid
+
+XMMSAS generating an image for OBS_ID in DETX,DETY from PPS and GTI filtered event lists
+
+positional arguments:
+  obsid                 The OBS_ID to use, PPS will be downloaded
+
+options:
+  -h, --help            show this help message and exit
+  --low_pi LOW_PI       Low energy (Pulse Intensity, PI) of events to consider, in eV (integer), default 500 eV
+  --high_pi HIGH_PI     High energy (PI) of events to consider, in eV (integer), default 2000 eV
+  --expo_time EXPO_TIME
+                        Will select a sublist of events amounting to this exposure time, in kiloseconds. Default 20 ks. If negative or 0 then no time
+                        selection.
+  --binSize BINSIZE     The image bin size (integer), default 80 ==> 4 arcsec pixel
+  --save_dir SAVE_DIR   Folder where to save the processed/output files
+  --pps_dir PPS_DIR     Folder where the PPS files are, if None will download them from the archive
+
+```
+
+**Note:** The default parameters are set to values that will create an EPIC-pn image in detector coordinates that can be used directly as an input to the inference code. If `--save_dir` is not specified then the XMM products will be downloaded and stored in the current working folder. 
+
+
+### Example #1:
+
+```
+python make_detxy_pn_image_pps.py 0840940101 --save_dir /scratch/XMM_data
+```
+
+This will download PPS products from the [XMM-Newton archive (XSA)](http://nxsa.esac.esa.int/nxsa-web/#search) and will extract them in a folder `/scratch/XMM_data/0840940101/pps`, then it will filter the event list and create an image with 4"/pixel in detector coordinates in band `[0.5,2] keV` with exposure 20 ks (with tollerance of 15%) in the same folder. The default image name will be `pn_cleaned_20.0ks_detxy_500_2000_80.fits` and can be used as an input to the SR and DN inference.
+
+### Example #2:
+
+If you already have the PPS files, downloaded from the [XSA](http://nxsa.esac.esa.int/nxsa-web/#search) (e.g. using the web interface) and extracted in `/scratch/XMM_pps`: the untaring the XSA .tar file will create a folder `0840940101` with subfolder `pps` where the PPS products will be found.
+
+```
+python make_detxy_pn_image_pps.py 0840940101 --pps_dir /scratch/XMM_pps/0840940101/pps
+```
+
+This will use the PPS products in a folder `/scratch/XMM_pps/0840940101/pps` and then will filter the event list and create an image with 4"/pixel in detector coordinates in band `[0.5,2] keV` with exposure 20 ks (with tolerance of 15%) and will store those in the same folder. The default image name will be `pn_cleaned_20.0ks_detxy_500_2000_80.fits` and can be used as an input to the SR and DN inference. 
+
+
+## Install
+
+1. Clone the GitHub repository:<br/>
+2. Enter in the repository folder
+3. Create a conda environment (or virtualenv) and install the required python packages <br/> `pip install -r requirements.txt`
+4. Activate the new environment
+5. Test the code using already available input image in `tests` folder (note that this will only test the inference and not the input image creation):
+
+```
+python run_inference_on_real.py -h
+```
+you should see this message:
+```
+usage: run_inference_on_real.py [-h] [--which WHICH] [--display] filein
 
 Predict XMM SR or DN image
 
 positional arguments:
-  obsid                 The OBS_ID to process
+  filein         The FITS filename in detxy coordinates with WCS
 
-optional arguments:
-  -h, --help            show this help message and exit
-  --wdir WDIR           The working top folder name, must exist
-  --expo_time EXPO_TIME
-                        Will extract only this exposure time (in ks) from the event list. Set it to negative to use
-                        the GTI one.
+options:
+  -h, --help     show this help message and exit
+  --which WHICH  Which inference to apply? SR or DN
+  --display      Display the input and predicted image?
+```
+The `filein` is the relative or the full path of input image as generated with `make_detxy_pn_image_pps.py`. The outputs will be stored in the same folder as the input image: with suffix `_input_wcs_SR.fits.gz` for the input image for SR run, or `_input_wcs_DN.fits.gz`  or `_predict_wcs_SR.fits.gz` and `_predict_wcs_SR.fits.gz` for the outputs, depending if DN or SR mode is given as input argument ot the script.
+
+Optionally the input and output images can be displayed using `matplotlib` (if `--display` is set).
+
+If all good then run the inference on a real image:
 
 ```
+python run_inference_on_real.py --which SR --display \
+    tests/0827240501_image_split_500_2000_20ks_1_1.fits.gz
 
-It will follow the steps in the workflow as described above, and will produce predicted images using the SR and the DN models.
+python run_inference_on_real.py --which DN --display \
+    tests/0827240501_image_split_500_2000_20ks_1_1.fits.gz
+```
+---
 
-Some comments:
-
-* The `obsid` must be public.
-* Downloading the PPS products and saving them in `<wdir>/<obsid>/pps` may take time, be patient.
-* If `wdir` is not set, the current folder wil lbe used.
-* The `expo_time` is set to 20 ks by default (see above why). You can use a different exposure or set `--expo_time -1` to use the full GTI-filtered one.
-* All products will be saved in `<wdir>/<obsid>/proc` (hardcoded for now): filtered event lists, GTI files, GTI diagnostc plot and the images.
-
-
-_Ivan Valtchanov_, XMM SOC, Oct 2022
+Ivan Valtchanov, XMM SOC, April 2023 

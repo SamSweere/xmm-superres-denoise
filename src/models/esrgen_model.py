@@ -1,8 +1,8 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
-import torch
 import pytorch_lightning as pl
+import torch
 
-from src.models.modules.generator_rrdb import GeneratorRRDB_SR
+from models.modules.generator_rrdb import GeneratorRRDB_SR
 
 
 class LitESRGEN(pl.LightningModule):

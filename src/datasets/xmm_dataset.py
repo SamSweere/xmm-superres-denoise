@@ -5,13 +5,8 @@ import torch
 from astropy.io import fits
 from torch.utils.data import Dataset
 
-from src.datasets.utils import (
-    get_fits_files,
-    match_file_list,
-    reshape_img_to_res,
-    load_fits,
-    group_same_sources,
-)
+from datasets.utils import (get_fits_files, group_same_sources, load_fits,
+                            match_file_list, reshape_img_to_res)
 
 
 class XmmDataset(Dataset):

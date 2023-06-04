@@ -1,19 +1,14 @@
 import os
 import random
 
+import numpy as np
 import torch
 from astropy.io import fits
-import numpy as np
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from src.datasets.utils import (
-    get_fits_files,
-    match_file_list,
-    load_fits,
-    reshape_img_to_res,
-    group_same_sources,
-)
+from datasets.utils import (get_fits_files, group_same_sources, load_fits,
+                            match_file_list, reshape_img_to_res)
 
 
 class XmmSimDataset(Dataset):

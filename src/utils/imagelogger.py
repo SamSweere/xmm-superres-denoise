@@ -1,17 +1,16 @@
 # Written by: Sam Sweere
 import os
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import wandb
 from matplotlib import cm
-import numpy as np
-
-from utils.filehandling import write_xmm_file_to_fits
-from utils.ssim import ssim as get_ssim
 
 from transforms.imageupsample import ImageUpsample
+from utils.filehandling import write_xmm_file_to_fits
 from utils.metriclogger import MetricLogger
+from utils.ssim import ssim as get_ssim
 
 
 class ImageLogger(pl.Callback):
@@ -194,8 +193,8 @@ class ImageLogger(pl.Callback):
                 label = sample["hr"]
                 hr_exps = sample["hr_exp"]
             else:
-            # If we do not want the label images, make the label images the pred images, this simplifies the code
-            # Since we can later not send the label images
+                # If we do not want the label images, make the label images the pred images, this simplifies the code
+                # Since we can later not send the label images
                 label = preds
                 hr_exps = sample["lr_exp"]
 

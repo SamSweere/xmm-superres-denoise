@@ -1,7 +1,8 @@
 import piq
 import torch
-from utils.ssim import ssim as get_ssim
+
 from utils.ssim import ms_ssim as get_ms_ssim
+from utils.ssim import ssim as get_ssim
 
 
 class LossFunctionHandler:

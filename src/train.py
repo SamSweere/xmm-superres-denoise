@@ -1,16 +1,13 @@
 import os
-import wandb
 
+import wandb
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning import Trainer
-
 
 from datasets.xmm_datamodule import XmmDataModule
 from datasets.xmm_dispay_datamodule import XmmDisplayDataModule
-
 from transforms.normalize import Normalize
-
 from utils.filehandling import read_yaml
 from utils.imagelogger import ImageLogger
 from utils.loss_functions import LossFunctionHandler
@@ -59,7 +56,7 @@ model_config["hr_shape"] = (dataset_config["hr_res"], dataset_config["hr_res"])
 
 # Add other parts to the config
 config["project"] = model_config["base_model"]
-config["wandb_log_online"] = config["log_online"]  
+config["wandb_log_online"] = config["log_online"]
 # not config['fast_dev_run'] and not config['debug'] # Only log the full runs
 
 config["dataset_config"] = dataset_config
@@ -292,7 +289,7 @@ def main(config):
             ## Ivan's change
             accelerator="gpu",
             devices=config["gpus"],
-            strategy="dp",
+            strategy="fsdp",
             ##gpus=config["gpus"],
             max_epochs=config["epochs"],  # number of epochs
             deterministic=False,  # keep it deterministic
@@ -325,7 +322,7 @@ def main(config):
             ## Ivan's change
             accelerator="gpu",
             devices=config["gpus"],
-            strategy="dp",
+            strategy="fsdp",
             ##gpus=config["gpus"],
             max_epochs=config["epochs"],  # number of epochs
             # deterministic=True,  # keep it deterministic

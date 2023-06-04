@@ -4,7 +4,7 @@
 #model_name: esr_gen 
 #dataset_name: xmm_sim_ff
 model_name: rrdb_denoise 
-dataset_name: xmm_sim_ff_denoise_10_to_50ks
+dataset_name: xmm_sim_ff_denoise_20_to_50ks
 server: True
 
 server_datasets_dir: /xmm-super/final_data/sim # /home/sam/Documents/ESA/data/sim #/lhome/ssweere/data/sim 

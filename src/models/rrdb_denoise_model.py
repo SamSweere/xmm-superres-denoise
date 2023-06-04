@@ -1,10 +1,10 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
 import math
 
-import torch
 import pytorch_lightning as pl
+import torch
 
-from src.models.modules.generator_rrdb import GeneratorRRDB_DN
+from models.modules.generator_rrdb import GeneratorRRDB_DN
 
 
 class LitRRDBDenoise(pl.LightningModule):

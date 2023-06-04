@@ -5,8 +5,8 @@ import onnxruntime
 import torch
 from tqdm import tqdm
 
-from src.datasets.xmm_datamodule import XmmDataModule
-from src.utils.filehandling import read_yaml, write_xmm_file_to_fits
+from datasets.xmm_datamodule import XmmDataModule
+from utils.filehandling import read_yaml, write_xmm_file_to_fits
 
 
 def do_inference(

@@ -1,9 +1,9 @@
-from src.datasets.base_datamodule import BaseDataModule
-from src.datasets.xmm_dataset import XmmDataset
-from src.datasets.xmm_sim_dataset import XmmSimDataset
-from src.transforms.normalize import Normalize
-from src.transforms.crop import Crop
-from src.transforms.totensor import ToTensor
+from datasets.base_datamodule import BaseDataModule
+from datasets.xmm_dataset import XmmDataset
+from datasets.xmm_sim_dataset import XmmSimDataset
+from transforms.crop import Crop
+from transforms.normalize import Normalize
+from transforms.totensor import ToTensor
 
 
 class XmmDataModule(BaseDataModule):

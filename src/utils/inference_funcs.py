@@ -5,13 +5,32 @@ import onnxruntime as onnxruntime
 import torch
 from astropy.io import fits
 
-# from datasets.xmm_datamodule import XmmDataModule
 from datasets.utils import load_fits, reshape_img_to_res
+from datasets.xmm_datamodule import XmmDataModule
 from transforms.crop import Crop
 from transforms.normalize import Normalize
 from transforms.totensor import ToTensor
+# from utils.filehandling import read_yaml, write_xmm_file_to_fits_wcs, write_xmm_file_to_fits
 from utils.filehandling import write_xmm_file_to_fits_wcs
 
+# import glob
+# import math
+# from tqdm import tqdm
+
+# from datetime import datetime
+
+
+
+
+# from astropy.wcs import WCS
+# from astropy.visualization import PercentileInterval, ImageNormalize
+
+
+
+
+#%matplotlib inline
+# import matplotlib.pylab as plt
+# plt.style.use(['seaborn-colorblind','~/presentation.mplstyle'])
 #
 # hardcoded location of the detector mask
 #
@@ -22,7 +41,7 @@ if not os.path.isfile(detmask_file):
     raise FileNotFoundError
 
 #%%
-def run_inference_on_file(fits_file, dataset_config, verbose=True):
+def run_inference_on_file(fits_file, dataset_config, onnx_filepath):
     """
     Purpose:
         Run SR or DN inference on an input FITS file with real XMM-Newton image
@@ -30,7 +49,10 @@ def run_inference_on_file(fits_file, dataset_config, verbose=True):
         fits_file - str,
             input FITS file absolute path
         dataset_config - dict
-            The configuration for running the inference (this will dictate if it's SR or DN model)
+            The configuration for running the inference
+        onnx_filepath - str,
+            Path to the ONNX saved weights for the CNN
+
     Outputs:
         input_filename - str,
             The absolute path to the saved input file
@@ -39,7 +61,7 @@ def run_inference_on_file(fits_file, dataset_config, verbose=True):
 
     Notes:
         * The input FITS file must be in detector coordinates **with good WCS** and shape (403,411),
-        ideally made with xmmsas_tools.make_detxy_image.py
+        ideally made with make_detxy_image.py
     """
     #
     # some consistency checks
@@ -48,17 +70,7 @@ def run_inference_on_file(fits_file, dataset_config, verbose=True):
         print(f"Input FITS file {fits_file} not found. Cannot continue!")
         return None
     output_path = os.path.dirname(os.path.abspath(fits_file))
-    #
-    # raise a warning if the exposure (ONTIME) in the inpt fitsfile is outside 20 ks +/- 5ks
-    #
-    hdr = fits.getheader(fits_file)
-    ontime = hdr["EXPOSURE"] / 1000.0  # in ks
-    if ontime >= 25.0 or ontime <= 15.0:
-        print(
-            f"Warning: the networks were trained on 20 ks exposure images, the exposure time of the input image is {ontime:.2f} ks."
-        )
-    else:
-        print(f"Info: the exposure time of the input image is {ontime:.2f} ks.")
+    # print ('Output path',output_path)
     #
     loaded = load_fits(fits_file)
     #
@@ -82,7 +94,6 @@ def run_inference_on_file(fits_file, dataset_config, verbose=True):
     #
     # Load the ONNX file with the model
     #
-    onnx_filepath = dataset_config["onnx_path"]
     ort_session = onnxruntime.InferenceSession(onnx_filepath)
     input_name = ort_session.get_inputs()[0].name
     # The output exposure is determined by the trained model
@@ -192,4 +203,6 @@ def run_inference_on_file(fits_file, dataset_config, verbose=True):
         # out_file_name="prediction",
         in_header=sample["lr_header"],
     )
-    return input_out_name, pred_out_name
+    return os.path.join(output_path, input_out_name), os.path.join(
+        output_path, pred_out_name
+    )
