@@ -32,7 +32,10 @@ def _infer_from_ckpt(
                                        hr_shape=hr_shape,
                                        loss=None,
                                        metrics=None)
-    return model(img[None, None, :].to(model.device))
+    with torch.no_grad():
+        model.eval()
+        model.freeze()
+        return model(img[None, None, :].to(model.device))
 
 
 def _infer_from_onnx(img: torch.Tensor, checkpoint_path: Path) -> torch.Tensor:

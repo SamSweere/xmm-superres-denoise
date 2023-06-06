@@ -127,6 +127,7 @@ def create_loss(
         metrics = m if metrics is None else metrics + m
 
     if vgg_p:
-        m = VGGLoss(vgg_model=vgg_config["vgg_model"], batch_norm=vgg_config["batch_norm"], layers=vgg_config["layers"])
+        m = VGGLoss(scaling=vgg_p, vgg_model=vgg_config["vgg_model"], batch_norm=vgg_config["batch_norm"],
+                    layers=vgg_config["layers"])
         metrics = m if metrics is None else metrics + m
     return metrics
