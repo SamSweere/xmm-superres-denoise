@@ -91,12 +91,10 @@ class Model(pl.LightningModule):
         loss = self.loss(preds=preds, target=target)
 
         if stage == "train":
-            self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=self.batch_size,
-                     on_step=True, on_epoch=False)
+            self.log(f"{stage}/loss", loss, batch_size=self.batch_size, on_step=True, on_epoch=False)
             return loss
         else:
-            self.log(f"{stage}/loss", loss, prog_bar=True, batch_size=self.batch_size,
-                     on_step=False, on_epoch=True, sync_dist=True)
+            self.log(f"{stage}/loss", loss, batch_size=self.batch_size, on_step=False, on_epoch=True, sync_dist=True)
 
             log_inputs = self.current_epoch == 0 or stage == "test"
             log_extended = stage == "test"
