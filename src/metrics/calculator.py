@@ -52,19 +52,20 @@ class MetricsCalculator:
 
         metrics = []
         extended_metrics = []
+        normalizer_dict = {}
 
         for normalizer in scaling_normalizers:
             mode = normalizer.stretch_mode
+            normalizer_dict[mode] = normalizer
             metrics.append(MetricCollection(metrics=m_dict, prefix=f"{prefix}/{mode}/"))
             extended_metrics.append(MetricCollection(metrics=em_dict, prefix=f"{prefix}/{mode}/"))
 
         self.metrics = MetricCollection(metrics)
-        self.input_metrics = self.metrics.clone(prefix="/in")
+        self.input_metrics = self.metrics.clone(prefix="in/")
         self.extended_metrics = MetricCollection(extended_metrics)
-        self.input_extended_metrics = self.extended_metrics.clone(prefix="/in")
+        self.input_extended_metrics = self.extended_metrics.clone(prefix="in/")
 
-        self.normalizer_dict = {scaling_normalizer.stretch_mode: scaling_normalizer
-                                for scaling_normalizer in scaling_normalizers}
+        self.normalizer_dict = normalizer_dict
 
     def _update(
             self,
