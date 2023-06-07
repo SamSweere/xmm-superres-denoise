@@ -59,7 +59,7 @@ class MetricsCalculator:
             extended_metrics.append(MetricCollection(metrics=em_dict, prefix=f"{prefix}/{mode}/"))
 
         self.metrics = MetricCollection(metrics)
-        self.input_metrics = self.metrics.clone(postfix="/in")
+        self.input_metrics = self.metrics.clone(prefix="/in")
         self.extended_metrics = MetricCollection(extended_metrics)
         self.input_extended_metrics = self.extended_metrics.clone(prefix="/in")
 
