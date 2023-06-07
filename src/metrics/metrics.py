@@ -1,6 +1,6 @@
 import piq
 import torch
-from torch.nn.functional import mse_loss, poisson_nll_loss, l1_loss
+from torch.nn.functional import mse_loss, poisson_nll_loss
 from torchmetrics import Metric
 from torchvision import transforms
 from torchvision.models import vgg, VGG
@@ -37,7 +37,7 @@ class _Metric(Metric):
     def __repr__(self):
         scaling = f"{self.scaling} * " if self.scaling != 1.0 else ""
         name = {self.__class__.__name__}
-        correction = f"+ {self.correction}" if self.correction != 0.0 else ""
+        correction = f" + {self.correction}" if self.correction != 0.0 else ""
         return f"{scaling}{name}{correction}"
 
 
@@ -55,83 +55,6 @@ class VIF(_Metric):
         self.total += preds.size()[0]
 
 
-class SSIM(_Metric):
-    """
-    Interface of Structural Similarity (SSIM) index.
-    """
-
-    def __init__(
-            self,
-            scaling: float = 1.0,
-            correction: float = 0.0,
-            kernel_size: int = 13,
-            kernel_sigma: float = 2.5,
-            k1: float = 0.01,
-            k2: float = 0.05
-    ):
-        super(SSIM, self).__init__(scaling=scaling, correction=correction)
-        self.kernel_size = kernel_size
-        self.kernel_sigma = kernel_sigma
-        self.k1 = k1
-        self.k2 = k2
-
-    def update(
-            self,
-            preds: torch.Tensor,
-            target: torch.Tensor,
-            reduction: str = "mean") -> None:
-        self.metric += piq.ssim(x=preds, y=target, kernel_size=self.kernel_size, kernel_sigma=self.kernel_sigma,
-                                reduction=reduction, k1=self.k1, k2=self.k2)
-        self.total += preds.size()[0]
-
-
-class MultiScaleSSIM(_Metric):
-    """
-    Interface of Multi-scale Structural Similarity (MS-SSIM) index.
-    """
-
-    def __init__(
-            self,
-            scaling: float = 1.0,
-            correction: float = 0.0,
-            kernel_size: int = 13,
-            kernel_sigma: float = 2.5,
-            k1: float = 0.01,
-            k2: float = 0.05
-    ):
-        super(MultiScaleSSIM, self).__init__(scaling=scaling, correction=correction)
-
-        self.kernel_size = kernel_size
-        self.kernel_sigma = kernel_sigma
-        self.k1 = k1
-        self.k2 = k2
-
-    def update(
-            self,
-            preds: torch.Tensor,
-            target: torch.Tensor,
-            reduction: str = "mean") -> None:
-        self.metric += piq.multi_scale_ssim(x=preds, y=target, kernel_size=self.kernel_size,
-                                            kernel_sigma=self.kernel_sigma,
-                                            reduction=reduction,
-                                            k1=self.k1, k2=self.k2)
-        self.total += preds.size()[0]
-
-
-class PSNR(_Metric):
-    """
-    Compute Peak Signal-to-Noise Ratio for a batch of images.
-    """
-
-    def update(
-            self,
-            preds: torch.Tensor,
-            target: torch.Tensor,
-            reduction: str = "mean") -> None:
-        self.metric += piq.psnr(x=preds, y=target, reduction=reduction)
-        self.total += preds.size()[0]
-
-
 class PoissonNLLLoss(_Metric):
     higher_is_better = False
 
@@ -141,21 +64,6 @@ class PoissonNLLLoss(_Metric):
             target: torch.Tensor,
             reduction: str = "mean") -> None:
         self.metric += poisson_nll_loss(input=preds, target=target, log_input=False, reduction=reduction)
-        self.total += preds.size()[0]
-
-
-class MSE(_Metric):
-    """
-    Measures the element-wise mean squared error.
-    """
-    higher_is_better = False
-
-    def update(
-            self,
-            preds: torch.Tensor,
-            target: torch.Tensor,
-            reduction: str = "mean") -> None:
-        self.metric += mse_loss(input=preds, target=target, reduction=reduction)
         self.total += preds.size()[0]
 
 
@@ -170,21 +78,6 @@ class MDSI(_Metric):
             target: torch.Tensor,
             reduction: str = "mean") -> None:
         self.metric += piq.mdsi(x=preds, y=target, reduction=reduction)
-        self.total += preds.size()[0]
-
-
-class MAE(_Metric):
-    """
-    Function that takes the mean element-wise absolute value difference.
-    """
-    higher_is_better: bool = False
-
-    def update(
-            self,
-            preds: torch.Tensor,
-            target: torch.Tensor,
-            reduction: str = "mean") -> None:
-        self.metric += l1_loss(input=preds, target=target, reduction=reduction)
         self.total += preds.size()[0]
 
 

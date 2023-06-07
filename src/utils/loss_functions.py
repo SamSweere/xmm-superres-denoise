@@ -1,8 +1,14 @@
-from typing import Optional, Dict, Union
+from typing import Dict, Union
 
-from torchmetrics import Metric
+from torchmetrics import (
+    Metric,
+    PeakSignalNoiseRatio,
+    StructuralSimilarityIndexMeasure,
+    MultiScaleStructuralSimilarityIndexMeasure,
+    MeanAbsoluteError
+)
 
-from metrics import MAE, PoissonNLLLoss, PSNR, SSIM, MultiScaleSSIM, VGGLoss
+from metrics import PoissonNLLLoss, VGGLoss
 
 # The scaling and the scaled loss functions
 # These are based on randomly initialized untrained models
@@ -96,11 +102,11 @@ def create_loss(
         raise ValueError(f"Sum of l1_p={l1_p}, poisson_p={poisson_p}, psnr_p={psnr_p}, ssim_p={ssim_p}, "
                          f"ms_ssim_p={ms_ssim_p}, vgg_p={vgg_p} has to be in ]0.0, 1.0] but is {total}!")
 
-    metrics: Optional[Metric] = None
+    metrics = []
 
     if l1_p > 0.0:
         scaling, correction = _get_scaling(x1=_zero_epoch[data_scaling]["l1"], x2=_last_epoch[data_scaling]["l1"])
-        metrics = MAE(scaling=l1_p * scaling, correction=correction)
+        metrics.append(l1_p * scaling * MeanAbsoluteError() + correction)
 
     if poisson_p > 0.0:
         scaling, correction = _get_scaling(x1=_zero_epoch[data_scaling]["poisson"],
@@ -111,23 +117,29 @@ def create_loss(
     if psnr_p > 0.0:
         scaling, correction = _get_scaling(x1=_zero_epoch[data_scaling]["psnr"],
                                            x2=_last_epoch[data_scaling]["psnr"])
-        m = PSNR(scaling=psnr_p * scaling, correction=correction)
-        metrics = m if metrics is None else metrics + m
+        metrics.append(psnr_p * scaling * PeakSignalNoiseRatio() + correction)
 
     if ssim_p > 0.0:
         scaling, correction = _get_scaling(x1=_zero_epoch[data_scaling]["ssim"],
                                            x2=_last_epoch[data_scaling]["ssim"])
-        m = SSIM(scaling=ssim_p * scaling, correction=correction)
-        metrics = m if metrics is None else metrics + m
+        metrics.append(ssim_p * scaling * StructuralSimilarityIndexMeasure(kernel_size=13,
+                                                                           sigma=2.5,
+                                                                           k2=0.05) + correction)
 
     if ms_ssim_p > 0.0:
         scaling, correction = _get_scaling(x1=_zero_epoch[data_scaling]["ms_ssim"],
                                            x2=_last_epoch[data_scaling]["ms_ssim"])
-        m = MultiScaleSSIM(scaling=ms_ssim_p * scaling, correction=correction)
-        metrics = m if metrics is None else metrics + m
+        metrics.append(ms_ssim_p * scaling * MultiScaleStructuralSimilarityIndexMeasure(kernel_size=13,
+                                                                                        sigma=2.5,
+                                                                                        k2=0.05) + correction)
 
     if vgg_p:
         m = VGGLoss(scaling=vgg_p, vgg_model=vgg_config["vgg_model"], batch_norm=vgg_config["batch_norm"],
                     layers=vgg_config["layers"])
         metrics = m if metrics is None else metrics + m
-    return metrics
+
+    final_metric = metrics[0]
+    for i in range(1, len(metrics)):
+        final_metric = final_metric + metrics[i]
+
+    return final_metric
