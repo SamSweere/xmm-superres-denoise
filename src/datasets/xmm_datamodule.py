@@ -2,7 +2,7 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-from lightning.pytorch.utilities import rank_zero_info
+from lightning.pytorch.utilities import rank_zero_info, rank_zero_warn
 from torch.utils.data import random_split, Subset
 
 from datasets import BaseDataModule
@@ -54,6 +54,15 @@ class XmmDataModule(BaseDataModule):
             )
 
             self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
+        elif self.dataset_type == "boring":
+            from datasets import BoringDataset
+            rank_zero_warn("You are using the BoringDataset which is meant for testing purposes!"
+                           "Ignore this warning if this was on purpose.")
+            self.dataset = BoringDataset(
+                lr_exp=self.lr_exps,
+                hr_exp=self.hr_exp,
+                hr_res_mult=config["hr"]["res"] // config["lr"]["res"]
+            )
         else:
             raise ValueError(f"Dataset type {self.dataset_type} not known, options: 'real', 'sim'")
 
@@ -114,12 +123,18 @@ class XmmDataModule(BaseDataModule):
             return indices
 
     def setup(self, stage: str) -> None:
-        if stage == "fit":
-            train_indices = self._load_indices("train")
-            self.train_subset = Subset(self.dataset, train_indices)
+        if self.dataset_type == "boring":
+            train, val, test = random_split(self.dataset, [0.8, 0.1, 0.1])
+            self.train_subset = Subset(self.dataset, train)
+            self.val_subset = Subset(self.dataset, val)
+            self.test_subset = Subset(self.dataset, test)
+        else:
+            if stage == "fit":
+                train_indices = self._load_indices("train")
+                self.train_subset = Subset(self.dataset, train_indices)
 
-            val_indices = self._load_indices("val")
-            self.val_subset = Subset(self.dataset, val_indices)
-        if stage == "test" or "predict":
-            test_indices = self._load_indices("test")
-            self.test_subset = Subset(self.dataset, test_indices)
+                val_indices = self._load_indices("val")
+                self.val_subset = Subset(self.dataset, val_indices)
+            if stage == "test" or "predict":
+                test_indices = self._load_indices("test")
+                self.test_subset = Subset(self.dataset, test_indices)
