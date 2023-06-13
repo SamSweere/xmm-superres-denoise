@@ -84,13 +84,16 @@ if __name__ == "__main__":
     callbacks = None
 
     if args.routine == "fit":
-        il = ImageLogger(
-            datamodule=XmmDisplayDataModule(dataset_config),
-            log_every_n_epochs=trainer_config["log_images_every_n_epochs"],
-            normalize=datamodule.normalize,
-            scaling_normalizers=scaling_normalizers,
-            data_range=hr_max
-        )
+        callbacks = []
+        if trainer_config["log_images_every_n_epochs"] > 0:
+            il = ImageLogger(
+                datamodule=XmmDisplayDataModule(dataset_config),
+                log_every_n_epochs=trainer_config["log_images_every_n_epochs"],
+                normalize=datamodule.normalize,
+                scaling_normalizers=scaling_normalizers,
+                data_range=hr_max
+            )
+            callbacks.append(il)
         checkpoint_callback = ModelCheckpoint(
             monitor="val/loss",
             dirpath=f"{wandb_logger.experiment.dir}/checkpoints",
@@ -98,7 +101,7 @@ if __name__ == "__main__":
             mode="min",
             auto_insert_metric_name=False
         )
-        callbacks = [il, checkpoint_callback]
+        callbacks.append(checkpoint_callback)
 
     trainer = Trainer(
         logger=wandb_logger,
