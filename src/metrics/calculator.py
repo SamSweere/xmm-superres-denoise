@@ -31,7 +31,7 @@ class MetricsCalculator:
         self.scaling_normalizers = scaling_normalizers
         self.upsample = upsample
 
-        m_dict = {
+        metric_template = MetricCollection({
             "psnr": PeakSignalNoiseRatio(data_range=data_range),
             "ssim": StructuralSimilarityIndexMeasure(kernel_size=13, sigma=2.5, k2=0.05, data_range=data_range),
             "ms_ssim": MultiScaleStructuralSimilarityIndexMeasure(kernel_size=13, sigma=2.5, k2=0.05,
@@ -39,16 +39,16 @@ class MetricsCalculator:
             "l1": MeanAbsoluteError(),
             "l2": MeanSquaredError(),
             "poisson": PoissonNLLLoss()
-        }
+        })
 
-        em_dict = {
+        extended_metric_template = MetricCollection({
             "vif_p": VIF(),
             "fsim": FSIM(),
             "gmsd": GMSD(),
             "ms_gmsd": MultiScaleGMSD(),
             "haarpsi": HaarPSI(),
             "msdi": MDSI()
-        }
+        })
 
         metrics = []
         extended_metrics = []
@@ -57,8 +57,8 @@ class MetricsCalculator:
         for normalizer in scaling_normalizers:
             mode = normalizer.stretch_mode
             normalizer_dict[mode] = normalizer
-            metrics.append(MetricCollection(metrics=m_dict, prefix=f"{prefix}/{mode}/"))
-            extended_metrics.append(MetricCollection(metrics=em_dict, prefix=f"{prefix}/{mode}/"))
+            metrics.append(metric_template.clone(prefix=f"{prefix}/{mode}/"))
+            extended_metrics.append(extended_metric_template.clone(prefix=f"{prefix}/{mode}/"))
 
         self.metrics = MetricCollection(metrics)
         self.input_metrics = self.metrics.clone(postfix="_in")
