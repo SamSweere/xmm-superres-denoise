@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "xmm-superres-denoise"
+version = "1.0"
+description = "Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton Images"
+authors = ["Sam Sweere <samsweere@gmail.com>"]
+readme = "README.md"
+packages = [{include = "xmm_superres_denoise"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+pytorch-lightning = "^2.0.2"
+wandb = "^0.15.3"
+onnxruntime = "^1.15.0"
+astropy = "^5.3"
+torch = "^2.0.1"
+torchvision = "^0.15.2"
+matplotlib = "^3.7.1"
+piq = "^0.7.1"
+astroquery = "^0.4.6"
+scipy = "^1.10.1"
+pre-commit = "^3.3.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
