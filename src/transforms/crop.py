@@ -6,7 +6,7 @@ class Crop(object):
 
     Args:
         crop_p (float): The crop percentage with respect to the image shape
-        mode (str): The corrping mode, options: `random`, `center`
+        mode (str): The cropping mode, options: `random`, `center`
     """
 
     def __init__(self, crop_p, mode="random"):
@@ -29,7 +29,7 @@ class Crop(object):
         if left + w_res > img.shape[1]:
             left -= (left + w_res) - img.shape[1]
 
-        cropped_img = img[top : top + h_res, left : left + w_res]
+        cropped_img = img[top: top + h_res, left: left + w_res]
         return cropped_img
 
     def __call__(self, image):

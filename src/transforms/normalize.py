@@ -1,12 +1,6 @@
-import numpy as np
 import torch
 
-from transforms.data_scaling_functions import (
-    linear_scale,
-    sqrt_scale,
-    log_scale,
-    asinh_scale,
-)
+from transforms.data_scaling_functions import linear_scale, sqrt_scale, log_scale, asinh_scale
 
 
 class Normalize(object):
@@ -114,8 +108,10 @@ if __name__ == "__main__":
     output_asinh_corr = norm_asinh.denormalize_hr_image(input_asinh_norm)
     output_log_corr = norm_log.denormalize_hr_image(input_log_norm)
 
+
     def torch_round(arr, n_digits):
-        return torch.round(arr * (10**n_digits)) / (10**n_digits)
+        return torch.round(arr * (10 ** n_digits)) / (10 ** n_digits)
+
 
     print("input:", input)
     print("lin norm and denormed input:", output_lin_corr)

@@ -1,32 +1,64 @@
-from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader
+from pathlib import Path
 
-import os
+from lightning.pytorch import LightningDataModule
+from lightning.pytorch.utilities.types import TRAIN_DATALOADERS, EVAL_DATALOADERS
+from torch.utils.data import DataLoader
+from torchvision.transforms import ToTensor
+
+from transforms import Crop, Normalize
 
 
 class BaseDataModule(LightningDataModule):
-    def __init__(self, config, dataset):
-        super().__init__()
-        self.config = config
+    def __init__(
+            self,
+            config
+    ):
+        super(BaseDataModule, self).__init__()
+
+        self.num_workers = 0 if config["debug"] else 12
+        self.pin_memory = not config["debug"]
+        self.persistent_workers = not config["debug"]
+
         self.batch_size = config["batch_size"]
+        self.dataset_type = config["type"]
 
-        if config["debug"]:
-            # For some reason the debugger does not like multiple workers
-            self.num_workers = 0
-            self.pin_memory = False
-            self.persistent_workers = False
-        else:
-            # Take 1/4 of the cpu count for the dataloaders leaving some room for other processes
-            self.num_workers = int(1 / 4 * os.cpu_count())
-            self.pin_memory = True
-            self.persistent_workers = True
+        self.transform = [
+            Crop(
+                crop_p=1.0,  # TODO
+                mode=config["crop_mode"],
+            ),
+            ToTensor()
+        ]
 
-        # Needs to be set
-        self.dataset = dataset
+        self.normalize = Normalize(
+            lr_max=config["lr"]["max"],
+            hr_max=config["hr"]["max"],
+            stretch_mode=config["scaling"],
+        )
 
-    def get_dataloader(self, shuffle=False):
+        self.dataset_dir = Path(config["dir"]) / config["name"]
+        self.check_files = config["check_files"]
+
+        self.dataset = None
+        self.train_subset = None
+        self.val_subset = None
+        self.test_subset = None
+
+    def train_dataloader(self) -> TRAIN_DATALOADERS:
+        return self.get_dataloader(self.train_subset, True)
+
+    def val_dataloader(self) -> EVAL_DATALOADERS:
+        return self.get_dataloader(self.val_subset)
+
+    def test_dataloader(self) -> EVAL_DATALOADERS:
+        return self.get_dataloader(self.test_subset)
+
+    def predict_dataloader(self) -> EVAL_DATALOADERS:
+        return self.get_dataloader(self.test_subset)
+
+    def get_dataloader(self, dataset, shuffle=False):
         return DataLoader(
-            self.dataset,
+            dataset,
             batch_size=self.batch_size,
             shuffle=shuffle,
             num_workers=self.num_workers,

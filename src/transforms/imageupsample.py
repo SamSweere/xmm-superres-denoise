@@ -17,7 +17,7 @@ class ImageUpsample:
         x = self.upsample(x)
 
         # Fix the upsample brightness by dividing by the scale factor squared
-        x = x / (self.scale_factor**2)
+        x = x / (self.scale_factor ** 2)
 
         if single_image:
             # Pull the upsampled input out of the batch
