@@ -11,8 +11,62 @@ The hardware requirements to run and train the models:
 - **CPU**: While the model can be run and trained on the CPU, this is not recommended due to potentially long training times. To run and train the model, your system needs at least 16 GB of RAM.
 
 ## Setup
-TODO: add the pip install commands here
-This project uses Python 3.10. For development we recommend using pyenv and poetry to setup your enviroment:
+This guide provides the simplest method to run the code from this project. If you anticipate modifying or further developing the code, it's advisable to follow the setup instructions specified in the 'Development' section below.
+
+The project is built using Python 3.10. Make sure it's installed on your system. If Python 3.10 is not installed, you can find the installation instructions further below in the develoment section of the readme. We recommend using venv and pip for setting up your Python environment:
+
+1. **Clone the repository:** If it's not already done, you can clone the repository using the following command:
+
+    ```
+    git clone https://github.com/SamSweere/xmm-superres-denoise.git
+    ```
+
+2. **Enter the repository:** Navigate to the cloned repository:
+
+    ```
+    cd xmm_superres_denoise
+    ```
+
+3. **Create a virtual environment with venv:** We will create a new virtual environment for this project. This isolates our project and avoids conflicts between different versions of packages. Make sure Python 3.10 is the active version before you do this.
+
+    ```
+    python3 -m venv xmm_superres_venv
+    ```
+
+4. **Activate the environment:** To activate the created environment, use the following command:
+
+    ```
+    source xmm_superres_venv/bin/activate
+    ```
+
+5. **Install the requirements:** Within the activated environment, install the necessary packages listed in the `requirements.txt` file:
+
+    ```
+    pip install -r requirements.txt
+    ```
+
+Now, you're all set up and ready to run the code!
+
+
+
+## Inference
+The notebook `inference_example.ipynb` and source code `xmm_superres_denoise/inference.py` demonstrate how to generate super-resolution and de-noised images using example data.
+
+Please note that if you wish to run the models on your own data, the model config files will need to be updated to match your data configurations.
+
+## Training
+To set up your environment for training, follow the steps outlined below:
+
+- For GPU utilization, determine the available GPU by running the `nvidia-smi` command. Next, update the `xmm_superres_denoise/run_config.yaml` file under `gpus: [{your gpu num}]` with the corresponding GPU number.
+
+- Update `dataset_dir` in the `xmm_superres_denoise/run_config.yaml` file with your dataset directory.
+
+We look forward to seeing your improvements and applications using our models. For any queries, please open an issue in this repository.
+
+# Development
+
+## Setup
+This project uses Python 3.10. For development we recommend using pyenv and poetry to setup your development enviroment:
 
 1. **Install Pyenv:** Pyenv is a Python version management tool. If it is not already installed, you can install it using the following commands:
 
@@ -73,24 +127,7 @@ This project uses Python 3.10. For development we recommend using pyenv and poet
 
 Now, you're all set up and ready to run or modify the code!
 
-
-
-## Inference
-The notebook `inference_example.ipynb` and source code `xmm_superres_denoise/inference.py` demonstrate how to generate super-resolution and de-noised images using example data.
-
-Please note that if you wish to run the models on your own data, the model config files will need to be updated to match your data configurations.
-
-## Training
-To set up your environment for training, follow the steps outlined below:
-
-- For GPU utilization, determine the available GPU by running the `nvidia-smi` command. Next, update the `xmm_superres_denoise/run_config.yaml` file under `gpus: [{your gpu num}]` with the corresponding GPU number.
-
-- Update `dataset_dir` in the `xmm_superres_denoise/run_config.yaml` file with your dataset directory.
-
-We look forward to seeing your improvements and applications using our models. For any queries, please open an issue in this repository.
-
-## Development
-### Using Poetry for Dependency Management
+## Using Poetry for Dependency Management
 In this project, we use Poetry for managing our dependencies. The benefit of using Poetry is that it ensures all the packages used in the project are compatible with each other.
 
 Poetry locks the dependencies in a `poetry.lock` file. This means that when we install the dependencies in a different location, we will get exactly the same versions, ensuring consistency across different development and deployment environments.
