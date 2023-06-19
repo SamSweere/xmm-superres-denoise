@@ -157,3 +157,6 @@ Here are some useful Poetry commands that you might find helpful during developm
     Replace `<package_name>` with the name of the package you want to remove.
 
 These commands make it easy to manage your project's dependencies and ensure that the project environment is reproducible across different systems.
+
+# Acknowledgements
+Many thanks to [Bojan Todorkov](https://github.com/bojobo) for his code improvements and bug fixes to the codebase!

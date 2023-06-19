@@ -3,6 +3,7 @@
 wandb/
 xmm_superres_venv/
 data/output/
+data/datasets/
 res/splits/sim_dataset/
 res/splits/real_dataset/
 
