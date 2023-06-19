@@ -2,16 +2,17 @@
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-import lightning.pytorch as pl
 import numpy as np
+import pytorch_lightning as pl
 import torch
-from datasets import XmmDisplayDataModule
-from lightning.pytorch.loggers.wandb import WandbLogger
-from lightning.pytorch.utilities import rank_zero_only
-from lightning.pytorch.utilities.types import EVAL_DATALOADERS
 from matplotlib import cm
+from pytorch_lightning.loggers.wandb import WandbLogger
+from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.utilities.types import EVAL_DATALOADERS
 from torchmetrics.functional import structural_similarity_index_measure as ssim
-from utils.filehandling import write_xmm_file_to_fits
+
+from xmm_superres_denoise.datasets import XmmDisplayDataModule
+from xmm_superres_denoise.utils.filehandling import write_xmm_file_to_fits
 
 _img_val_dict = {
     "input": {"cm": "plasma", "norm": False, "key": "{0}/input/{1}"},

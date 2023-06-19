@@ -2,8 +2,9 @@ import functools
 import math
 
 import torch
-from models.modules import RRDB, make_layer
 from torch import nn
+
+from xmm_superres_denoise.models.modules import RRDB, make_layer
 
 
 class _GeneratorRRDB(nn.Module):

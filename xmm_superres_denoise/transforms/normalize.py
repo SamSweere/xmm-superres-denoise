@@ -1,6 +1,11 @@
 import torch
-from transforms.data_scaling_functions import (asinh_scale, linear_scale,
-                                               log_scale, sqrt_scale)
+
+from xmm_superres_denoise.transforms.data_scaling_functions import (
+    asinh_scale,
+    linear_scale,
+    log_scale,
+    sqrt_scale,
+)
 
 
 class Normalize(object):

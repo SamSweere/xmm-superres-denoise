@@ -2,18 +2,18 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import wandb
-from datasets import XmmDataModule, XmmDisplayDataModule
-from lightning import Trainer
-from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch.loggers.wandb import WandbLogger
-from lightning.pytorch.utilities import rank_zero_info, rank_zero_warn
-from metrics import MetricsCalculator
-from transforms import ImageUpsample, Normalize
-from utils import ImageLogger
-from utils.filehandling import read_yaml
-from utils.loss_functions import create_loss
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers.wandb import WandbLogger
+from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 
-from models import Model
+from xmm_superres_denoise.datasets import XmmDataModule, XmmDisplayDataModule
+from xmm_superres_denoise.metrics.calculator import MetricsCalculator
+from xmm_superres_denoise.models import Model
+from xmm_superres_denoise.transforms import ImageUpsample, Normalize
+from xmm_superres_denoise.utils import ImageLogger
+from xmm_superres_denoise.utils.filehandling import read_yaml
+from xmm_superres_denoise.utils.loss_functions import create_loss
 
 if __name__ == "__main__":
     parser = ArgumentParser()

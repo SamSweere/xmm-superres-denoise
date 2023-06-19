@@ -1,5 +1,5 @@
 #
-# Using XMM SAS xmmsas_tools in utils
+# Using XMM SAS xmmsas_tools in xmm_superres_denoise.utils
 #
 # The workflow is the following:
 #
@@ -15,8 +15,12 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
-from utils.xmmsas_tools import (filter_events_gti, get_pps_nxsa,
-                                make_detxy_image, make_gti_pps)
+from xmm_superres_denoise.utils.xmmsas_tools import (
+    filter_events_gti,
+    get_pps_nxsa,
+    make_detxy_image,
+    make_gti_pps,
+)
 
 
 def get_detxy_for_obs_id(

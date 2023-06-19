@@ -1,11 +1,12 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
 from typing import Optional, Tuple
 
-import lightning.pytorch as pl
+import pytorch_lightning as pl
 import torch
-from metrics import MetricsCalculator
 from torch import Tensor
 from torchmetrics import Metric
+
+from xmm_superres_denoise.metrics import MetricsCalculator
 
 
 class Model(pl.LightningModule):
@@ -38,7 +39,7 @@ class Model(pl.LightningModule):
         self.batch_size = config["batch_size"]
         self.model: torch.nn.Module
         if self.model_name == "esr_gen":
-            from models import GeneratorRRDB_SR
+            from xmm_superres_denoise.models import GeneratorRRDB_SR
 
             up_scale = hr_shape[0] / lr_shape[0]
             if up_scale % 2 != 0:
@@ -58,7 +59,7 @@ class Model(pl.LightningModule):
                 memory_efficient=self.memory_efficient,
             )
         elif self.model_name == "rrdb_denoise":
-            from models import GeneratorRRDB_DN
+            from xmm_superres_denoise.models import GeneratorRRDB_DN
 
             self.model = GeneratorRRDB_DN(
                 in_channels=config["in_channels"],

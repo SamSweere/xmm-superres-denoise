@@ -3,12 +3,20 @@ from random import sample
 from typing import Callable, List, Optional
 
 import numpy as np
-from datasets.utils import (apply_transform, check_img_files, find_img_dirs,
-                            find_img_files, load_det_mask, load_fits,
-                            match_file_list, reshape_img_to_res)
-from lightning.pytorch.utilities import rank_zero_info
+from pytorch_lightning.utilities import rank_zero_info
 from torch.utils.data import Dataset
-from transforms import Normalize
+
+from xmm_superres_denoise.datasets.utils import (
+    apply_transform,
+    check_img_files,
+    find_img_dirs,
+    find_img_files,
+    load_det_mask,
+    load_fits,
+    match_file_list,
+    reshape_img_to_res,
+)
+from xmm_superres_denoise.transforms import Normalize
 
 
 class XmmDataset(Dataset):
@@ -28,7 +36,7 @@ class XmmDataset(Dataset):
     ):
         """
         Args:
-            dataset_dir (Path): Directory of the datasets
+            dataset_dir (Path): Directory of the xmm_superres_denoise.datasets
             dataset_lr_res (int): The resolution the input images are transformed to make them rectangular
                 before any cropping
             lr_exps (list): Exposure of the low resolution images, in ks, if list it is the range of exposure times

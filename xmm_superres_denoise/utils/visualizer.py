@@ -176,7 +176,7 @@ class Visualizer:
 import numpy as np
 import sys
 from subprocess import Popen, PIPE
-import utils
+import xmm_superres_denoise.utils
 import visdom
 
 

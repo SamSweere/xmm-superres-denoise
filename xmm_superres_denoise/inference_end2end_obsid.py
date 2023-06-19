@@ -1,7 +1,7 @@
 #
 # Example script to run the inference and predict super-resolution (SR) or denoised (DN) XMM EPIC-pn image
 #
-# Using XMM SAS xmmsas_tools in utils
+# Using XMM SAS xmmsas_tools in xmm_superres_denoise.utils
 #
 # The workflow is the following:
 #
@@ -15,8 +15,8 @@
 import argparse
 from pathlib import Path
 
-from produce_detxy_image_for_inference import get_detxy_for_obs_id
-from utils.run_inference_on_file import run_on_file
+from xmm_superres_denoise.produce_detxy_image_for_inference import get_detxy_for_obs_id
+from xmm_superres_denoise.utils.run_inference_on_file import run_on_file
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predict XMM SR or DN image")

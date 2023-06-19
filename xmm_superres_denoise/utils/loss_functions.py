@@ -1,10 +1,14 @@
 from typing import Dict, Union
 
-from metrics import PoissonNLLLoss, VGGLoss
-from torchmetrics import (MeanAbsoluteError, Metric,
-                          MultiScaleStructuralSimilarityIndexMeasure,
-                          PeakSignalNoiseRatio,
-                          StructuralSimilarityIndexMeasure)
+from torchmetrics import (
+    MeanAbsoluteError,
+    Metric,
+    MultiScaleStructuralSimilarityIndexMeasure,
+    PeakSignalNoiseRatio,
+    StructuralSimilarityIndexMeasure,
+)
+
+from xmm_superres_denoise.metrics import PoissonNLLLoss, VGGLoss
 
 # The scaling and the scaled loss functions
 # These are based on randomly initialized untrained models

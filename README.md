@@ -1,7 +1,7 @@
 # Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton Images
-This repository contains the implementation for our research study titled *"Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton Images."* The corresponding paper and additional details can be found in the pre-print version available at: [Arxiv Paper](https://arxiv.org/pdf/2205.01152.pdf).
+This repository contains the implementation for our research study titled _Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton Image_, [2022, MNRAS, 517, 4054](https://doi.org/10.1093/mnras/stac2437). Pre-print is available in [arXiv](https://arxiv.org/pdf/2205.01152.pdf).
 
-A comprehensive discussion on the implementation is available in the master's thesis included in this repository.
+More implementation details are described in [Sam Sweere's master thesis](<../Sam Sweere - Master Thesis - Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton EPIC-pn.pdf>) included in this repository.
 
 ## Prerequisites
 The hardware requirements to run and train the models:

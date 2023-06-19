@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 from astropy.io import fits
-from lightning.pytorch.utilities import rank_zero_info
+from pytorch_lightning.utilities import rank_zero_info
 from torch.utils.data import Subset
 
 

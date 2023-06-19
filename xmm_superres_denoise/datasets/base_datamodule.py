@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from lightning.pytorch import LightningDataModule
-from lightning.pytorch.utilities.types import (EVAL_DATALOADERS,
-                                               TRAIN_DATALOADERS)
+from pytorch_lightning import LightningDataModule
+from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
-from transforms import Crop, Normalize
+
+from xmm_superres_denoise.transforms import Crop, Normalize
 
 
 class BaseDataModule(LightningDataModule):

@@ -2,10 +2,15 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-from datasets import BaseDataModule
-from datasets.utils import find_img_files, match_file_list, save_splits
-from lightning.pytorch.utilities import rank_zero_info, rank_zero_warn
+from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 from torch.utils.data import Subset, random_split
+
+from xmm_superres_denoise.datasets import BaseDataModule
+from xmm_superres_denoise.datasets.utils import (
+    find_img_files,
+    match_file_list,
+    save_splits,
+)
 
 
 class XmmDataModule(BaseDataModule):
@@ -16,7 +21,7 @@ class XmmDataModule(BaseDataModule):
         self.hr_exp = config["hr"]["exp"]
 
         if self.dataset_type == "real":
-            from datasets import XmmDataset
+            from xmm_superres_denoise.datasets import XmmDataset
 
             self.dataset = XmmDataset(
                 dataset_dir=self.dataset_dir,
@@ -31,7 +36,7 @@ class XmmDataModule(BaseDataModule):
 
             self.subset_str = f"res/splits/real_dataset/{{0}}/{{1}}.p"
         elif self.dataset_type == "sim":
-            from datasets import XmmSimDataset
+            from xmm_superres_denoise.datasets import XmmSimDataset
 
             self.dataset = XmmSimDataset(
                 dataset_dir=self.dataset_dir,
@@ -53,7 +58,7 @@ class XmmDataModule(BaseDataModule):
 
             self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
         elif self.dataset_type == "boring":
-            from datasets import BoringDataset
+            from xmm_superres_denoise.datasets import BoringDataset
 
             rank_zero_warn(
                 "You are using the BoringDataset which is meant for testing purposes!"
