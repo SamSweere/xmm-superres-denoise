@@ -68,6 +68,19 @@ class Model(pl.LightningModule):
                 num_res_blocks=config["residual_blocks"],
                 memory_efficient=self.memory_efficient,
             )
+        elif self.model_name == "swinir":
+            from xmm_superres_denoise.models import SwinIR
+
+            self.model = SwinIR(
+                img_size=config["img_size"],
+                window_size=config["window_size"],
+                embed_dim=config["embed_dim"],
+                num_heads=config["num_heads"],
+                depths=config["depths"],
+                upsampler=config["upsampler"],
+                in_chans=config["in_channels"],
+                use_checkpoint=self.memory_efficient,
+            )
         else:
             raise ValueError(
                 f"Base model name {self.model_name} is not a valid model name!"
