@@ -1,14 +1,19 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
-import wandb
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 
+import wandb
 from xmm_superres_denoise.datasets import XmmDataModule, XmmDisplayDataModule
-from xmm_superres_denoise.metrics.calculator import MetricsCalculator
+from xmm_superres_denoise.metrics import (
+    get_ext_metrics,
+    get_in_ext_metrics,
+    get_in_metrics,
+    get_metrics,
+)
 from xmm_superres_denoise.models import Model
 from xmm_superres_denoise.transforms import ImageUpsample, Normalize
 from xmm_superres_denoise.utils import ImageLogger
@@ -72,16 +77,50 @@ if __name__ == "__main__":
             scale_factor=int(dataset_config["hr"]["res"] / dataset_config["lr"]["res"])
         )
 
-    mc = MetricsCalculator(
+    pre = "val" if args.routine == "fit" else "test"
+    metrics = get_metrics(
         data_range=hr_max,
         dataset_normalizer=datamodule.normalize,
         scaling_normalizers=scaling_normalizers,
-        upsample=upsample,
-        prefix="val" if args.routine == "fit" else "test",
+        prefix=pre,
+    )
+
+    in_metrics = get_in_metrics(
+        data_range=hr_max,
+        dataset_normalizer=datamodule.normalize,
+        scaling_normalizers=scaling_normalizers,
+        prefix=pre,
+    )
+    ext_metrics = (
+        get_ext_metrics(
+            data_range=hr_max,
+            dataset_normalizer=datamodule.normalize,
+            scaling_normalizers=scaling_normalizers,
+            prefix=pre,
+        )
+        if args.routine == "test"
+        else None
+    )
+    in_ext_metrics = (
+        get_in_ext_metrics(
+            data_range=hr_max,
+            dataset_normalizer=datamodule.normalize,
+            scaling_normalizers=scaling_normalizers,
+            prefix=pre,
+        )
+        if args.routine == "test"
+        else None
     )
 
     model = Model(
-        model_config, lr_shape=lr_shape, hr_shape=hr_shape, loss=loss, metrics=mc
+        model_config,
+        lr_shape=lr_shape,
+        hr_shape=hr_shape,
+        loss=loss,
+        metrics=metrics,
+        in_metrics=in_metrics,
+        extended_metrics=ext_metrics,
+        in_extended_metrics=in_ext_metrics,
     )
 
     callbacks = None

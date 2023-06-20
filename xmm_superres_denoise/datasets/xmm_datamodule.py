@@ -116,15 +116,19 @@ class XmmDataModule(BaseDataModule):
         if self.dataset_type == "sim":
             with open(self.subset_str.format(subset), "rb") as f:
                 indices = pickle.load(f)
-                if exps_size > 1:
-                    indices = np.asarray([indices * (i + 1) for i in range(exps_size)])
-                    indices = np.concatenate(indices)
-                rank_zero_info(
-                    f"\tDataset has {self.dataset.base_name_count} base_names "
-                    f"out of which {len(indices) // exps_size} are used in {subset}_subset. "
-                    f"Due to {exps_size} exps, this subset has {len(indices)} images."
-                )
-                return indices
+            mult = 1
+            if exps_size > 1:
+                mult *= exps_size
+
+            if self.dataset.lr_background > 1:
+                mult *= self.dataset.lr_background
+
+            if self.dataset.lr_agn > 1:
+                mult *= self.dataset.lr_agn
+
+            indices = np.asarray([indices * (i + 1) for i in range(mult)])
+            indices = np.concatenate(indices)
+            return indices
         elif self.dataset_type == "real":
             used_lr_basenames = self.dataset.lr_img_files.index
             lr_exp = self.dataset.lr_exps[0]

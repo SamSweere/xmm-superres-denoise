@@ -1,12 +1,13 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import pytorch_lightning as pl
 import torch
 from torch import Tensor
 from torchmetrics import Metric
 
-from xmm_superres_denoise.metrics import MetricsCalculator
+from xmm_superres_denoise.metrics import XMMMetricCollection
+from xmm_superres_denoise.transforms import ImageUpsample
 
 
 class Model(pl.LightningModule):
@@ -16,17 +17,17 @@ class Model(pl.LightningModule):
         lr_shape: Tuple[int, int],
         hr_shape: Tuple[int, int],
         loss: Optional[Metric],
-        metrics: Optional[MetricsCalculator],
+        metrics: Optional[XMMMetricCollection],
+        extended_metrics: Optional[XMMMetricCollection],
+        in_metrics: Optional[XMMMetricCollection],
+        in_extended_metrics: Optional[XMMMetricCollection],
     ):
         super(Model, self).__init__()
 
-        self.mc = metrics
-        # Has to be set for the metrics to work
-        if metrics is not None:
-            self.metrics = metrics.metrics
-            self.input_metrics = metrics.input_metrics
-            self.input_extended_metrics = metrics.input_extended_metrics
-            self.extended_metrics = metrics.extended_metrics
+        self.metrics = metrics
+        self.ext_metrics = extended_metrics
+        self.in_metrics = in_metrics
+        self.in_ext_metrics = in_extended_metrics
 
         # Optimizer parameters
         self.learning_rate = config["learning_rate"]
@@ -90,14 +91,22 @@ class Model(pl.LightningModule):
         return torch.clamp(self.model(x), min=0.0, max=1.0)
 
     def training_step(self, batch, batch_idx):
-        loss = self._on_step(batch, "train")
-        return loss
+        return self._on_step(batch, "train")
+
+    def on_validation_start(self) -> None:
+        self._on_epoch_end("train")
 
     def validation_step(self, batch, batch_idx):
         self._on_step(batch, "val")
 
+    def on_validation_epoch_end(self) -> None:
+        self._on_epoch_end("val")
+
     def test_step(self, batch, batch_idx):
         self._on_step(batch, "test")
+
+    def on_test_epoch_end(self) -> None:
+        self._on_epoch_end("test")
 
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0) -> None:
         batch["preds"] = self(batch["lr"])
@@ -107,9 +116,8 @@ class Model(pl.LightningModule):
         preds = self(lr)
         target = batch.get("hr", preds)
 
-        loss = self.loss(preds=preds, target=target)
-
         if stage == "train":
+            loss = self.loss(preds=preds, target=target)
             self.log(
                 f"{stage}/loss",
                 loss,
@@ -119,6 +127,30 @@ class Model(pl.LightningModule):
             )
             return loss
         else:
+            self.loss.update(preds=preds, target=target)
+
+            if self.in_metrics is not None or self.ext_metrics is not None:
+                scale_factor = target.shape[2] / lr.shape[2]
+                if scale_factor != 1.0:
+                    lr = ImageUpsample(scale_factor=scale_factor)(lr)
+
+            if self.metrics is not None:
+                self.metrics.update(preds=preds, target=target)
+
+            if self.in_metrics is not None:
+                self.in_metrics.update(preds=lr, target=target)
+
+            if self.ext_metrics is not None:
+                self.ext_metrics.update(preds=preds, target=target)
+
+            if self.in_ext_metrics is not None:
+                self.in_ext_metrics.update(preds=lr, target=target)
+
+    def _on_epoch_end(self, stage):
+        if stage == "train":
+            self.loss.reset()
+        else:
+            loss = self.loss.compute()
             self.log(
                 f"{stage}/loss",
                 loss,
@@ -127,47 +159,38 @@ class Model(pl.LightningModule):
                 on_epoch=True,
                 sync_dist=True,
             )
+            self.loss.reset()
 
-            log_inputs = self.current_epoch == 0 or stage == "test"
-            log_extended = stage == "test"
-            lr = lr if log_inputs else None
+            to_log: List[dict] = []
 
-            self.mc.update(preds=preds, lr=lr, target=target, stage=stage)
+            if self.metrics is not None:
+                to_log.append(self.metrics.compute())
+                self.metrics.reset()
 
-            self.log_dict(
-                self.metrics,
-                batch_size=self.batch_size,
-                on_step=False,
-                on_epoch=True,
-                sync_dist=True,
-            )
+            if self.ext_metrics is not None:
+                to_log.append(self.ext_metrics.compute())
+                self.ext_metrics.reset()
 
-            if log_inputs:
+            if self.in_metrics is not None:
+                to_log.append(self.in_metrics.compute())
+                self.in_metrics.reset()
+                if not self.trainer.sanity_checking:
+                    self.in_metrics = None
+
+            if self.in_ext_metrics is not None:
+                to_log.append(self.in_ext_metrics.compute())
+                self.in_ext_metrics.reset()
+                if not self.trainer.sanity_checking:
+                    self.in_ext_metrics = None
+
+            for log in to_log:
                 self.log_dict(
-                    self.input_metrics,
+                    log,
                     batch_size=self.batch_size,
                     on_step=False,
                     on_epoch=True,
                     sync_dist=True,
                 )
-
-            if log_extended:
-                self.log_dict(
-                    self.extended_metrics,
-                    batch_size=self.batch_size,
-                    on_step=False,
-                    on_epoch=True,
-                    sync_dist=True,
-                )
-
-                if log_inputs:
-                    self.log_dict(
-                        self.input_extended_metrics,
-                        batch_size=self.batch_size,
-                        on_step=False,
-                        on_epoch=True,
-                        sync_dist=True,
-                    )
 
     def configure_optimizers(self):
         # Optimizers
