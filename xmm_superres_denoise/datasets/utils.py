@@ -13,7 +13,7 @@ from torch.utils.data import Subset
 
 def save_splits(paths: List[Path], splits: List[Subset]):
     for path, split in zip(paths, splits):
-        indices = split.indices
+        indices = np.asarray(split.indices)
         rank_zero_info(f"\tSplit {path} contains {len(indices)} images")
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w+b") as f:
