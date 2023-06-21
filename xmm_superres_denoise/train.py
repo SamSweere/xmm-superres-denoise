@@ -15,7 +15,7 @@ from xmm_superres_denoise.metrics import (
     get_metrics,
 )
 from xmm_superres_denoise.models import Model
-from xmm_superres_denoise.transforms import ImageUpsample, Normalize
+from xmm_superres_denoise.transforms import Normalize
 from xmm_superres_denoise.utils import ImageLogger
 from xmm_superres_denoise.utils.filehandling import read_yaml
 from xmm_superres_denoise.utils.loss_functions import create_loss
@@ -70,12 +70,6 @@ if __name__ == "__main__":
         Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode=s_mode)
         for s_mode in ["linear", "sqrt", "asinh", "log"]
     ]
-
-    upsample = None
-    if dataset_config["lr"]["res"] != dataset_config["hr"]["res"]:
-        upsample = ImageUpsample(
-            scale_factor=int(dataset_config["hr"]["res"] / dataset_config["lr"]["res"])
-        )
 
     pre = "val" if args.routine == "fit" else "test"
     metrics = get_metrics(
