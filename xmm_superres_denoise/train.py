@@ -39,7 +39,7 @@ if __name__ == "__main__":
     )
     model_config["batch_size"] = dataset_config["batch_size"]
 
-    loss_config = model_config["loss"]
+    loss_config: dict = read_yaml(Path("res") / "configs" / "loss_functions.yaml")
 
     trainer_config: dict = run_config["trainer"]
 

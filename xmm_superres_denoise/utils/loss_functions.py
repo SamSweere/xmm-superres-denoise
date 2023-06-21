@@ -10,85 +10,13 @@ from torchmetrics import (
 
 from xmm_superres_denoise.metrics import PoissonNLLLoss, VGGLoss
 
-# The scaling and the scaled loss functions
-# These are based on randomly initialized untrained models
-_zero_epoch = {
-    "linear": {
-        "l1": 0.05746,
-        "poisson": 0.3323,
-        "psnr": 22.189,
-        "ssim": 0.3856,
-        "ms_ssim": 0.6093,
-    },
-    "sqrt": {
-        "l1": 0.1573,
-        "poisson": 0.5002,
-        "psnr": 14.761,
-        "ssim": 0.1362,
-        "ms_ssim": 0.5425,
-    },
-    "asinh": {
-        "l1": 0.2573,
-        "poisson": 2.801,
-        "psnr": 10.464,
-        "ssim": 0.06155,
-        "ms_ssim": 0.2081,
-    },
-    "log": {
-        "l1": 0.3528,
-        "poisson": 3.167,
-        "psnr": 7.817,
-        "ssim": 0.05174,
-        "ms_ssim": 0.3088,
-    },
-}
-
-# Epoch 38 (training was not completely stable for all runs, probably due to the ADAM optimiser) of the runs:
-# silver-butterfly0=-101, graceful-flower-100, cool-universe-99 and stellar-cloud-98
-_last_epoch = {
-    "linear": {
-        "l1": 0.02097,
-        "poisson": 0.1804,
-        "psnr": 30.565,
-        "ssim": 0.7218,
-        "ms_ssim": 0.96,
-    },
-    "sqrt": {
-        "l1": 0.05374,
-        "poisson": 0.4187,
-        "psnr": 22.977,
-        "ssim": 0.4621,
-        "ms_ssim": 0.874,
-    },
-    "asinh": {
-        "l1": 0.08037,
-        "poisson": 0.5223,
-        "psnr": 19.52,
-        "ssim": 0.3662,
-        "ms_ssim": 0.8258,
-    },
-    "log": {
-        "l1": 0.1072,
-        "poisson": 0.6567,
-        "psnr": 16.838,
-        "ssim": 0.3446,
-        "ms_ssim": 0.7982,
-    },
-}
-
-
-def _get_scaling(x1, x2, y1=1.0, y2=0.0):
-    # Based on linear formula y=ax+b
-    a = (y2 - y1) / (x2 - x1)
-    b = y1 - a * x1
-
-    return a, b
-
 
 def create_loss(
-    data_scaling,
+    data_scaling: str,
     loss_config: Dict[str, Union[int, dict]],
 ) -> Metric:
+    sc_dict = loss_config[data_scaling] if loss_config["use_scaling"] else None
+
     l1_p = loss_config["l1"]
     poisson_p = loss_config["poisson"]
     psnr_p = loss_config["psnr"]
@@ -107,58 +35,70 @@ def create_loss(
     metrics = []
 
     if l1_p > 0.0:
-        scaling, correction = _get_scaling(
-            x1=_zero_epoch[data_scaling]["l1"], x2=_last_epoch[data_scaling]["l1"]
-        )
-        metrics.append(l1_p * scaling * MeanAbsoluteError() + correction)
+        m = MeanAbsoluteError() * l1_p
+        if sc_dict:
+            scaling, correction = sc_dict["l1"]["scaling"], sc_dict["l1"]["correction"]
+            m = m * scaling + correction
+        metrics.append(m)
 
     if poisson_p > 0.0:
-        scaling, correction = _get_scaling(
-            x1=_zero_epoch[data_scaling]["poisson"],
-            x2=_last_epoch[data_scaling]["poisson"],
-        )
-        m = PoissonNLLLoss(scaling=poisson_p * scaling, correction=correction)
-        metrics = m if metrics is None else metrics + m
+        m = PoissonNLLLoss() * poisson_p
+        if sc_dict:
+            scaling, correction = (
+                sc_dict["poisson"]["scaling"],
+                sc_dict["poisson"]["correction"],
+            )
+            m = m * scaling + correction
+        metrics.append(m)
 
     if psnr_p > 0.0:
-        scaling, correction = _get_scaling(
-            x1=_zero_epoch[data_scaling]["psnr"], x2=_last_epoch[data_scaling]["psnr"]
-        )
-        metrics.append(psnr_p * scaling * PeakSignalNoiseRatio() + correction)
+        m = PeakSignalNoiseRatio() * psnr_p
+        if sc_dict:
+            scaling, correction = (
+                sc_dict["psnr"]["scaling"],
+                sc_dict["psnr"]["correction"],
+            )
+            m = m * scaling + correction
+        metrics.append(m)
 
     if ssim_p > 0.0:
-        scaling, correction = _get_scaling(
-            x1=_zero_epoch[data_scaling]["ssim"], x2=_last_epoch[data_scaling]["ssim"]
+        m = (
+            StructuralSimilarityIndexMeasure(kernel_size=13, sigma=2.5, k2=0.05)
+            * ssim_p
         )
-        metrics.append(
-            ssim_p
-            * scaling
-            * StructuralSimilarityIndexMeasure(kernel_size=13, sigma=2.5, k2=0.05)
-            + correction
-        )
+        if sc_dict:
+            scaling, correction = (
+                sc_dict["ssim"]["scaling"],
+                sc_dict["ssim"]["correction"],
+            )
+            m = m * scaling + correction
+        metrics.append(m)
 
     if ms_ssim_p > 0.0:
-        scaling, correction = _get_scaling(
-            x1=_zero_epoch[data_scaling]["ms_ssim"],
-            x2=_last_epoch[data_scaling]["ms_ssim"],
-        )
-        metrics.append(
-            ms_ssim_p
-            * scaling
-            * MultiScaleStructuralSimilarityIndexMeasure(
+        m = (
+            MultiScaleStructuralSimilarityIndexMeasure(
                 kernel_size=13, sigma=2.5, k2=0.05
             )
-            + correction
+            * ms_ssim_p
         )
+        if sc_dict:
+            scaling, correction = (
+                sc_dict["ms_ssim"]["scaling"],
+                sc_dict["ms_ssim"]["correction"],
+            )
+            m = m * scaling + correction
+        metrics.append(m)
 
-    if vgg_p:
-        m = VGGLoss(
-            scaling=vgg_p,
-            vgg_model=vgg_config["vgg_model"],
-            batch_norm=vgg_config["batch_norm"],
-            layers=vgg_config["layers"],
+    if vgg_p > 0.0:
+        m = (
+            VGGLoss(
+                vgg_model=vgg_config["vgg_model"],
+                batch_norm=vgg_config["batch_norm"],
+                layers=vgg_config["layers"],
+            )
+            * vgg_p
         )
-        metrics = m if metrics is None else metrics + m
+        metrics.append(m)
 
     final_metric = metrics[0]
     for i in range(1, len(metrics)):

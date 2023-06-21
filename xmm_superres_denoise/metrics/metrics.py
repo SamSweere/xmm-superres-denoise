@@ -11,11 +11,7 @@ class _Metric(Metric):
     higher_is_better = True
     full_state_update = False
 
-    def __init__(
-        self,
-        scaling: float = 1.0,
-        correction: float = 0.0,
-    ):
+    def __init__(self):
         super(_Metric, self).__init__()
         self.add_state(
             "metric", default=torch.tensor(0, dtype=torch.float), dist_reduce_fx="sum"
@@ -23,23 +19,12 @@ class _Metric(Metric):
         self.add_state(
             "total", default=torch.tensor(0, dtype=torch.float), dist_reduce_fx="sum"
         )
-        self.scaling = scaling
-        self.correction = correction
 
     def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:
         raise NotImplementedError
 
     def compute(self) -> torch.Tensor:
-        scaled = self.scaling * self.metric
-        mean_scaled = scaled / self.total
-        corrected = mean_scaled + self.correction
-        return corrected
-
-    def __repr__(self):
-        scaling = f"{self.scaling} * " if self.scaling != 1.0 else ""
-        name = {self.__class__.__name__}
-        correction = f" + {self.correction}" if self.correction != 0.0 else ""
-        return f"{scaling}{name}{correction}"
+        return self.metric / self.total
 
 
 class VIF(_Metric):
@@ -134,10 +119,8 @@ class VGGLoss(_Metric):
         vgg_model: str = "vgg19",
         batch_norm: bool = False,
         layers: int = 8,
-        scaling: float = 1.0,
-        correction: float = 0.0,
     ):
-        super(VGGLoss, self).__init__(scaling=scaling, correction=correction)
+        super(VGGLoss, self).__init__()
 
         if vgg_model not in ["vgg11", "vgg13", "vgg16", "vgg19"]:
             raise ValueError(f"Unknown vgg-model: {vgg_model}")
