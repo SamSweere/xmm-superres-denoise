@@ -6,15 +6,3 @@ residual_blocks: 4
 learning_rate: 0.0001
 b1: 0.9
 b2: 0.999
-# Loss function relative percentages
-loss:
-  l1: 0.0
-  poisson: 0.0
-  psnr: 0.0
-  ssim: 1.0
-  ms_ssim: 0.0
-  vgg:
-    p: 0.0
-    vgg_model: vgg19
-    batch_norm: False
-    layers: 8
