@@ -3,6 +3,8 @@ This repository contains the implementation for our research study titled _Deep 
 
 More implementation details are described in [Sam Sweere's master thesis](<../Sam Sweere - Master Thesis - Deep Learning-Based Super-Resolution and De-Noising for XMM-Newton EPIC-pn.pdf>) included in this repository.
 
+Overview over results can be found here: https://api.wandb.ai/links/bojobo/o9jb7k56. Open up an issue if you want us to show more metrics and/or if the report is not concise enough.
+
 ## Prerequisites
 The hardware requirements to run and train the models:
 
