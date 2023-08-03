@@ -5,6 +5,8 @@ More implementation details are described in [Sam Sweere's master thesis](<../Sa
 
 Overview over results can be found here: https://api.wandb.ai/links/bojobo/o9jb7k56. Open up an issue if you want us to show more metrics and/or if the report is not concise enough.
 
+The datasets and pre-trained can be found [here (dataset)](https://huggingface.co/datasets/bojanto/xmm-superres-denoise) and [here (model)](https://huggingface.co/bojanto/xmm-superres-denoise), respectively. **CAUTION** The HuggingFace interface is not yet used in the code. You can still download both and give the correct paths to the code and it _should_:tm: work. As soon as they are integrated into the code, this warning message will be removed.
+
 ## Prerequisites
 The hardware requirements to run and train the models:
 
