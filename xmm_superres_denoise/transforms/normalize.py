@@ -5,6 +5,7 @@ from xmm_superres_denoise.transforms.data_scaling_functions import (
     linear_scale,
     log_scale,
     sqrt_scale,
+    hist_eq_scale,
 )
 
 
@@ -120,7 +121,7 @@ if __name__ == "__main__":
     norm_sqrt = Normalize(lr_max, hr_max, dataset_config, "sqrt")
     norm_asinh = Normalize(lr_max, hr_max, dataset_config, "asinh")
     norm_log = Normalize(lr_max, hr_max, dataset_config, "log")
-    
+    norm_hist_eq = Normalize(lr_max, hr_max, dataset_config, "hist_eq")
 
     # input = torch.linspace(0.0, hr_max, 10)
     input = torch.rand(1, 1, 10, 10)
@@ -130,11 +131,13 @@ if __name__ == "__main__":
     input_sqrt_norm = norm_sqrt.normalize_hr_image(input)
     input_asinh_norm = norm_asinh.normalize_hr_image(input)
     input_log_norm = norm_log.normalize_hr_image(input)
+    input_hist_eq_norm = norm_hist_eq.normalize_hr_image(input)
 
     output_lin_corr = norm_linear.denormalize_hr_image(input_lin_norm)
     output_sqrt_corr = norm_sqrt.denormalize_hr_image(input_sqrt_norm)
     output_asinh_corr = norm_asinh.denormalize_hr_image(input_asinh_norm)
     output_log_corr = norm_log.denormalize_hr_image(input_log_norm)
+    output_hist_eq_corr = norm_hist_eq.denormalize_hr_image(input_hist_eq_norm)
 
     def torch_round(arr, n_digits):
         return torch.round(arr * (10**n_digits)) / (10**n_digits)
@@ -144,6 +147,7 @@ if __name__ == "__main__":
     print("sqrt norm and denormed input:", output_sqrt_corr)
     print("asinh norm and denormed input:", output_asinh_corr)
     print("log norm and denormed input:", output_log_corr)
+    print("hist_eq norm and denormed input:", output_hist_eq_corr)
 
     # if torch.equal(torch_round(input, 5), torch_round(output_lin_corr, 5)):
     #     print("WARNING NOT THE SAME")
