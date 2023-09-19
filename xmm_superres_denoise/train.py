@@ -21,14 +21,32 @@ from xmm_superres_denoise.utils.filehandling import read_yaml
 from xmm_superres_denoise.utils.loss_functions import create_loss
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument(
-        "routine", choices=["fit", "test"], help="What routine to execute"
-    )
-    parser.add_argument("run_config", type=Path, help="Path to the run config yaml.")
-    args = parser.parse_args()
 
-    run_config: dict = read_yaml(args.run_config)
+    debug_mode = True
+
+    if debug_mode: 
+
+        args = {}
+        
+        routine = "fit"
+        run_config = "/home/xmmsas/mywork/xmm-superres-denoise/res/baseline_config.yaml"
+
+    else:
+        
+        # from command line 
+        parser = ArgumentParser()
+        parser.add_argument(
+            "routine", choices=["fit", "test"], help="What routine to execute"
+        )
+        parser.add_argument("run_config", type=Path, help="Path to the run config yaml.")
+        args = parser.parse_args()
+
+        run_config = args.run_config
+        routine = args.routine
+
+    
+   
+    run_config: dict = read_yaml(run_config)
     wandb_config: dict = run_config["wandb"]
 
     dataset_config: dict = run_config["dataset"]
@@ -51,7 +69,7 @@ if __name__ == "__main__":
         log_model=wandb_config["online"] and wandb_config["log_model"],
         offline=not wandb_config["online"],
         config=run_config,
-        resume="must" if wandb_config["run"]["id"] is not None else None,
+        resume="allow" if wandb_config["run"]["id"] is not None else None,
         id=wandb_config["run"]["id"],
     )
 
@@ -71,7 +89,7 @@ if __name__ == "__main__":
         for s_mode in ["linear", "sqrt", "asinh", "log"]
     ]
 
-    pre = "val" if args.routine == "fit" else "test"
+    pre = "val" if routine == "fit" else "test"
     metrics = get_metrics(
         data_range=hr_max,
         dataset_normalizer=datamodule.normalize,
@@ -92,7 +110,7 @@ if __name__ == "__main__":
             scaling_normalizers=scaling_normalizers,
             prefix=pre,
         )
-        if args.routine == "test"
+        if routine == "test"
         else None
     )
     in_ext_metrics = (
@@ -102,7 +120,7 @@ if __name__ == "__main__":
             scaling_normalizers=scaling_normalizers,
             prefix=pre,
         )
-        if args.routine == "test"
+        if routine == "test"
         else None
     )
 
@@ -119,7 +137,7 @@ if __name__ == "__main__":
 
     callbacks = None
 
-    if args.routine == "fit":
+    if routine == "fit":
         callbacks = []
         if trainer_config["log_images_every_n_epochs"] > 0:
             il = ImageLogger(
@@ -142,13 +160,13 @@ if __name__ == "__main__":
     trainer = Trainer(
         logger=wandb_logger,
         accelerator=trainer_config["accelerator"],
-        devices=trainer_config["devices"] if args.routine == "fit" else 1,
+        devices=trainer_config["devices"] if routine == "fit" else 1,
         max_epochs=trainer_config["epochs"],
         strategy=trainer_config["strategy"],
         callbacks=callbacks,
     )
 
-    if args.routine == "fit":
+    if routine == "fit":
         if trainer_config["checkpoint_path"] is not None:
             rank_zero_warn(
                 "You have given a checkpoint_path in the trainer config! If it was on purpose, then "
