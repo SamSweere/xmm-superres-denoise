@@ -19,6 +19,8 @@ dataset:
   check_files: False
   # Options: 'center', 'random', 'boresight'
   crop_mode: center
+  # set whether or not to clamp the input data (added by Yvonne) 
+  clamp: False
   det_mask: True
   debug: False
   dir: "/xmm-super/final_data/sim/"

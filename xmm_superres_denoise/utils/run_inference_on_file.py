@@ -153,6 +153,7 @@ def _infer_file(
         lr_max=dataset_config["lr"]["max"],
         hr_max=dataset_config["hr"]["max"],
         stretch_mode=dataset_config["scaling"],
+        clamp = dataset_config["clamp"],
     )
 
     img = apply_transform(img, transform)

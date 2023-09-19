@@ -82,11 +82,12 @@ if __name__ == "__main__":
 
     lr_max = dataset_config["lr"]["max"]
     hr_max = dataset_config["hr"]["max"]
+    clamp = dataset_config["clamp"]
     lr_shape = (dataset_config["lr"]["res"], dataset_config["lr"]["res"])
     hr_shape = (dataset_config["hr"]["res"], dataset_config["hr"]["res"])
     scaling_normalizers = [
-        Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode=s_mode)
-        for s_mode in ["linear", "sqrt", "asinh", "log"]
+        Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode=s_mode, clamp = clamp)
+        for s_mode in ["linear", "sqrt", "asinh", "log", "hist_eq"]
     ]
 
     pre = "val" if routine == "fit" else "test"

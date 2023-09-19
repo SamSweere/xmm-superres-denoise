@@ -31,6 +31,7 @@ class BaseDataModule(LightningDataModule):
             lr_max=config["lr"]["max"],
             hr_max=config["hr"]["max"],
             stretch_mode=config["scaling"],
+            clamp = config["clamp"]
         )
 
         self.dataset_dir = Path(config["dir"]) / config["name"]

@@ -16,16 +16,19 @@ class Normalize(object):
     Args:
         lr_max (float): Maximum value for lr images
         hr_max (float): Maximum value for hr images
-        stretch_mode (string) (optional) : The stretching function options: linear, sqrt, asinh, log
+        stretch_mode (string) (optional) : The stretching function options: linear, sqrt, asinh, log, hist_eq
+        clamp (bool): If True, bright regions in the images are clamped according to lr_max/ hr_max
+
 
     """
 
-    def __init__(self, lr_max, hr_max, stretch_mode="linear"):
+    def __init__(self, lr_max, hr_max, stretch_mode="linear", clamp = True):
         assert isinstance(stretch_mode, str)
 
         self.stretch_mode = stretch_mode
         self.lr_max = lr_max
         self.hr_max = hr_max
+        self.clamp = clamp
 
         self.stretch_f = None
         if stretch_mode == "linear":
@@ -39,8 +42,10 @@ class Normalize(object):
         else:
             raise ValueError(f"Stretching function {stretch_mode} is not implemented")
 
-    def normalize_image(self, image, max_val):
-        image = torch.clamp(image, min=0.0, max=max_val)
+    def normalize_image(self, image, max_val, clamp = True):
+
+        if clamp: 
+            image = torch.clamp(image, min=0.0, max=max_val)
 
         # Normalize the image
         image = image / max_val
@@ -53,12 +58,13 @@ class Normalize(object):
 
         return image
 
-    def denormalize_image(self, image, max_val):
+    def denormalize_image(self, image, max_val, clamp = True):
         # De-normalizes the image
         image = self.stretch_f(image, inverse=True)
 
         # Denormalize the max val
-        image = image * max_val
+        if clamp: 
+            image = image * max_val
 
         # The denormalized image cannot be bigger than the maximum value and cannot be negative
         image = torch.clamp(image, min=0.0, max=max_val)
@@ -66,16 +72,16 @@ class Normalize(object):
         return image
 
     def normalize_lr_image(self, image):
-        return self.normalize_image(image, max_val=self.lr_max)
+        return self.normalize_image(image, max_val=self.lr_max, clamp = self.clamp)
 
     def normalize_hr_image(self, image):
-        return self.normalize_image(image, max_val=self.hr_max)
+        return self.normalize_image(image, max_val=self.hr_max, clamp = self.clamp)
 
     def denormalize_lr_image(self, image):
-        return self.denormalize_image(image, max_val=self.lr_max)
+        return self.denormalize_image(image, max_val=self.lr_max, clamp = self.clamp)
 
     def denormalize_hr_image(self, image):
-        return self.denormalize_image(image, max_val=self.hr_max)
+        return self.denormalize_image(image, max_val=self.hr_max, clamp = self.clamp)
 
     def __call__(self, image):
         # Returns the transformed image if one image, a list of transformed images if a list of images
