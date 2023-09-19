@@ -49,6 +49,11 @@ dataset:
   # name: ""
   # Options: None and 'linear', 'sqrt', 'asinh', 'log', 'hist_eq'
   scaling: sqrt
+  # parameters for normalization (added by Yvonne)
+  asinh: 
+    a: 0.02
+  log:
+    a: 1000 
   # Options: real, sim
   type: sim
 

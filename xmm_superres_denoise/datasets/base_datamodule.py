@@ -30,6 +30,7 @@ class BaseDataModule(LightningDataModule):
         self.normalize = Normalize(
             lr_max=config["lr"]["max"],
             hr_max=config["hr"]["max"],
+            config = config,
             stretch_mode=config["scaling"],
             clamp = config["clamp"]
         )

@@ -16,15 +16,17 @@ class Normalize(object):
     Args:
         lr_max (float): Maximum value for lr images
         hr_max (float): Maximum value for hr images
+        config (): Dataset configuration parameters 
         stretch_mode (string) (optional) : The stretching function options: linear, sqrt, asinh, log, hist_eq
         clamp (bool): If True, bright regions in the images are clamped according to lr_max/ hr_max
 
 
     """
 
-    def __init__(self, lr_max, hr_max, stretch_mode="linear", clamp = True):
+    def __init__(self, lr_max, hr_max, config, stretch_mode="linear", clamp = True):
         assert isinstance(stretch_mode, str)
 
+        # I am now passing all of the configs for the normalization paraemters, so we don't need to pass the individual arguments anymore, but I don't want to mess with this for now 
         self.stretch_mode = stretch_mode
         self.lr_max = lr_max
         self.hr_max = hr_max
@@ -33,12 +35,19 @@ class Normalize(object):
         self.stretch_f = None
         if stretch_mode == "linear":
             self.stretch_f = linear_scale
+            self.args = ()
         elif stretch_mode == "sqrt":
             self.stretch_f = sqrt_scale
+            self.args = ()
         elif stretch_mode == "log":
             self.stretch_f = log_scale
+            self.args = (config["log"]["a"],)
         elif stretch_mode == "asinh":
             self.stretch_f = asinh_scale
+            self.args = (config["asinh"]["a"],)
+        elif stretch_mode == "hist_eq":
+            self.stretch_f = hist_eq_scale
+            self.args = (config["hist_eq"]["clipLimit"], config["hist_eq"]["tileGridSize"])
         else:
             raise ValueError(f"Stretching function {stretch_mode} is not implemented")
 
@@ -51,7 +60,7 @@ class Normalize(object):
         image = image / max_val
 
         # Apply the stretching function
-        image = self.stretch_f(image)
+        image = self.stretch_f(image, *self.args)
 
         # Clip the final image in order to prevent rounding errors
         image = torch.clamp(image, min=0.0, max=1.0)
@@ -60,7 +69,7 @@ class Normalize(object):
 
     def denormalize_image(self, image, max_val, clamp = True):
         # De-normalizes the image
-        image = self.stretch_f(image, inverse=True)
+        image = self.stretch_f(image, *self.args, inverse=True)
 
         # Denormalize the max val
         if clamp: 
@@ -99,15 +108,23 @@ class Normalize(object):
 
 
 if __name__ == "__main__":
+
+    from xmm_superres_denoise.utils.filehandling import read_yaml
+
+    dataset_config: dict = read_yaml("/home/xmmsas/mywork/xmm-superres-denoise/res/baseline_config.yaml")["dataset"]
+  
     lr_max = 0.0022336
     hr_max = 0.0005584
 
-    norm_linear = Normalize(lr_max, hr_max, "linear")
-    norm_sqrt = Normalize(lr_max, hr_max, "sqrt")
-    norm_asinh = Normalize(lr_max, hr_max, "asinh")
-    norm_log = Normalize(lr_max, hr_max, "log")
+    norm_linear = Normalize(lr_max, hr_max, dataset_config, "linear")
+    norm_sqrt = Normalize(lr_max, hr_max, dataset_config, "sqrt")
+    norm_asinh = Normalize(lr_max, hr_max, dataset_config, "asinh")
+    norm_log = Normalize(lr_max, hr_max, dataset_config, "log")
+    
 
-    input = torch.linspace(0.0, hr_max, 10)
+    # input = torch.linspace(0.0, hr_max, 10)
+    input = torch.rand(1, 1, 10, 10)
+    
 
     input_lin_norm = norm_linear.normalize_hr_image(input)
     input_sqrt_norm = norm_sqrt.normalize_hr_image(input)
