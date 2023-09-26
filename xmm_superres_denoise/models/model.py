@@ -37,6 +37,7 @@ class Model(pl.LightningModule):
         self.memory_efficient = config["memory_efficient"]
         self.model_name = config["name"]
         self.loss = loss
+        self.clamp = config["clamp"]
         self.batch_size = config["batch_size"]
         self.model: torch.nn.Module
         if self.model_name == "esr_gen":
@@ -56,8 +57,11 @@ class Model(pl.LightningModule):
                 out_channels=config["out_channels"],
                 num_filters=config["filters"],
                 num_res_blocks=config["residual_blocks"],
+                H_in = config["H_in"], 
+                W_in = config["W_in"],
                 num_upsample=up_scale,
                 memory_efficient=self.memory_efficient,
+                normalization_layer=config["normalization_layer"]
             )
         elif self.model_name == "rrdb_denoise":
             from xmm_superres_denoise.models import GeneratorRRDB_DN
@@ -67,7 +71,10 @@ class Model(pl.LightningModule):
                 out_channels=config["out_channels"],
                 num_filters=config["filters"],
                 num_res_blocks=config["residual_blocks"],
+                H_in = config["H_in"], 
+                W_in = config["W_in"],
                 memory_efficient=self.memory_efficient,
+                normalization_layer=config["normalization_layer"]
             )
         elif self.model_name == "swinir":
             from xmm_superres_denoise.models import SwinIR
@@ -88,6 +95,7 @@ class Model(pl.LightningModule):
             )
 
     def forward(self, x) -> torch.Tensor:
+        #TODO: figure out if this should be included in clamping or not
         return torch.clamp(self.model(x), min=0.0, max=1.0)
 
     def training_step(self, batch, batch_idx):
@@ -135,16 +143,16 @@ class Model(pl.LightningModule):
                     lr = ImageUpsample(scale_factor=scale_factor)(lr)
 
             if self.metrics is not None:
-                self.metrics.update(preds=preds, target=target)
+                self.metrics.update(preds=preds, target=target, clamp = self.clamp)
 
             if self.in_metrics is not None:
-                self.in_metrics.update(preds=lr, target=target)
+                self.in_metrics.update(preds=lr, target=target, clamp = self.clamp)
 
             if self.ext_metrics is not None:
-                self.ext_metrics.update(preds=preds, target=target)
+                self.ext_metrics.update(preds=preds, target=target, clamp = self.clamp)
 
             if self.in_ext_metrics is not None:
-                self.in_ext_metrics.update(preds=lr, target=target)
+                self.in_ext_metrics.update(preds=lr, target=target, clamp = self.clamp)
 
     def _on_epoch_end(self, stage):
         if stage == "train":

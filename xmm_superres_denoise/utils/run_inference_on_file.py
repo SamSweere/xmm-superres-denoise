@@ -152,7 +152,7 @@ def _infer_file(
     normalize = Normalize(
         lr_max=dataset_config["lr"]["max"],
         hr_max=dataset_config["hr"]["max"],
-        config = dataset_config
+        config = dataset_config,
         stretch_mode=dataset_config["scaling"],
         clamp = dataset_config["clamp"],
     )

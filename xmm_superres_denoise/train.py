@@ -29,7 +29,7 @@ if __name__ == "__main__":
         args = {}
         
         routine = "fit"
-        run_config = "/home/xmmsas/mywork/xmm-superres-denoise/res/baseline_config.yaml"
+        run_config = "/home/xmmsas/mywork/backup/xmm-superres-denoise/res/baseline_config.yaml"
 
     else:
         
@@ -56,6 +56,9 @@ if __name__ == "__main__":
         read_yaml(Path("res") / "configs" / "model" / f"{model_config['name']}.yaml")
     )
     model_config["batch_size"] = dataset_config["batch_size"]
+    model_config["H_in"] = dataset_config["lr"]["res"]
+    model_config["W_in"] = dataset_config["lr"]["res"]
+    model_config["clamp"] = dataset_config["clamp"]
 
     loss_config: dict = read_yaml(Path("res") / "configs" / "loss_functions.yaml")
 

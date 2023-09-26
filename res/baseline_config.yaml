@@ -1,6 +1,6 @@
 wandb:
-  api_key:
-  project:
+  api_key: 
+  project: 
   online: True
   log_model: True
   run:
@@ -20,7 +20,7 @@ dataset:
   # Options: 'center', 'random', 'boresight'
   crop_mode: center
   # set whether or not to clamp the input data (added by Yvonne) 
-  clamp: False
+  clamp: True
   det_mask: True
   debug: False
   dir: "/xmm-super/final_data/sim/"
@@ -64,3 +64,5 @@ dataset:
 model:
   name: esr_gen
   memory_efficient: False
+  normalization_layer: False
+  
