@@ -1,0 +1,55 @@
+[wandb]
+api_key = ""
+project = ""
+online = true
+log_model = true
+
+[wandb.run]
+id = ""
+
+[trainer]
+accelerator = "auto"
+strategy = "auto"
+checkpoint_path = ""
+devices = "auto"
+epochs = 50
+log_images_every_n_epochs = 5
+
+[dataset]
+batch_size = 1
+check_files = false
+# Options: 'center', 'random', 'boresight'
+crop_mode = "center"
+det_mask = true
+debug = false
+directory = ""
+# The mode, img or agn. If agn the model samples from agn as if it is an image.
+mode = "img"
+name = "sim_dataset"
+# Options: None and 'linear', 'sqrt', 'asinh', 'log'
+scaling = "sqrt"
+# Options: real, sim
+type = "sim"
+
+[dataset.display]
+sim_display_name = "xmm_sim_display_selection"
+real_display_name = "xmm_split_display_selection"
+exposures = [20]
+
+[dataset.lr]
+agn = 1
+background = 1
+exposures = [20]
+max = 0.0022336 #TODO: aggresive max, 200 times background, this is +-111 counts on 50ks
+res = 416
+
+[dataset.hr]
+agn = true
+background = false
+exposure = 100
+max = 0.0005584 #TODO: aggresive max, 200 times background, this is +-11 counts on 50ks
+res = 832
+
+[model]
+name = "esr_gen"
+memory_efficient = false

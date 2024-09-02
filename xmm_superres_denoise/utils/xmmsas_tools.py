@@ -10,7 +10,7 @@ from warnings import warn
 import matplotlib as mpl
 import numpy as np
 from astropy.io import fits
-from astroquery.esa.xmm_newton import XMMNewton as xmm
+# from astroquery.esa.xmm_newton import XMMNewton as xmm
 
 mpl.use("Agg")
 import matplotlib.pylab as plt

@@ -7,7 +7,7 @@ import pandas as pd
 from pytorch_lightning.utilities import rank_zero_info
 from torch.utils.data import Dataset
 
-from xmm_superres_denoise.datasets.utils import (
+from xmm_superres_denoise.data.utils import (
     apply_transform,
     check_img_files,
     find_img_dirs,
@@ -44,7 +44,7 @@ class XmmSimDataset(Dataset):
     ):
         """
         Args:
-            dataset_dir (Path): Directory of the xmm_superres_denoise.datasets
+            dataset_dir (Path): Directory of the xmm_superres_denoise.data
             lr_res (int): The resolution of the final input images (low resolution)
             hr_res (int): The resolution of the final target images (high resolution)
             dataset_lr_res (int): The resolution the input images are transformed to make them rectangular

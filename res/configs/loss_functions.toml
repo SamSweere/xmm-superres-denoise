@@ -1,0 +1,43 @@
+[loss]
+# Set to True if you want to use the scaling and correction as described in the paper.
+# Only affects l1, poisson, psnr, ssim, ms_ssim
+# Values can be found down below
+use_scaling = false
+# Loss function relative percentages
+l1 = 0.0
+poisson = 0.0
+psnr = 0.5
+ssim = 0.0
+ms_ssim = 0.5
+vgg = { p = 0.0, vgg_model = "vgg19", batch_norm = false, layers = 8 }
+
+# scaling and correction values as calculated for the paper
+# If you want to know the individual values used for the calculation of these scaling/correction values then check
+# https://github.com/SamSweere/xmm-superres-denoise/blob/7adc69bd1348bcd371a7063bdb31feaa697de7af/xmm_superres_denoise/utils/loss_functions.py#L15
+[scaling.linear]
+l1 = { scaling = 27.404768429706774, correction = -0.5746779939709512 }
+poisson = { scaling = 6.583278472679395, correction = -1.187623436471363 }
+psnr = { scaling = -0.11938872970391594, correction = 3.6491165234001905 }
+ssim = { scaling = -2.97441998810232, correction = 2.1469363474122547 }
+ms_ssim = { scaling = -2.85143997718848, correction = 2.737382378100941 }
+
+[scaling.sqrt]
+l1 = { scaling = 9.65623792970259, correction = -0.5189262263422172 }
+poisson = { scaling = 12.269938650306754, correction = -5.137423312883438 }
+psnr = { scaling = -0.121713729308666, correction = 2.7966163583252186 }
+ssim = { scaling = -3.0684258975145746, correction = 1.417919607241485 }
+ms_ssim = { scaling = -3.0165912518853695, correction = 2.636500754147813}
+
+[scaling.asinh]
+l1 = { scaling = 5.651952749675013, correction = -0.4542474424913807 }
+poisson = { scaling = 0.4388467108439022, correction = -0.22920963707377018 }
+psnr = { scaling = -0.11042402826855124, correction = 2.1554770318021204 }
+ssim = { scaling = -3.2824552765468566, correction = 1.2020351222714591 }
+ms_ssim = { scaling = -1.6189088554314395, correction = 1.3368949328152826 }
+
+[scaling.log]
+l1 = { scaling = 4.071661237785016, correction = -0.4364820846905537 }
+poisson = { scaling = 0.39835876190096803, correction = -0.2616021989403656 }
+psnr = { scaling = -0.1108524553818867, correction = 1.8665336437202082 }
+ssim = { scaling = -3.414600833162603, correction = 1.176671447107833 }
+ms_ssim = { scaling = -2.043318348998774, correction = 1.6309767061708214 }

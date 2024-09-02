@@ -15,9 +15,10 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
-from xmm_superres_denoise.utils.xmmsas_tools import (
+from utils.xmmsas_tools import (
     filter_events_gti,
     get_pps_nxsa,
+    check_pps_dir,
     make_detxy_image,
     make_gti_pps,
 )
@@ -33,7 +34,8 @@ def get_detxy_for_obs_id(
 ):
     proc_dir.mkdir(parents=True, exist_ok=True)
     suffix = f"{max_expo}ks.fits" if max_expo > 0 else "full.fits"
-    pps_files = get_pps_nxsa(obs_id, w_dir=obs_dir)
+    # pps_files = get_pps_nxsa(obs_id, w_dir=obs_dir)
+    pps_files = check_pps_dir(Path("/data/projects/xmm-superres-denoise/xmm_superres_denoise/0000110101/pps"))
     png_name = f"{instrument}_gti_{suffix.replace('fits', 'png')}"
     gtis = make_gti_pps(
         pps_files=pps_files,

@@ -48,12 +48,11 @@ def find_dir(parent: Path, pattern: str) -> Path:
 
 
 def find_img_dirs(parent: Path, exps: np.ndarray, pattern: str = "") -> Dict[int, Path]:
-    res: Dict[int, Path] = {}
+    res: Dict[int, Path] = {exp: parent / f"{exp}ks" if (parent / f"{exp}ks").is_dir() else None for exp in exps}
     for exp in exps:
-        exp_dir = find_dir(parent=parent, pattern=f"{exp}ks*")
-        if pattern:
-            exp_dir = find_dir(exp_dir, f"{pattern}")
-        res[exp] = exp_dir
+        tmp = parent / f"{exp}ks"
+        assert tmp.is_dir()
+        res[exp] = tmp
     return res
 
 

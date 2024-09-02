@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 
-from xmm_superres_denoise.datasets import BaseDataModule
+from xmm_superres_denoise.data import BaseDataModule
 
 
 class XmmDisplayDataModule(BaseDataModule):
@@ -14,11 +14,11 @@ class XmmDisplayDataModule(BaseDataModule):
         lr_exps = config["display"]["exposure"]
         det_mask = config["det_mask"]
 
-        # Display xmm_superres_denoise.datasets
+        # Display xmm_superres_denoise.data
         self.sim_display_dataset = None
         self.real_display_dataset = None
         if config["display"]["sim_display_name"]:
-            from xmm_superres_denoise.datasets import XmmSimDataset
+            from xmm_superres_denoise.data import XmmSimDataset
 
             dataset_dir = (
                 Path(config["dir"])
@@ -43,7 +43,7 @@ class XmmDisplayDataModule(BaseDataModule):
                 normalize=self.normalize,
             )
         if config["display"]["real_display_name"]:
-            from xmm_superres_denoise.datasets import XmmDataset
+            from xmm_superres_denoise.data import XmmDataset
 
             dataset_dir = (
                 Path(config["dir"])
@@ -63,7 +63,7 @@ class XmmDisplayDataModule(BaseDataModule):
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         raise NotImplementedError(
-            "Display xmm_superres_denoise.datasets are not to be used during training!"
+            "Display xmm_superres_denoise.data are not to be used during training!"
         )
 
     def val_dataloader(self) -> EVAL_DATALOADERS:

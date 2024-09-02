@@ -11,7 +11,7 @@ from pytorch_lightning.utilities import rank_zero_only
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS
 from torchmetrics.functional import structural_similarity_index_measure as ssim
 
-from xmm_superres_denoise.datasets import XmmDisplayDataModule
+from xmm_superres_denoise.data import XmmDisplayDataModule
 from xmm_superres_denoise.utils.filehandling import write_xmm_file_to_fits
 
 _img_val_dict = {

@@ -2,8 +2,8 @@ model_name: esr_gen  # Options: 'esr_gen', 'esr_gan', 'sr_cnn',  'sr_flow'
 dataset_name: xmm_dev_bc
 server: False
 
-server_datasets_dir: /lhome/ssweere/data/datasets # /home/sam/Documents/ESA/data/sim #/lhome/ssweere/data/sim # /home/sam/Documents/ESA/data/sim #/home/ssweere/data # /home/sam/Documents/ESA/data/sim
-pc_datasets_dir: /home/sam/Documents/ESA/data/datasets # /home/sam/Documents/ESA/data/sim #/lhome/ssweere/data/sim # /home/sam/Documents/ESA/data/sim #/home/ssweere/data # /home/sam/Documents/ESA/data/sim
+server_datasets_dir: /lhome/ssweere/data/data # /home/sam/Documents/ESA/data/sim #/lhome/ssweere/data/sim # /home/sam/Documents/ESA/data/sim #/home/ssweere/data # /home/sam/Documents/ESA/data/sim
+pc_datasets_dir: /home/sam/Documents/ESA/data/data # /home/sam/Documents/ESA/data/sim #/lhome/ssweere/data/sim # /home/sam/Documents/ESA/data/sim #/home/ssweere/data # /home/sam/Documents/ESA/data/sim
 
 sim_display_name: xmm_sim_display_selection
 real_display_name: xmm_split_display_selection

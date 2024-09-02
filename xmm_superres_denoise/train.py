@@ -7,7 +7,7 @@ from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 
 import wandb
-from xmm_superres_denoise.datasets import XmmDataModule, XmmDisplayDataModule
+from xmm_superres_denoise.data import XmmDataModule, XmmDisplayDataModule
 from xmm_superres_denoise.metrics import (
     get_ext_metrics,
     get_in_ext_metrics,

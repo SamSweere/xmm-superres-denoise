@@ -4,13 +4,13 @@ from typing import Tuple
 from warnings import warn
 
 import matplotlib.pyplot as plt
-import onnxruntime as onnxruntime
+# import onnxruntime as onnxruntime
 import torch
 from astropy.io import fits
 from astropy.visualization import ImageNormalize, PercentileInterval
 from matplotlib import colormaps
 
-from xmm_superres_denoise.datasets.utils import (
+from xmm_superres_denoise.data.utils import (
     apply_transform,
     load_det_mask,
     load_fits,

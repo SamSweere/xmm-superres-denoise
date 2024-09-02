@@ -1,7 +1,7 @@
 wandb:
   api_key:
   project:
-  online: True
+  online: False
   log_model: True
   run:
     id:
@@ -21,7 +21,7 @@ dataset:
   crop_mode: center
   det_mask: True
   debug: False
-  dir:
+  dir: /data/projects/xmm-epicpn-simulator/data/xmm_sim_dataset
   display:
     sim_display_name: xmm_sim_display_selection
     real_display_name: xmm_split_display_selection
@@ -42,7 +42,7 @@ dataset:
     res: 832
   # The mode, img or agn. If agn the model samples from agn as if it is an image.
   mode: img
-  name: sim_dataset
+  name: scaled
   # Options: None and 'linear', 'sqrt', 'asinh', 'log'
   scaling: sqrt
   # Options: real, sim

@@ -6,7 +6,7 @@ import numpy as np
 from pytorch_lightning.utilities import rank_zero_info
 from torch.utils.data import Dataset
 
-from xmm_superres_denoise.datasets.utils import (
+from xmm_superres_denoise.data.utils import (
     apply_transform,
     check_img_files,
     find_img_dirs,
@@ -36,7 +36,7 @@ class XmmDataset(Dataset):
     ):
         """
         Args:
-            dataset_dir (Path): Directory of the xmm_superres_denoise.datasets
+            dataset_dir (Path): Directory of the xmm_superres_denoise.data
             dataset_lr_res (int): The resolution the input images are transformed to make them rectangular
                 before any cropping
             lr_exps (list): Exposure of the low resolution images, in ks, if list it is the range of exposure times
