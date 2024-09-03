@@ -46,6 +46,7 @@ class XmmDataModule(BaseDataModule):
                 mode=config["mode"],
                 lr_exps=self.lr_exps,
                 hr_exp=self.hr_exp,
+                comb_hr_img=False,
                 lr_agn=config["lr"]["agn"],
                 hr_agn=config["hr"]["agn"],
                 lr_background=config["lr"]["background"],

@@ -48,11 +48,11 @@ def find_dir(parent: Path, pattern: str) -> Path:
 
 
 def find_img_dirs(parent: Path, exps: np.ndarray, pattern: str = "") -> Dict[int, Path]:
-    res: Dict[int, Path] = {exp: parent / f"{exp}ks" if (parent / f"{exp}ks").is_dir() else None for exp in exps}
+    res: Dict[int, Path] = {}
     for exp in exps:
-        tmp = parent / f"{exp}ks"
-        assert tmp.is_dir()
-        res[exp] = tmp
+        exp_dir = list(parent.glob(f"{exp}ks/{pattern}"))
+        assert len(exp_dir) == 1
+        res[exp] = exp_dir[0]
     return res
 
 
@@ -95,12 +95,10 @@ def check_img_corr(img_path, shape):
 
 def load_fits(fits_path: Path) -> Dict:
     try:
-        with fits.open(fits_path) as hdu:
-            # Extract the image data from the fits file and convert to float
-            # (these images will be in int but since we will work with floats in pytorch we convert them to float)
-            img: np.ndarray = hdu["PRIMARY"].data.astype(np.float32)
-            exposure = hdu["PRIMARY"].header["EXPOSURE"]
-            header = dict(hdu["PRIMARY"].header)
+        # Extract the image data from the fits file and convert to float
+        # (these images will be in int but since we will work with floats in pytorch we convert them to float)
+        img, header = fits.getdata(fits_path, "PRIMARY", header=True)
+        exposure = header["EXPOSURE"]
 
         # The `HISTORY`, `COMMENT` and 'DPSCORRF' key are causing problems
         header.pop("HISTORY", None)
@@ -109,8 +107,6 @@ def load_fits(fits_path: Path) -> Dict:
         header.pop("ODSCHAIN", None)
         header.pop("SRCPOS", None)
 
-        # Devide the image by the exposure time to get a counts/sec image
-        img = img / exposure
         img = img.astype(np.float32)
 
         return {
