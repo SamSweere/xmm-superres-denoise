@@ -40,11 +40,6 @@ class Normalize(object):
             raise ValueError(f"Stretching function {stretch_mode} is not implemented")
 
     def normalize_image(self, image, max_val):
-        image = torch.clamp(image, min=0.0, max=max_val)
-
-        # Normalize the image
-        image = image / max_val
-
         # Apply the stretching function
         image = self.stretch_f(image)
 
@@ -56,12 +51,6 @@ class Normalize(object):
     def denormalize_image(self, image, max_val):
         # De-normalizes the image
         image = self.stretch_f(image, inverse=True)
-
-        # Denormalize the max val
-        image = image * max_val
-
-        # The denormalized image cannot be bigger than the maximum value and cannot be negative
-        image = torch.clamp(image, min=0.0, max=max_val)
 
         return image
 
