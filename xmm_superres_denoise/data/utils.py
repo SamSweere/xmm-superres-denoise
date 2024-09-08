@@ -47,19 +47,22 @@ def find_dir(parent: Path, pattern: str) -> Path:
     return dir_path
 
 
-def find_img_dirs(parent: Path, exps: np.ndarray, pattern: str = "") -> Dict[int, Path]:
-    res: Dict[int, Path] = {}
+def find_img_dirs(parent: Path, exps: np.ndarray, pattern: str = "") -> Dict[int, list[Path]]:
+    res: Dict[int, list[Path]] = {}
     for exp in exps:
-        exp_dir = list(parent.glob(f"{exp}ks/{pattern}"))
-        assert len(exp_dir) == 1
-        res[exp] = exp_dir[0]
+        exp_dirs = list(parent.glob(f"{exp}ks/{pattern}"))
+        assert len(exp_dirs) > 0
+        res[exp] = exp_dirs
     return res
 
 
-def find_img_files(exp_dirs_dict: Dict[int, Path]) -> Dict[int, List[Path]]:
+def find_img_files(exp_dirs_dict: Dict[int, list[Path]]) -> Dict[int, List[Path]]:
     res: Dict[int, List[Path]] = {}
-    for exp, img_dir in exp_dirs_dict.items():
-        res[exp] = get_fits_files(dataset_dir=img_dir)
+    for exp, img_dirs in exp_dirs_dict.items():
+        files = []
+        for img_dir in img_dirs:
+            files.extend(get_fits_files(dataset_dir=img_dir))
+        res[exp] = files
     return res
 
 

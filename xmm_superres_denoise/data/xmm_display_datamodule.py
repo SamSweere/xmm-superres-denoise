@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 
-from xmm_superres_denoise.data import BaseDataModule
+from data import BaseDataModule
 
 
 class XmmDisplayDataModule(BaseDataModule):

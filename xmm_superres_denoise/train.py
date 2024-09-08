@@ -7,18 +7,18 @@ from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 
 import wandb
-from xmm_superres_denoise.data import XmmDataModule, XmmDisplayDataModule
-from xmm_superres_denoise.metrics import (
+from data import XmmDataModule, XmmDisplayDataModule
+from metrics import (
     get_ext_metrics,
     get_in_ext_metrics,
     get_in_metrics,
     get_metrics,
 )
-from xmm_superres_denoise.models import Model
-from xmm_superres_denoise.transforms import Normalize
-from xmm_superres_denoise.utils import ImageLogger
-from xmm_superres_denoise.utils.filehandling import read_yaml
-from xmm_superres_denoise.utils.loss_functions import create_loss
+from models import Model
+from transforms import Normalize
+from utils import ImageLogger
+from utils.filehandling import read_yaml
+from utils.loss_functions import create_loss
 
 if __name__ == "__main__":
     parser = ArgumentParser()

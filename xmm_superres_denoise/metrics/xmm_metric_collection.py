@@ -10,7 +10,7 @@ from torchmetrics import (
     StructuralSimilarityIndexMeasure,
 )
 
-from xmm_superres_denoise.metrics import (
+from metrics import (
     FSIM,
     GMSD,
     MDSI,
@@ -19,7 +19,7 @@ from xmm_superres_denoise.metrics import (
     MultiScaleGMSD,
     PoissonNLLLoss,
 )
-from xmm_superres_denoise.transforms import Normalize
+from transforms import Normalize
 
 
 def get_metrics(

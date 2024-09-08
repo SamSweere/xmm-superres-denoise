@@ -5,7 +5,7 @@ from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADER
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
 
-from xmm_superres_denoise.transforms import Crop, Normalize
+from transforms import Crop, Normalize
 
 
 class BaseDataModule(LightningDataModule):

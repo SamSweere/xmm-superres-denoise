@@ -6,8 +6,8 @@ import torch
 from torch import Tensor
 from torchmetrics import Metric
 
-from xmm_superres_denoise.metrics import XMMMetricCollection
-from xmm_superres_denoise.transforms import ImageUpsample
+from metrics import XMMMetricCollection
+from transforms import ImageUpsample
 
 
 class Model(pl.LightningModule):

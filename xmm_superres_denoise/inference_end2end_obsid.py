@@ -15,8 +15,8 @@
 import argparse
 from pathlib import Path
 
-from xmm_superres_denoise.produce_detxy_image_for_inference import get_detxy_for_obs_id
-from xmm_superres_denoise.utils.run_inference_on_file import run_on_file
+from produce_detxy_image_for_inference import get_detxy_for_obs_id
+from utils.run_inference_on_file import run_on_file
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predict XMM SR or DN image")

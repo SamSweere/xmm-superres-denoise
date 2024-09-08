@@ -8,7 +8,7 @@ from torchmetrics import (
     StructuralSimilarityIndexMeasure,
 )
 
-from xmm_superres_denoise.metrics import PoissonNLLLoss, VGGLoss
+from metrics import PoissonNLLLoss, VGGLoss
 
 
 def create_loss(

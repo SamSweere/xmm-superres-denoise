@@ -5,8 +5,8 @@ import numpy as np
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 from torch.utils.data import Subset, random_split
 
-from xmm_superres_denoise.data import BaseDataModule
-from xmm_superres_denoise.data.utils import (
+from data import BaseDataModule
+from data.utils import (
     find_img_files,
     match_file_list,
     save_splits,
@@ -21,7 +21,7 @@ class XmmDataModule(BaseDataModule):
         self.hr_exp = config["hr"]["exp"]
 
         if self.dataset_type == "real":
-            from xmm_superres_denoise.data import XmmDataset
+            from data import XmmDataset
 
             self.dataset = XmmDataset(
                 dataset_dir=self.dataset_dir,
@@ -36,7 +36,7 @@ class XmmDataModule(BaseDataModule):
 
             self.subset_str = f"res/splits/real_dataset/{{0}}/{{1}}.p"
         elif self.dataset_type == "sim":
-            from xmm_superres_denoise.data import XmmSimDataset
+            from data import XmmSimDataset
 
             self.dataset = XmmSimDataset(
                 dataset_dir=self.dataset_dir,
@@ -59,7 +59,7 @@ class XmmDataModule(BaseDataModule):
 
             self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
         elif self.dataset_type == "boring":
-            from xmm_superres_denoise.data import BoringDataset
+            from data import BoringDataset
 
             rank_zero_warn(
                 "You are using the BoringDataset which is meant for testing purposes!"

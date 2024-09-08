@@ -6,7 +6,7 @@ import numpy as np
 from pytorch_lightning.utilities import rank_zero_info
 from torch.utils.data import Dataset
 
-from xmm_superres_denoise.data.utils import (
+from data.utils import (
     apply_transform,
     check_img_files,
     find_img_dirs,
@@ -16,7 +16,7 @@ from xmm_superres_denoise.data.utils import (
     match_file_list,
     reshape_img_to_res,
 )
-from xmm_superres_denoise.transforms import Normalize
+from transforms import Normalize
 
 
 class XmmDataset(Dataset):

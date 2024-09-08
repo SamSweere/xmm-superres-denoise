@@ -5,7 +5,7 @@ from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADER
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
 
-from xmm_superres_denoise.transforms import Crop, Normalize
+from transforms import Crop, Normalize
 
 import pickle
 
@@ -13,7 +13,7 @@ import numpy as np
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 from torch.utils.data import Subset, random_split
 
-from xmm_superres_denoise.data.utils import (
+from data.utils import (
     find_img_files,
     match_file_list,
     save_splits,

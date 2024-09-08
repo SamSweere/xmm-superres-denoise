@@ -10,16 +10,16 @@ from astropy.io import fits
 from astropy.visualization import ImageNormalize, PercentileInterval
 from matplotlib import colormaps
 
-from xmm_superres_denoise.data.utils import (
+from data.utils import (
     apply_transform,
     load_det_mask,
     load_fits,
     reshape_img_to_res,
 )
-from xmm_superres_denoise.models import Model
-from xmm_superres_denoise.transforms import Crop, Normalize
-from xmm_superres_denoise.transforms.totensor import ToTensor
-from xmm_superres_denoise.utils.filehandling import (
+from models import Model
+from transforms import Crop, Normalize
+from transforms.totensor import ToTensor
+from utils.filehandling import (
     read_yaml,
     write_xmm_file_to_fits_wcs,
 )

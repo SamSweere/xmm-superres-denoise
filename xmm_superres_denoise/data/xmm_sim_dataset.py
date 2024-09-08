@@ -7,7 +7,7 @@ import pandas as pd
 from pytorch_lightning.utilities import rank_zero_info
 from torch.utils.data import Dataset
 
-from xmm_superres_denoise.data.utils import (
+from data.utils import (
     apply_transform,
     check_img_files,
     find_img_dirs,
@@ -17,7 +17,7 @@ from xmm_superres_denoise.data.utils import (
     match_file_list,
     reshape_img_to_res,
 )
-from xmm_superres_denoise.transforms import Normalize
+from transforms import Normalize
 
 
 class XmmSimDataset(Dataset):
@@ -88,20 +88,20 @@ class XmmSimDataset(Dataset):
 
         # Get all the image directories
         # Note that if the mode is agn we consider them as the base images
-        self.lr_img_dirs = find_img_dirs(
+        lr_img_dirs = find_img_dirs(
             dataset_dir / f"{mode}", self.lr_exps, f"*/*/{self.lr_res_mult}x"
         )
-        lr_img_files = find_img_files(self.lr_img_dirs)
+        lr_img_files = find_img_files(lr_img_dirs)
 
         if comb_hr_img:
             pattern = f"*/*/{self.hr_res_mult}x_comb"
         else:
             pattern = f"*/*/{self.hr_res_mult}x"
 
-        self.hr_img_dirs = find_img_dirs(
+        hr_img_dirs = find_img_dirs(
             dataset_dir / f"{mode}", self.hr_exp, pattern
         )
-        hr_img_files = find_img_files(self.hr_img_dirs)
+        hr_img_files = find_img_files(hr_img_dirs)
 
         self.lr_img_files, self.hr_img_files, self.base_name_count = match_file_list(
             lr_img_files, hr_img_files, split_key
@@ -121,9 +121,9 @@ class XmmSimDataset(Dataset):
             lr_agn_files = find_img_files(lr_agn_dirs)
 
             if comb_hr_img:
-                pattern = f"*/{self.hr_res_mult}x_comb"
+                pattern = f"{self.hr_res_mult}x_comb"
             else:
-                pattern = f"*/{self.hr_res_mult}x"
+                pattern = f"{self.hr_res_mult}x"
 
             hr_agn_dirs = find_img_dirs(
                 dataset_dir / "agn", self.hr_exp, pattern
@@ -142,7 +142,7 @@ class XmmSimDataset(Dataset):
             msg2 = msg2 + f" * {self.lr_background}"
             self.dataset_size = self.dataset_size * self.lr_background
             lr_background_dirs = find_img_dirs(
-                dataset_dir / "bkg", self.lr_exps, f"*/{self.lr_res_mult}x"
+                dataset_dir / "bkg", self.lr_exps, f"{self.lr_res_mult}x"
             )
             lr_background_files = find_img_files(lr_background_dirs)
             amt = min([len(file_list) for file_list in lr_background_files.values()])
