@@ -38,14 +38,14 @@ exposures = [20]
 
 [dataset.lr]
 agn = 1
-background = 1
+bkg = 1
 exposures = [20]
-max = 0.0022336 #TODO: aggresive max, 200 times background, this is +-111 counts on 50ks
+clamp_max = 0.0022336 #TODO: aggresive max, 200 times background, this is +-111 counts on 50ks
 res = 416
 
 [dataset.hr]
 agn = true
-background = false
+bkg = false
 exposure = 100
 max = 0.0005584 #TODO: aggresive max, 200 times background, this is +-11 counts on 50ks
 res = 832
