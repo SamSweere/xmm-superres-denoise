@@ -116,7 +116,7 @@ class XmmSimDataset(Dataset):
             msg2 = msg2 + f" * {self.lr_agn}"
             self.dataset_size = self.dataset_size * self.lr_agn
             lr_agn_dirs = find_img_dirs(
-                dataset_dir / "agn", self.lr_exps, f"*/{self.lr_res_mult}x"
+                dataset_dir / "agn", self.lr_exps, f"{self.lr_res_mult}x"
             )
             lr_agn_files = find_img_files(lr_agn_dirs)
 
@@ -153,7 +153,7 @@ class XmmSimDataset(Dataset):
 
         if self.hr_background:
             hr_background_dirs = find_img_dirs(
-                dataset_dir, self.hr_exp, f"background/{self.hr_res_mult}x"
+                dataset_dir / "bkg", self.hr_exp, f"{self.hr_res_mult}x"
             )
             hr_img_files = find_img_files(hr_background_dirs)
             self.hr_background_files = pd.DataFrame.from_dict(hr_img_files)
