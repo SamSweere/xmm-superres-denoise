@@ -99,14 +99,19 @@ class XmmSimDataset(Dataset):
             )
         lr_img_files = find_img_files(lr_img_dirs)
 
-        if comb_hr_img:
-            pattern = f"*/*/{self.hr_res_mult}x_comb"
+        if display:
+            hr_img_dirs = find_img_dirs(
+                dataset_dir, self.lr_exps, f"{mode}/{self.hr_res_mult}x"
+            )
         else:
-            pattern = f"*/*/{self.hr_res_mult}x"
+            if comb_hr_img:
+                pattern = f"*/*/{self.hr_res_mult}x_comb"
+            else:
+                pattern = f"*/*/{self.hr_res_mult}x"
 
-        hr_img_dirs = find_img_dirs(
-            dataset_dir / f"{mode}", self.hr_exp, pattern
-        )
+            hr_img_dirs = find_img_dirs(
+                dataset_dir / f"{mode}", self.hr_exp, pattern
+            )
         hr_img_files = find_img_files(hr_img_dirs)
 
         self.lr_img_files, self.hr_img_files, self.base_name_count = match_file_list(
