@@ -42,6 +42,7 @@ class XmmSimDataset(Dataset):
         transform: List[Callable] = None,
         normalize: Optional[Normalize] = None,
         split_key: str = "_mult_",
+        display: bool = False,  # TODO Change this
     ):
         """
         Args:
@@ -88,9 +89,14 @@ class XmmSimDataset(Dataset):
 
         # Get all the image directories
         # Note that if the mode is agn we consider them as the base images
-        lr_img_dirs = find_img_dirs(
-            dataset_dir / f"{mode}", self.lr_exps, f"*/*/{self.lr_res_mult}x"
-        )
+        if display:
+            lr_img_dirs = find_img_dirs(
+                dataset_dir, self.lr_exps, f"{mode}/{self.lr_res_mult}x"
+            )
+        else:
+            lr_img_dirs = find_img_dirs(
+                dataset_dir / f"{mode}", self.lr_exps, f"*/*/{self.lr_res_mult}x"
+            )
         lr_img_files = find_img_files(lr_img_dirs)
 
         if comb_hr_img:
