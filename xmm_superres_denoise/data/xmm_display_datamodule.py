@@ -33,6 +33,7 @@ class XmmDisplayDataModule(BaseDataModule):
                 mode=config["mode"],
                 lr_exps=lr_exps,
                 hr_exp=config["hr"]["exp"],
+                comb_hr_img=False,
                 lr_agn=False,
                 hr_agn=False,
                 lr_background=False,
