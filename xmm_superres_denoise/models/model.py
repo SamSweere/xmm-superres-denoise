@@ -40,7 +40,7 @@ class Model(pl.LightningModule):
         self.batch_size = config["batch_size"]
         self.model: torch.nn.Module
         if self.model_name == "esr_gen":
-            from xmm_superres_denoise.models import GeneratorRRDB_SR
+            from models import GeneratorRRDB_SR
 
             up_scale = hr_shape[0] / lr_shape[0]
             if up_scale % 2 != 0:
@@ -60,7 +60,7 @@ class Model(pl.LightningModule):
                 memory_efficient=self.memory_efficient,
             )
         elif self.model_name == "rrdb_denoise":
-            from xmm_superres_denoise.models import GeneratorRRDB_DN
+            from models import GeneratorRRDB_DN
 
             self.model = GeneratorRRDB_DN(
                 in_channels=config["in_channels"],
@@ -70,7 +70,7 @@ class Model(pl.LightningModule):
                 memory_efficient=self.memory_efficient,
             )
         elif self.model_name == "swinir":
-            from xmm_superres_denoise.models import SwinIR
+            from models import SwinIR
 
             self.model = SwinIR(
                 img_size=config["img_size"],
