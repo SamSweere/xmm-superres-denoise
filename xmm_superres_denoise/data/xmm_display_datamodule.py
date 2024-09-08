@@ -42,6 +42,7 @@ class XmmDisplayDataModule(BaseDataModule):
                 check_files=check_files,
                 transform=self.transform,
                 normalize=self.normalize,
+                display=True,
             )
         if config["display"]["real_display_name"]:
             from data import XmmDataset
