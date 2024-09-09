@@ -6,23 +6,22 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
 
 from transforms import Crop, Normalize
+from config.config import DatasetCfg
 
 
 class BaseDataModule(LightningDataModule):
-    def __init__(self, config):
-        super(BaseDataModule, self).__init__()
+    def __init__(self, config: DatasetCfg):
+        super().__init__()
+        self.config = config
 
         self.num_workers = 0 if config["debug"] else 12
         self.pin_memory = not config["debug"]
         self.persistent_workers = not config["debug"]
 
-        self.batch_size = config["batch_size"]
-        self.dataset_type = config["type"]
-
         self.transform = [
             Crop(
                 crop_p=1.0,  # TODO
-                mode=config["crop_mode"],
+                mode=self.config.crop_mode,
             ),
             ToTensor(),
         ]
@@ -34,7 +33,6 @@ class BaseDataModule(LightningDataModule):
         )
 
         self.dataset_dir = Path(config["dir"]) / config["name"]
-        self.check_files = config["check_files"]
 
         self.dataset = None
         self.train_subset = None
@@ -56,7 +54,7 @@ class BaseDataModule(LightningDataModule):
     def get_dataloader(self, dataset, shuffle=False):
         return DataLoader(
             dataset,
-            batch_size=self.batch_size,
+            batch_size=self.config.batch_size,
             shuffle=shuffle,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
