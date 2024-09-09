@@ -27,18 +27,6 @@ class _Metric(Metric):
         return self.metric / self.total
 
 
-class VIF(_Metric):
-    """
-    Compute Visual Information Fidelity in pixel domain for a batch of images.
-    """
-
-    def update(
-        self, preds: torch.Tensor, target: torch.Tensor, reduction: str = "mean"
-    ) -> None:
-        self.metric += piq.vif_p(x=preds, y=target, reduction=reduction)
-        self.total += preds.size()[0]
-
-
 class PoissonNLLLoss(_Metric):
     higher_is_better = False
 

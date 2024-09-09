@@ -5,16 +5,18 @@ from torchmetrics import (
     MeanAbsoluteError,
     MeanSquaredError,
     MetricCollection,
+)
+from torchmetrics.image import (
     MultiScaleStructuralSimilarityIndexMeasure,
     PeakSignalNoiseRatio,
     StructuralSimilarityIndexMeasure,
+    VisualInformationFidelity,
 )
 
 from metrics import (
     FSIM,
     GMSD,
     MDSI,
-    VIF,
     HaarPSI,
     MultiScaleGMSD,
     PoissonNLLLoss,
@@ -59,7 +61,7 @@ def get_ext_metrics(
 ):
     metrics = MetricCollection(
         {
-            "vif_p": VIF(),
+            "vif_p": VisualInformationFidelity(),
             "fsim": FSIM(),
             "gmsd": GMSD(),
             "ms_gmsd": MultiScaleGMSD(),
@@ -113,7 +115,7 @@ def get_in_ext_metrics(
 ):
     metrics = MetricCollection(
         {
-            "in/vif_p": VIF(),
+            "in/vif_p": VisualInformationFidelity(),
             "in/fsim": FSIM(),
             "in/gmsd": GMSD(),
             "in/ms_gmsd": MultiScaleGMSD(),

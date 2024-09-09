@@ -2,7 +2,6 @@ from .metrics import (
     FSIM,
     GMSD,
     MDSI,
-    VIF,
     HaarPSI,
     MultiScaleGMSD,
     PoissonNLLLoss,
