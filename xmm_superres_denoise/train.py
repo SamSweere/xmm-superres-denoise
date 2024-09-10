@@ -66,10 +66,7 @@ if __name__ == "__main__":
     hr_max = dataset_config["hr"]["max"]
     lr_shape = (dataset_config["lr"]["res"], dataset_config["lr"]["res"])
     hr_shape = (dataset_config["hr"]["res"], dataset_config["hr"]["res"])
-    scaling_normalizers = [
-        Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode=s_mode)
-        for s_mode in ["linear", "sqrt", "asinh", "log"]
-    ]
+    scaling_normalizers = [Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode="sqrt")]
 
     pre = "val" if args.routine == "fit" else "test"
     metrics = get_metrics(
@@ -85,26 +82,18 @@ if __name__ == "__main__":
         scaling_normalizers=scaling_normalizers,
         prefix=pre,
     )
-    ext_metrics = (
-        get_ext_metrics(
-            data_range=hr_max,
-            dataset_normalizer=datamodule.normalize,
-            scaling_normalizers=scaling_normalizers,
-            prefix=pre,
-        )
-        if args.routine == "test"
-        else None
-    )
-    in_ext_metrics = (
-        get_in_ext_metrics(
-            data_range=hr_max,
-            dataset_normalizer=datamodule.normalize,
-            scaling_normalizers=scaling_normalizers,
-            prefix=pre,
-        )
-        if args.routine == "test"
-        else None
-    )
+
+    ext_metrics = in_ext_metrics = None
+    if args.routine == "test":
+        ext_metrics = get_ext_metrics(data_range=hr_max,
+                                      dataset_normalizer=datamodule.normalize,
+                                      scaling_normalizers=scaling_normalizers,
+                                      prefix=pre, )
+
+        in_ext_metrics = get_in_ext_metrics(data_range=hr_max,
+                                            dataset_normalizer=datamodule.normalize,
+                                            scaling_normalizers=scaling_normalizers,
+                                            prefix=pre, )
 
     model = Model(
         model_config,
