@@ -121,7 +121,7 @@ if __name__ == "__main__":
             callbacks.append(il)
         checkpoint_callback = ModelCheckpoint(
             monitor="val/loss",
-            dirpath=f"{wandb_logger.experiment.dir}/checkpoints",
+            dirpath=f"{trainer_config['checkpoint_dir']}/checkpoints",
             filename=f"epoch:{{epoch:05d}}-val_loss:{{val/loss:.5f}}",
             mode="min",
             auto_insert_metric_name=False,

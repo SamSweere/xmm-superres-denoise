@@ -13,6 +13,7 @@ trainer:
   devices: auto
   epochs: 50
   log_images_every_n_epochs: 5
+  checkpoint_dir:
 
 dataset:
   batch_size: 1
