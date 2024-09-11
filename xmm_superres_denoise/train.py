@@ -30,9 +30,9 @@ if __name__ == "__main__":
         cfg: dict[str, dict] = tomllib.load(file)
 
     run_config: dict = read_yaml(args.run_config)
-    wandb_config: WandbCfg = WandbCfg(**cfg.pop("wandb"))
+    wandb_config: WandbCfg = WandbCfg(**cfg["wandb"])
 
-    dataset_config: DatasetCfg = DatasetCfg(**cfg.pop("dataset"))
+    dataset_config: DatasetCfg = DatasetCfg(**cfg["dataset"])
 
     model_config: dict = run_config["model"]
     model_config.update(
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     loss_config: dict = read_yaml(Path("res") / "configs" / "loss_functions.yaml")
 
-    trainer_config: TrainerCfg = TrainerCfg(**cfg.pop("trainer"))
+    trainer_config: TrainerCfg = TrainerCfg(**cfg["trainer"])
 
     # --- Initialise the logger --- #
     logger.info("Creating the WandbLogger...")
@@ -53,11 +53,11 @@ if __name__ == "__main__":
         project=wandb_config.project,
         log_model=wandb_config.online and wandb_config.log_model,
         offline=not wandb_config.online,
-        config=run_config,
+        config=cfg,
         resume="must" if wandb_config.run_id else None,
         id=wandb_config.run_id if wandb_config.run_id else None,
     )
-    del wandb_config
+    del wandb_config, cfg
     logger.success("Created WandbLogger!")
 
     # --- Initialise the XmmDataModule --- #
