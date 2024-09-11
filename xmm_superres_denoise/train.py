@@ -2,7 +2,7 @@ import tomllib
 from argparse import ArgumentParser
 from pathlib import Path
 
-from config.config import DatasetCfg, ModelCfg, TrainerCfg, WandbCfg
+from config.config import DatasetCfg, LossCfg, ModelCfg, TrainerCfg, WandbCfg
 from loguru import logger
 from metrics import get_ext_metrics, get_in_ext_metrics, get_in_metrics, get_metrics
 from pytorch_lightning import Trainer
@@ -10,7 +10,6 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers.wandb import WandbLogger
 from transforms import Normalize
 from utils import ImageLogger
-from utils.filehandling import read_yaml
 from utils.loss_functions import create_loss
 
 import wandb
@@ -43,7 +42,14 @@ if __name__ == "__main__":
     model_config["batch_size"] = dataset_config.batch_size
     model_config: ModelCfg = ModelCfg(**model_config)
 
-    loss_config: dict = read_yaml(Path("res") / "configs" / "loss_functions.yaml")
+    with open(Path("res") / "configs" / "loss_functions.toml", "rb") as file:
+        loss_config: dict = tomllib.load(file)
+
+    sc_dict = None
+    if loss_config["loss"].pop("use_scaling"):
+        sc_dict = loss_config.pop("scaling")
+        sc_dict = sc_dict[dataset_config.scaling]
+    loss_config: LossCfg = LossCfg(**loss_config["loss"])
 
     trainer_config: TrainerCfg = TrainerCfg(**cfg["trainer"])
 
@@ -69,7 +75,8 @@ if __name__ == "__main__":
     logger.success("Created the data module!")
 
     # --- Create the loss function --- #
-    loss = create_loss(data_scaling=dataset_config.scaling, loss_config=loss_config)
+    loss = create_loss(sc_dict=sc_dict, loss_config=loss_config)
+    del sc_dict, loss_config
 
     logger.info(f"Created loss function {loss}")
 

@@ -11,7 +11,9 @@ from pydantic import (
     NonNegativeInt,
     PositiveInt,
     computed_field,
+    model_validator,
 )
+from typing_extensions import Self
 
 
 class ConfigError(Exception):
@@ -197,3 +199,21 @@ class TrainerCfg(BaseModel):
     devices: PositiveInt | Literal["auto"]
     epochs: PositiveInt
     log_images_every_n_epochs: NonNegativeInt
+
+
+class LossCfg(BaseModel):
+    l1: float = Field(ge=0, le=1)
+    poisson: float = Field(ge=0, le=1)
+    psnr: float = Field(ge=0, le=1)
+    ssim: float = Field(ge=0, le=1)
+    ms_ssim: float = Field(ge=0, le=1)
+
+    @model_validator(mode="after")
+    def check_sum(self) -> Self:
+        p_sum = self.l1 + self.poisson + self.psnr + self.ssim + self.ms_ssim
+        if 0 < p_sum <= 1:
+            return self
+
+        raise ConfigError(
+            f"Sum of relative percentages has to be between 0 and 1, got {p_sum}!"
+        )
