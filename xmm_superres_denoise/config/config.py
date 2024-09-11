@@ -1,5 +1,5 @@
-from pydantic import computed_field, BaseModel, NonNegativeFloat, NonNegativeInt, PositiveInt
-from typing import Literal
+from pydantic import computed_field, SecretStr, AfterValidator, BeforeValidator, BaseModel, NonNegativeFloat, NonNegativeInt, PositiveInt
+from typing import Annotated, Literal
 from pathlib import Path
 from enum import StrEnum
 
@@ -20,9 +20,25 @@ class ImageType(StrEnum):
     BKG = "bkg"
 
 
+def _check_path_before(value: str) -> Path | None:
+    if value != "":
+        return Path(value)
+
+
+def _check_path_after(value: Path) -> Path | None:
+    if value is not None:
+        if not value.exists():
+            raise FileNotFoundError(f"Detector mask does not exist at '{value}!'")
+
+        if value.is_dir():
+            raise FileExistsError(f"Path to detector mask is a directory! Given path: '{value}'")
+
+        return value
+
+
 class HrDatasetCfg(BaseModel):
     # TODO If dataset type is real and exp == 0 the initialisation of this class can be skipped
-    det_mask: Path | None
+    det_mask: Annotated[Path | None, BeforeValidator(_check_path_before), AfterValidator(_check_path_after)]
     agn: bool
     exp: NonNegativeInt
     clamp_max: NonNegativeFloat
@@ -31,7 +47,7 @@ class HrDatasetCfg(BaseModel):
 
 class LrDatasetCfg(BaseModel):
     bkg: bool | NonNegativeInt
-    det_mask: Path | None
+    det_mask: Annotated[Path | None, BeforeValidator(_check_path_before), AfterValidator(_check_path_after)]
     exps: list[PositiveInt]
     clamp_max: NonNegativeFloat
     res: PositiveInt
