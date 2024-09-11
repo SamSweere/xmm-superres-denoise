@@ -1,12 +1,11 @@
 from pathlib import Path
 
+from config.config import DatasetCfg
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
-
 from transforms import Crop, Normalize
-from config.config import DatasetCfg
 
 
 class BaseDataModule(LightningDataModule):

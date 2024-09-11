@@ -3,10 +3,9 @@ from typing import List, Optional, Tuple
 
 import pytorch_lightning as pl
 import torch
+from metrics import XMMMetricCollection
 from torch import Tensor
 from torchmetrics import Metric
-
-from metrics import XMMMetricCollection
 from transforms import ImageUpsample
 
 

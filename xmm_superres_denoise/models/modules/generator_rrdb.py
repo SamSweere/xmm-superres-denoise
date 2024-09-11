@@ -2,9 +2,8 @@ import functools
 import math
 
 import torch
-from torch import nn
-
 from models.modules import RRDB, make_layer
+from torch import nn
 
 
 class _GeneratorRRDB(nn.Module):

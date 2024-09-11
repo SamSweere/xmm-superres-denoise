@@ -1,5 +1,4 @@
 import torch
-
 from transforms.data_scaling_functions import (
     asinh_scale,
     linear_scale,

@@ -64,9 +64,7 @@ class XmmDisplayDataModule(BaseDataModule):
             )
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
-        raise NotImplementedError(
-            "Display data are not to be used during training!"
-        )
+        raise NotImplementedError("Display data are not to be used during training!")
 
     def val_dataloader(self) -> EVAL_DATALOADERS:
         dataloaders = []

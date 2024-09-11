@@ -1,26 +1,21 @@
+import tomllib
 from argparse import ArgumentParser
 from pathlib import Path
 
+from config.config import DatasetCfg, WandbCfg
+from loguru import logger
+from metrics import get_ext_metrics, get_in_ext_metrics, get_in_metrics, get_metrics
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers.wandb import WandbLogger
-
-import wandb
-from data import XmmDataModule, XmmDisplayDataModule
-from metrics import (
-    get_ext_metrics,
-    get_in_ext_metrics,
-    get_in_metrics,
-    get_metrics,
-)
-from config.config import DatasetCfg, WandbCfg
-from models import Model
 from transforms import Normalize
 from utils import ImageLogger
 from utils.filehandling import read_yaml
 from utils.loss_functions import create_loss
-import tomllib
-from loguru import logger
+
+import wandb
+from data import XmmDataModule, XmmDisplayDataModule
+from models import Model
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -94,15 +89,19 @@ if __name__ == "__main__":
 
     ext_metrics = in_ext_metrics = None
     if args.routine == "test":
-        ext_metrics = get_ext_metrics(data_range=hr_max,
-                                      dataset_normalizer=datamodule.normalize,
-                                      scaling_normalizers=scaling_normalizers,
-                                      prefix=pre, )
+        ext_metrics = get_ext_metrics(
+            data_range=hr_max,
+            dataset_normalizer=datamodule.normalize,
+            scaling_normalizers=scaling_normalizers,
+            prefix=pre,
+        )
 
-        in_ext_metrics = get_in_ext_metrics(data_range=hr_max,
-                                            dataset_normalizer=datamodule.normalize,
-                                            scaling_normalizers=scaling_normalizers,
-                                            prefix=pre, )
+        in_ext_metrics = get_in_ext_metrics(
+            data_range=hr_max,
+            dataset_normalizer=datamodule.normalize,
+            scaling_normalizers=scaling_normalizers,
+            prefix=pre,
+        )
 
     model = Model(
         model_config,

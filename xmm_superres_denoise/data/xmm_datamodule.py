@@ -2,15 +2,12 @@ import pickle
 from pathlib import Path
 
 import numpy as np
+from config.config import DatasetType
+from data.utils import find_img_files, match_file_list, save_splits
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 from torch.utils.data import Subset, random_split
-from config.config import DatasetType
+
 from data import BaseDataModule
-from data.utils import (
-    find_img_files,
-    match_file_list,
-    save_splits,
-)
 
 
 class XmmDataModule(BaseDataModule):

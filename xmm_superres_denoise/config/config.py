@@ -1,7 +1,17 @@
-from pydantic import computed_field, SecretStr, AfterValidator, BeforeValidator, BaseModel, NonNegativeFloat, NonNegativeInt, PositiveInt
-from typing import Annotated, Literal
-from pathlib import Path
 from enum import StrEnum
+from pathlib import Path
+from typing import Annotated, Literal
+
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    NonNegativeFloat,
+    NonNegativeInt,
+    PositiveInt,
+    SecretStr,
+    computed_field,
+)
 
 
 class ConfigError(Exception):
@@ -13,6 +23,7 @@ class DatasetType(StrEnum):
     SIM = "sim"
     REAL = "real"
     BORING = "boring"
+
 
 class ImageType(StrEnum):
     IMG = "img"
@@ -31,14 +42,20 @@ def _check_path_after(value: Path) -> Path | None:
             raise FileNotFoundError(f"Detector mask does not exist at '{value}!'")
 
         if value.is_dir():
-            raise FileExistsError(f"Path to detector mask is a directory! Given path: '{value}'")
+            raise FileExistsError(
+                f"Path to detector mask is a directory! Given path: '{value}'"
+            )
 
         return value
 
 
 class HrDatasetCfg(BaseModel):
     # TODO If dataset type is real and exp == 0 the initialisation of this class can be skipped
-    det_mask: Annotated[Path | None, BeforeValidator(_check_path_before), AfterValidator(_check_path_after)]
+    det_mask: Annotated[
+        Path | None,
+        BeforeValidator(_check_path_before),
+        AfterValidator(_check_path_after),
+    ]
     agn: bool
     exp: NonNegativeInt
     clamp_max: NonNegativeFloat
@@ -47,7 +64,11 @@ class HrDatasetCfg(BaseModel):
 
 class LrDatasetCfg(BaseModel):
     bkg: bool | NonNegativeInt
-    det_mask: Annotated[Path | None, BeforeValidator(_check_path_before), AfterValidator(_check_path_after)]
+    det_mask: Annotated[
+        Path | None,
+        BeforeValidator(_check_path_before),
+        AfterValidator(_check_path_after),
+    ]
     exps: list[PositiveInt]
     clamp_max: NonNegativeFloat
     res: PositiveInt
@@ -81,18 +102,15 @@ class DatasetCfg(BaseModel):
     def img_dir(self) -> Path:
         return self._mode_dir(ImageType.IMG)
 
-
     @computed_field
     @property
     def agn_dir(self) -> Path:
         return self._mode_dir(ImageType.AGN)
 
-
     @computed_field
     @property
     def bkg_dir(self) -> Path:
         return self._mode_dir(ImageType.BKG)
-
 
     # --- Helper Functions --- #
     def _mode_dir(self, mode: ImageType) -> Path:
@@ -121,9 +139,11 @@ class OptimizerCfg(BaseModel):
     learning_rate: NonNegativeFloat
     betas: tuple[NonNegativeFloat]
 
+
 class ModelCfg(BaseModel):
     name: Literal["esr_gen"]
     memory_efficient: bool
+
 
 class WandbCfg(BaseModel):
     api_key: SecretStr

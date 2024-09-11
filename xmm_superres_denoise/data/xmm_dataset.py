@@ -3,9 +3,6 @@ from random import sample
 from typing import Callable, List, Optional
 
 import numpy as np
-from pytorch_lightning.utilities import rank_zero_info
-from torch.utils.data import Dataset
-
 from data.utils import (
     apply_transform,
     check_img_files,
@@ -16,6 +13,8 @@ from data.utils import (
     match_file_list,
     reshape_img_to_res,
 )
+from pytorch_lightning.utilities import rank_zero_info
+from torch.utils.data import Dataset
 from transforms import Normalize
 
 

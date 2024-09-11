@@ -1,5 +1,6 @@
 from typing import Dict, Union
 
+from metrics import PoissonNLLLoss, VGGLoss
 from torchmetrics import (
     MeanAbsoluteError,
     Metric,
@@ -7,8 +8,6 @@ from torchmetrics import (
     PeakSignalNoiseRatio,
     StructuralSimilarityIndexMeasure,
 )
-
-from metrics import PoissonNLLLoss, VGGLoss
 
 
 def create_loss(

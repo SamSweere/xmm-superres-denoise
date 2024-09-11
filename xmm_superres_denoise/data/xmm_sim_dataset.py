@@ -4,7 +4,6 @@ from typing import Callable, List, Optional
 
 import numpy as np
 import pandas as pd
-from torch.utils.data import Dataset, random_split
 from config.config import DatasetCfg, DatasetType
 from data.utils import (
     apply_transform,
@@ -17,15 +16,16 @@ from data.utils import (
     save_splits,
 )
 from loguru import logger
+from torch.utils.data import Dataset, random_split
 from transforms import Normalize
 
 
 def _load_and_combine_simulations(
-        res: int,
-        img_path: Path,
-        agn_path: Path = None,
-        background_path: Path = None,
-        det_mask: Path = None
+    res: int,
+    img_path: Path,
+    agn_path: Path = None,
+    background_path: Path = None,
+    det_mask: Path = None,
 ):
     # Load the image data
     img = load_fits(img_path)
@@ -88,7 +88,9 @@ class XmmSimDataset(Dataset):
         if self.config.type is DatasetType.REAL and not self.config.hr.exp:
             hr_img_files = None
         else:
-            hr_img_dirs = find_img_dirs(self.config.img_dir, [self.config.hr.exp], pattern)
+            hr_img_dirs = find_img_dirs(
+                self.config.img_dir, [self.config.hr.exp], pattern
+            )
             hr_img_files = find_img_files(hr_img_dirs)
         del pattern
 
@@ -122,18 +124,27 @@ class XmmSimDataset(Dataset):
             else:
                 pattern = f"{self.config.res_mult}x"
 
-            hr_agn_dirs = find_img_dirs(self.config.agn_dir, [self.config.hr.exp], pattern)
+            hr_agn_dirs = find_img_dirs(
+                self.config.agn_dir, [self.config.hr.exp], pattern
+            )
             hr_agn_files = find_img_files(hr_agn_dirs)
 
             self.lr_agn_files, self.hr_agn_files, self.base_agn_count = match_file_list(
                 lr_agn_files, hr_agn_files, split_key
             )
-            logger.success(f"\tFound {self.base_agn_count} agn image pairs (lr and hr simulation matches)")
+            logger.success(
+                f"\tFound {self.base_agn_count} agn image pairs (lr and hr simulation matches)"
+            )
 
             if self.config.check_files:
-                check_img_files(self.lr_agn_files, (411, 403), "Checking lr_agn_files...")
-                check_img_files(self.hr_agn_files, (411 * self.config.res_mult, 403 * self.config.res_mult),
-                                "Checking hr_agn_files...", )
+                check_img_files(
+                    self.lr_agn_files, (411, 403), "Checking lr_agn_files..."
+                )
+                check_img_files(
+                    self.hr_agn_files,
+                    (411 * self.config.res_mult, 403 * self.config.res_mult),
+                    "Checking hr_agn_files...",
+                )
 
         # --- BKG images --- #
         self.lr_bkg_files = None
@@ -152,7 +163,11 @@ class XmmSimDataset(Dataset):
             self.lr_bkg_files = pd.DataFrame.from_dict(self.lr_bkg_files)
 
             if self.config.check_files:
-                check_img_files(self.lr_bkg_files, (411, 403), "Checking lr_background_files...", )
+                check_img_files(
+                    self.lr_bkg_files,
+                    (411, 403),
+                    "Checking lr_background_files...",
+                )
 
         logger.info(f"\t{msg1} = dataset_size")
         logger.info(f"\t\t{msg2} = {self.dataset_size}")
@@ -208,16 +223,8 @@ class XmmSimDataset(Dataset):
         # Load a sample based on the given index
         lr_img, hr_img = self.load_sample(idx=idx)
 
-        lr_img = (
-            apply_transform(lr_img, self.transform)
-            if self.transform
-            else lr_img
-        )
-        hr_img = (
-            apply_transform(hr_img, self.transform)
-            if self.transform
-            else hr_img
-        )
+        lr_img = apply_transform(lr_img, self.transform) if self.transform else lr_img
+        hr_img = apply_transform(hr_img, self.transform) if self.transform else hr_img
 
         lr_img = self.normalize.normalize_lr_image(lr_img) if self.normalize else lr_img
         hr_img = self.normalize.normalize_hr_image(hr_img) if self.normalize else hr_img
@@ -229,7 +236,9 @@ class XmmSimDataset(Dataset):
         paths = [Path(subset_str.format(split_name)) for split_name in splits]
         exists = np.all([path.exists() for path in paths])
         if not exists:
-            logger.info(f"Creating splits for {self.config.directory} with {self.base_name_count} base_names...")
+            logger.info(
+                f"Creating splits for {self.config.directory} with {self.base_name_count} base_names..."
+            )
             train, val, test = random_split(
                 range(self.base_name_count), [0.8, 0.1, 0.1]
             )

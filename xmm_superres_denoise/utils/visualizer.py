@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import wandb
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+import wandb
 
 
 def plot_img(img, title=None, figsize=(10, 10)):

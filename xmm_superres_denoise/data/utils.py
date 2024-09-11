@@ -48,7 +48,9 @@ def find_dir(parent: Path, pattern: str) -> Path:
     return dir_path
 
 
-def find_img_dirs(parent: Path, exps: list[int] | int, pattern: str = "") -> Dict[int, list[Path]]:
+def find_img_dirs(
+    parent: Path, exps: list[int] | int, pattern: str = ""
+) -> Dict[int, list[Path]]:
     if isinstance(exps, int):
         exps = [exps]
 
