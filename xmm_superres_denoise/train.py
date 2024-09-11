@@ -2,7 +2,7 @@ import tomllib
 from argparse import ArgumentParser
 from pathlib import Path
 
-from config.config import DatasetCfg, TrainerCfg, WandbCfg
+from config.config import DatasetCfg, ModelCfg, TrainerCfg, WandbCfg
 from loguru import logger
 from metrics import get_ext_metrics, get_in_ext_metrics, get_in_metrics, get_metrics
 from pytorch_lightning import Trainer
@@ -22,23 +22,26 @@ if __name__ == "__main__":
     parser.add_argument(
         "routine", choices=["fit", "test"], help="What routine to execute"
     )
-    parser.add_argument("run_config", type=Path, help="Path to the run config yaml.")
-    parser.add_argument("run_config_v2", type=Path, help="Path to the run config toml.")
+    parser.add_argument("run_config", type=Path, help="Path to the run config toml.")
     args = parser.parse_args()
 
-    with open(args.run_config_v2, "rb") as file:
+    with open(args.run_config, "rb") as file:
         cfg: dict[str, dict] = tomllib.load(file)
 
-    run_config: dict = read_yaml(args.run_config)
     wandb_config: WandbCfg = WandbCfg(**cfg["wandb"])
 
     dataset_config: DatasetCfg = DatasetCfg(**cfg["dataset"])
 
-    model_config: dict = run_config["model"]
-    model_config.update(
-        read_yaml(Path("res") / "configs" / "model" / f"{model_config['name']}.yaml")
-    )
+    model_config: dict = cfg["model"]
+    with open(Path("res") / "configs" / "models.toml", "rb") as file:
+        model_config["model"] = tomllib.load(file)[model_config["name"]]
+
+    model_config["optimizer"] = {
+        "learning_rate": model_config["model"].pop("learning_rate"),
+        "betas": model_config["model"].pop("betas"),
+    }
     model_config["batch_size"] = dataset_config.batch_size
+    model_config: ModelCfg = ModelCfg(**model_config)
 
     loss_config: dict = read_yaml(Path("res") / "configs" / "loss_functions.yaml")
 
@@ -74,6 +77,7 @@ if __name__ == "__main__":
     hr_max = dataset_config.hr.clamp_max
     lr_shape = (dataset_config.lr.res, dataset_config.lr.res)
     hr_shape = (dataset_config.hr.res, dataset_config.hr.res)
+    del dataset_config
     scaling_normalizers = [
         Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode=s_mode)
         for s_mode in ["linear", "sqrt", "asinh", "log"]
@@ -120,6 +124,7 @@ if __name__ == "__main__":
         extended_metrics=ext_metrics,
         in_extended_metrics=in_ext_metrics,
     )
+    del model_config
 
     callbacks = None
 
@@ -151,8 +156,6 @@ if __name__ == "__main__":
         max_epochs=trainer_config.epochs,
         strategy=trainer_config.strategy,
         callbacks=callbacks,
-        limit_train_batches=10,
-        limit_val_batches=10,
     )
 
     if args.routine == "fit":

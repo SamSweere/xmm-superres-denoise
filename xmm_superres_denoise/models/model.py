@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple
 
 import pytorch_lightning as pl
 import torch
+from config.config import BaseModels, ModelCfg
 from metrics import XMMMetricCollection
 from torch import Tensor
 from torchmetrics import Metric
@@ -12,7 +13,7 @@ from transforms import ImageUpsample
 class Model(pl.LightningModule):
     def __init__(
         self,
-        config: dict,
+        config: ModelCfg,
         lr_shape: Tuple[int, int],
         hr_shape: Tuple[int, int],
         loss: Optional[Metric],
@@ -21,24 +22,18 @@ class Model(pl.LightningModule):
         in_metrics: Optional[XMMMetricCollection],
         in_extended_metrics: Optional[XMMMetricCollection],
     ):
-        super(Model, self).__init__()
+        super().__init__()
+        self.config = config
 
         self.metrics = metrics
         self.ext_metrics = extended_metrics
         self.in_metrics = in_metrics
         self.in_ext_metrics = in_extended_metrics
 
-        # Optimizer parameters
-        self.learning_rate = config["learning_rate"]
-        self.betas = (config["b1"], config["b2"])
-
         # Model and model parameters
-        self.memory_efficient = config["memory_efficient"]
-        self.model_name = config["name"]
         self.loss = loss
-        self.batch_size = config["batch_size"]
         self.model: torch.nn.Module
-        if self.model_name == "esr_gen":
+        if self.config.name is BaseModels.ESR_GEN:
             from models import GeneratorRRDB_SR
 
             up_scale = hr_shape[0] / lr_shape[0]
@@ -51,39 +46,39 @@ class Model(pl.LightningModule):
             up_scale = int(up_scale / 2)
             # Initialize generator and discriminator
             self.model = GeneratorRRDB_SR(
-                in_channels=config["in_channels"],
-                out_channels=config["out_channels"],
-                num_filters=config["filters"],
-                num_res_blocks=config["residual_blocks"],
+                in_channels=self.config.model.in_channels,
+                out_channels=self.config.model.out_channels,
+                num_filters=self.config.model.filters,
+                num_res_blocks=self.config.model.residual_blocks,
                 num_upsample=up_scale,
-                memory_efficient=self.memory_efficient,
+                memory_efficient=self.config.memory_efficient,
             )
-        elif self.model_name == "rrdb_denoise":
+        elif self.config.name is BaseModels.RRDB_DENOISE:
             from models import GeneratorRRDB_DN
 
             self.model = GeneratorRRDB_DN(
-                in_channels=config["in_channels"],
-                out_channels=config["out_channels"],
-                num_filters=config["filters"],
-                num_res_blocks=config["residual_blocks"],
-                memory_efficient=self.memory_efficient,
+                in_channels=self.config.model.in_channels,
+                out_channels=self.config.model.out_channels,
+                num_filters=self.config.model.filters,
+                num_res_blocks=self.config.model.residual_blocks,
+                memory_efficient=self.config.memory_efficient,
             )
-        elif self.model_name == "swinir":
+        elif self.config.name is BaseModels.SWINIR:
             from models import SwinIR
 
             self.model = SwinIR(
-                img_size=config["img_size"],
-                window_size=config["window_size"],
-                embed_dim=config["embed_dim"],
-                num_heads=config["num_heads"],
-                depths=config["depths"],
-                upsampler=config["upsampler"],
-                in_chans=config["in_channels"],
-                use_checkpoint=self.memory_efficient,
+                img_size=self.config.model.img_size,
+                window_size=self.config.model.window_size,
+                embed_dim=self.config.model.embed_dim,
+                num_heads=self.config.model.num_heads,
+                depths=self.config.model.depths,
+                upsampler=self.config.model.upsampler,
+                in_chans=self.config.model.in_channels,
+                use_checkpoint=self.config.memory_efficient,
             )
         else:
             raise ValueError(
-                f"Base model name {self.model_name} is not a valid model name!"
+                f"Base model name {self.config.name} is not a valid model name!"
             )
 
     def forward(self, x) -> torch.Tensor:
@@ -120,7 +115,7 @@ class Model(pl.LightningModule):
             self.log(
                 f"{stage}/loss",
                 loss,
-                batch_size=self.batch_size,
+                batch_size=self.config.batch_size,
                 on_step=True,
                 on_epoch=False,
             )
@@ -153,7 +148,7 @@ class Model(pl.LightningModule):
             self.log(
                 f"{stage}/loss",
                 loss,
-                batch_size=self.batch_size,
+                batch_size=self.config.batch_size,
                 on_step=False,
                 on_epoch=True,
                 sync_dist=True,
@@ -185,7 +180,7 @@ class Model(pl.LightningModule):
             for log in to_log:
                 self.log_dict(
                     log,
-                    batch_size=self.batch_size,
+                    batch_size=self.config.batch_size,
                     on_step=False,
                     on_epoch=True,
                     sync_dist=True,
@@ -194,7 +189,9 @@ class Model(pl.LightningModule):
     def configure_optimizers(self):
         # Optimizers
         optimizer = torch.optim.Adam(
-            self.model.parameters(), lr=self.learning_rate, betas=self.betas
+            self.model.parameters(),
+            lr=self.config.optimizer.learning_rate,
+            betas=self.config.optimizer.betas,
         )
 
         return optimizer

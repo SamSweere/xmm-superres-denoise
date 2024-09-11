@@ -6,6 +6,7 @@ from pydantic import (
     AfterValidator,
     BaseModel,
     BeforeValidator,
+    Field,
     NonNegativeFloat,
     NonNegativeInt,
     PositiveInt,
@@ -28,6 +29,12 @@ class ImageType(StrEnum):
     IMG = "img"
     AGN = "agn"
     BKG = "bkg"
+
+
+class BaseModels(StrEnum):
+    ESR_GEN = "esr_gen"
+    RRDB_DENOISE = "rrdb_denoise"
+    SWINIR = "swinir"
 
 
 def _check_path_before(value: str) -> Path | None:
@@ -138,12 +145,34 @@ class DatasetCfg(BaseModel):
 
 class OptimizerCfg(BaseModel):
     learning_rate: NonNegativeFloat
-    betas: tuple[NonNegativeFloat]
+    betas: tuple[NonNegativeFloat, NonNegativeFloat]
+
+
+class RrdbCfg(BaseModel):
+    base_model: Literal["esr_gen", "rrdb_denoise"]
+    in_channels: PositiveInt
+    out_channels: PositiveInt
+    filters: PositiveInt
+    residual_blocks: PositiveInt
+
+
+class SwinirCfg(BaseModel):
+    base_model: Literal["swinir"]
+    img_size: PositiveInt
+    window_size: PositiveInt
+    embed_dim: PositiveInt
+    upsampler: Literal["pixelshuffle", "pixelshuffledirect", "nearest+conv", ""]
+    in_channels: PositiveInt
+    num_heads: list[PositiveInt]
+    depths: list[PositiveInt]
 
 
 class ModelCfg(BaseModel):
-    name: Literal["esr_gen"]
+    name: BaseModels
     memory_efficient: bool
+    batch_size: PositiveInt
+    model: RrdbCfg | SwinirCfg = Field(..., discriminator="base_model")
+    optimizer: OptimizerCfg
 
 
 class WandbCfg(BaseModel):
