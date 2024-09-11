@@ -112,9 +112,9 @@ class Model(pl.LightningModule):
         batch["preds"] = self(batch["lr"])
 
     def _on_step(self, batch, stage) -> Optional[Tensor]:
-        lr = batch["lr"]
+        lr, hr = batch
         preds = self(lr)
-        target = batch.get("hr", preds)
+        target = hr if hr is not None else preds
 
         if stage == "train":
             loss = self.loss(preds=preds, target=target)

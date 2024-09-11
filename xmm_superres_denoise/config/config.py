@@ -41,11 +41,12 @@ class DatasetCfg(BaseModel):
     agn: bool | NonNegativeInt
     batch_size: PositiveInt
     check_files: bool
+    debug: bool
     crop_mode: Literal["center", "random", "boresight"]
     directory: Path
     mode: Literal["img", "agn"]
     name: str
-    scaling: Literal["linear", "sqrt", "asinh", "log"] | None
+    scaling: Literal["linear", "sqrt", "asinh", "log"]
     # TODO What about display type?
     type: DatasetType
     lr: LrDatasetCfg
@@ -81,11 +82,11 @@ class DatasetCfg(BaseModel):
     def _mode_dir(self, mode: ImageType) -> Path:
         res: Path | None = None
         if self.type is DatasetType.SIM:
-            return self.directory / self.mode
+            return self.directory / self.name / mode
 
         if mode == ImageType.IMG:
-            if self.type is DatasetType.DISPLAY or self.type is DatasetType.REAL:
-                return self.directory
+            if self.type is DatasetType.REAL:
+                return self.directory / self.name
 
         msg = f"Something went wrong while setting {mode.upper()} directory for type '{self.type}': "
         if res is None:
@@ -105,4 +106,11 @@ class OptimizerCfg(BaseModel):
     betas: tuple[NonNegativeFloat]
 
 class ModelCfg(BaseModel):
-    pass
+    name: Literal["esr_gen"]
+    memory_efficient: bool
+
+class WandbCfg(BaseModel):
+    api_key: SecretStr
+    project: str
+    online: bool
+    run_id: str

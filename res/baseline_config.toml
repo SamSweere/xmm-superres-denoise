@@ -3,9 +3,7 @@ api_key = ""
 project = ""
 online = true
 log_model = true
-
-[wandb.run]
-id = ""
+run_id = ""
 
 [trainer]
 accelerator = "auto"
@@ -13,7 +11,7 @@ strategy = "auto"
 checkpoint_path = ""
 devices = "auto"
 epochs = 50
-log_images_every_n_epochs = 5
+log_images_every_n_epochs = 0
 
 [dataset]
 agn = 1
@@ -28,23 +26,23 @@ name = "sim_dataset"
 scaling = "sqrt"
 type = "sim"
 
-[dataset.display]
-sim_display_name = "xmm_sim_display_selection"
-real_display_name = "xmm_split_display_selection"
-exposures = [20]
+#[dataset.display]
+#sim_display_name = "xmm_sim_display_selection"
+#real_display_name = "xmm_split_display_selection"
+#exposures = [20]
 
 [dataset.lr]
 bkg = 1
 det_mask = ""
-exposures = [20]
+exps = [20]
 clamp_max = 0.0022336 #TODO: aggresive max, 200 times background, this is +-111 counts on 50ks
 res = 416
 
 [dataset.hr]
 agn = true
-exposure = 100
+exp = 100
 det_mask = ""
-max = 0.0005584 #TODO: aggresive max, 200 times background, this is +-11 counts on 50ks
+clamp_max = 0.0005584 #TODO: aggresive max, 200 times background, this is +-11 counts on 50ks
 res = 832
 
 [model]

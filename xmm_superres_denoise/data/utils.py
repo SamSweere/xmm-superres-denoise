@@ -47,7 +47,7 @@ def find_dir(parent: Path, pattern: str) -> Path:
     return dir_path
 
 
-def find_img_dirs(parent: Path, exps: np.ndarray, pattern: str = "") -> Dict[int, list[Path]]:
+def find_img_dirs(parent: Path, exps: list[int], pattern: str = "") -> Dict[int, list[Path]]:
     res: Dict[int, list[Path]] = {}
     for exp in exps:
         exp_dirs = list(parent.glob(f"{exp}ks/{pattern}"))
@@ -96,30 +96,14 @@ def check_img_corr(img_path, shape):
         raise ValueError(f"ERROR {img_path} contains a value smaller then {min_val}")
 
 
-def load_fits(fits_path: Path) -> Dict:
-    try:
-        # Extract the image data from the fits file and convert to float
-        # (these images will be in int but since we will work with floats in pytorch we convert them to float)
-        img, header = fits.getdata(fits_path, "PRIMARY", header=True)
-        exposure = header["EXPOSURE"]
+def load_fits(fits_path: Path) -> np.ndarray:
+    # Extract the image data from the fits file and convert to float
+    # (these images will be in int but since we will work with floats in pytorch we convert them to float)
+    img = fits.getdata(fits_path, "PRIMARY")
 
-        # The `HISTORY`, `COMMENT` and 'DPSCORRF' key are causing problems
-        header.pop("HISTORY", None)
-        header.pop("COMMENT", None)
-        header.pop("DPSCORRF", None)
-        header.pop("ODSCHAIN", None)
-        header.pop("SRCPOS", None)
+    img = img.astype(np.float32)
 
-        img = img.astype(np.float32)
-
-        return {
-            "img": img,
-            "exp": exposure,
-            "file_name": fits_path.name,
-            "header": header,
-        }
-    except Exception as e:
-        raise IOError(f"Failed to load FITS file {fits_path} with error:", e)
+    return img
 
 
 def apply_transform(
@@ -143,13 +127,19 @@ def load_det_mask(res_mult: int):
         return hdu[0].data.astype(np.float32)
 
 
-def reshape_img_to_res(dataset_lr_res, img, res_mult):
-    # The image has the shape (411, 403), we pad/crop this to (dataset_lr_res, dataset_lr_res)
-    y_diff = dataset_lr_res * res_mult - img.shape[0]
+def reshape_img_to_res(res: int, img: np.ndarray) -> np.ndarray:
+    """
+    Reshape the given image into (res, res)
+
+    :param res: Resolution to be achieved
+    :param img: Image to pad/crop
+    :return: Padded/cropped image
+    """
+    y_diff = res - img.shape[0]
     y_top_pad = int(np.floor(y_diff / 2.0))
     y_bottom_pad = y_diff - y_top_pad
 
-    x_diff = dataset_lr_res * res_mult - img.shape[1]
+    x_diff = res - img.shape[1]
     x_left_pad = int(np.floor(x_diff / 2.0))
     x_right_pad = x_diff - x_left_pad
 

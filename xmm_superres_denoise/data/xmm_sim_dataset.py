@@ -63,7 +63,6 @@ class XmmSimDataset(Dataset):
         self.transform = transform if transform else []
         self.normalize = normalize
 
-        # TODO What about type DISPLAY?
         split_key = "_mult_" if self.config.type == DatasetType.SIM else "_image_split_"
 
         # Get all the image directories
@@ -89,7 +88,7 @@ class XmmSimDataset(Dataset):
         if self.config.type is DatasetType.REAL and not self.config.hr.exp:
             hr_img_files = None
         else:
-            hr_img_dirs = find_img_dirs(self.config.img_dir, self.config.hr.exp, pattern)
+            hr_img_dirs = find_img_dirs(self.config.img_dir, [self.config.hr.exp], pattern)
             hr_img_files = find_img_files(hr_img_dirs)
         del pattern
 
@@ -123,13 +122,13 @@ class XmmSimDataset(Dataset):
             else:
                 pattern = f"{self.config.res_mult}x"
 
-            hr_agn_dirs = find_img_dirs(self.config.agn_dir, self.config.hr.exp, pattern)
+            hr_agn_dirs = find_img_dirs(self.config.agn_dir, [self.config.hr.exp], pattern)
             hr_agn_files = find_img_files(hr_agn_dirs)
 
             self.lr_agn_files, self.hr_agn_files, self.base_agn_count = match_file_list(
                 lr_agn_files, hr_agn_files, split_key
             )
-            logger.info(f"\tFound {self.base_agn_count} agn image pairs (lr and hr simulation matches)")
+            logger.success(f"\tFound {self.base_agn_count} agn image pairs (lr and hr simulation matches)")
 
             if self.config.check_files:
                 check_img_files(self.lr_agn_files, (411, 403), "Checking lr_agn_files...")
@@ -161,25 +160,25 @@ class XmmSimDataset(Dataset):
     def __len__(self):
         return self.dataset_size
 
-    def load_sample(self, idx):
+    def load_sample(self, idx) -> tuple[np.ndarray, np.ndarray | None]:
         lr_exp = idx % len(self.config.lr.exps)
         base_name = idx % self.base_name_count
 
         lr_img_path = sample(self.lr_img_files.iloc[base_name].iloc[lr_exp], 1)[0]
 
         hr_img_path = None
-        if self.hr_img_files:
+        if self.hr_img_files is not None:
             hr_img_path = sample(self.hr_img_files.iloc[base_name].iloc[0], 1)[0]
 
         lr_agn_path = hr_agn_path = None
-        if self.lr_agn_files:
+        if self.lr_agn_files is not None:
             agn_idx = randint(0, self.base_agn_count - 1)
 
             lr_agn_path = sample(self.lr_agn_files.iloc[agn_idx].iloc[lr_exp], 1)[0]
             hr_agn_path = sample(self.hr_agn_files.iloc[agn_idx].iloc[0], 1)[0]
 
         lr_background_path = None
-        if self.lr_bkg_files:
+        if self.lr_bkg_files is not None:
             lr_background_path = (
                 self.lr_bkg_files[self.config.lr.exps[lr_exp]].sample(1).item()
             )
@@ -190,7 +189,7 @@ class XmmSimDataset(Dataset):
             img_path=lr_img_path,
             agn_path=lr_agn_path,
             background_path=lr_background_path,
-            det_mask=None,
+            det_mask=self.config.lr.det_mask,
         )
 
         hr_img = None
@@ -200,7 +199,7 @@ class XmmSimDataset(Dataset):
                 img_path=hr_img_path,
                 agn_path=hr_agn_path,
                 background_path=None,
-                det_mask=None,
+                det_mask=self.config.hr.det_mask,
             )
 
         return lr_img, hr_img

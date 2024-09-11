@@ -14,9 +14,8 @@ class BaseDataModule(LightningDataModule):
         super().__init__()
         self.config = config
 
-        self.num_workers = 0 if config["debug"] else 12
-        self.pin_memory = not config["debug"]
-        self.persistent_workers = not config["debug"]
+        self.num_workers = 0 if config.debug else 12
+        self.pin_memory = self.persistent_workers = not config.debug
 
         self.transform = [
             Crop(
@@ -27,12 +26,12 @@ class BaseDataModule(LightningDataModule):
         ]
 
         self.normalize = Normalize(
-            lr_max=config["lr"]["max"],
-            hr_max=config["hr"]["max"],
-            stretch_mode=config["scaling"],
+            lr_max=config.lr.clamp_max,
+            hr_max=config.hr.clamp_max,
+            stretch_mode=config.scaling,
         )
 
-        self.dataset_dir = Path(config["dir"]) / config["name"]
+        self.dataset_dir = Path(config.directory) / config.name
 
         self.dataset = None
         self.train_subset = None

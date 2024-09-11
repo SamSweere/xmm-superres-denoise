@@ -107,11 +107,11 @@ class XmmDataModule(BaseDataModule):
             if exps_size > 1:
                 mult *= exps_size
 
-            if self.dataset.lr_background > 1:
-                mult *= self.dataset.lr_background
+            if self.config.lr.bkg > 1:
+                mult *= self.config.lr.bkg
 
-            if self.dataset.lr_agn > 1:
-                mult *= self.dataset.lr_agn
+            if self.config.agn > 1:
+                mult *= self.config.lr.agn
 
             indices = np.asarray([indices * (i + 1) for i in range(mult)])
             indices = np.concatenate(indices)
