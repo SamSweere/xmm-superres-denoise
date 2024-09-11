@@ -1,9 +1,8 @@
 from typing import Dict, Union
 
 from metrics import PoissonNLLLoss, VGGLoss
-from torchmetrics import (
-    MeanAbsoluteError,
-    Metric,
+from torchmetrics import MeanAbsoluteError, Metric
+from torchmetrics.image import (
     MultiScaleStructuralSimilarityIndexMeasure,
     PeakSignalNoiseRatio,
     StructuralSimilarityIndexMeasure,
@@ -31,61 +30,55 @@ def create_loss(
             f"ms_ssim_p={ms_ssim_p}, vgg_p={vgg_p} has to be in ]0.0, 1.0] but is {total}!"
         )
 
+    correction = 0.0
     metrics = []
 
     if l1_p > 0.0:
-        m = MeanAbsoluteError() * l1_p
         if sc_dict:
-            scaling, correction = sc_dict["l1"]["scaling"], sc_dict["l1"]["correction"]
-            m = m * scaling + correction
+            l1_p = l1_p * sc_dict["l1"]["scaling"]
+            correction = correction + sc_dict["l1"]["correction"]
+
+        m = MeanAbsoluteError() * l1_p
         metrics.append(m)
 
     if poisson_p > 0.0:
-        m = PoissonNLLLoss() * poisson_p
         if sc_dict:
-            scaling, correction = (
-                sc_dict["poisson"]["scaling"],
-                sc_dict["poisson"]["correction"],
-            )
-            m = m * scaling + correction
+            poisson_p = poisson_p * sc_dict["poisson"]["scaling"]
+            correction = correction + sc_dict["poisson"]["correction"]
+
+        m = PoissonNLLLoss() * poisson_p
         metrics.append(m)
 
     if psnr_p > 0.0:
-        m = PeakSignalNoiseRatio() * psnr_p
         if sc_dict:
-            scaling, correction = (
-                sc_dict["psnr"]["scaling"],
-                sc_dict["psnr"]["correction"],
-            )
-            m = m * scaling + correction
+            psnr_p = psnr_p * sc_dict["psnr"]["scaling"]
+            correction = correction + sc_dict["psnr"]["correction"]
+
+        m = PeakSignalNoiseRatio() * psnr_p
         metrics.append(m)
 
     if ssim_p > 0.0:
+        if sc_dict:
+            ssim_p = ssim_p * sc_dict["ssim"]["scaling"]
+            correction = correction + sc_dict["ssim"]["correction"]
+
         m = (
             StructuralSimilarityIndexMeasure(kernel_size=13, sigma=2.5, k2=0.05)
             * ssim_p
         )
-        if sc_dict:
-            scaling, correction = (
-                sc_dict["ssim"]["scaling"],
-                sc_dict["ssim"]["correction"],
-            )
-            m = m * scaling + correction
         metrics.append(m)
 
     if ms_ssim_p > 0.0:
+        if sc_dict:
+            ms_ssim_p = ms_ssim_p * sc_dict["ms_ssim"]["scaling"]
+            correction = correction + sc_dict["ms_ssim"]["correction"]
+
         m = (
             MultiScaleStructuralSimilarityIndexMeasure(
                 kernel_size=13, sigma=2.5, k2=0.05
             )
             * ms_ssim_p
         )
-        if sc_dict:
-            scaling, correction = (
-                sc_dict["ms_ssim"]["scaling"],
-                sc_dict["ms_ssim"]["correction"],
-            )
-            m = m * scaling + correction
         metrics.append(m)
 
     if vgg_p > 0.0:
@@ -102,5 +95,8 @@ def create_loss(
     final_metric = metrics[0]
     for i in range(1, len(metrics)):
         final_metric = final_metric + metrics[i]
+
+    if correction > 0.0:
+        final_metric = final_metric + correction
 
     return final_metric
