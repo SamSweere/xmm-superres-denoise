@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 from torch.utils.data import Subset, random_split
-
+from config.config import DatasetType
 from data import BaseDataModule
 from data.utils import (
     find_img_files,
@@ -15,50 +15,36 @@ from data.utils import (
 
 class XmmDataModule(BaseDataModule):
     def __init__(self, config):
-        super(XmmDataModule, self).__init__(config)
+        super().__init__(config)
 
-        self.lr_exps = config["lr"]["exps"]
-        self.hr_exp = config["hr"]["exp"]
-
-        if self.dataset_type == "real":
+        self.subset_str = None
+        if self.config.type is DatasetType.REAL:
             from data import XmmDataset
 
             self.dataset = XmmDataset(
                 dataset_dir=self.dataset_dir,
                 dataset_lr_res=config["lr"]["res"],
-                lr_exps=self.lr_exps,
-                hr_exp=self.hr_exp,
+                lr_exps=self.config.lr.exps,
+                hr_exp=self.config.hr.exp,
                 det_mask=config["det_mask"],
-                check_files=self.check_files,
+                check_files=self.config.check_files,
                 transform=self.transform,
                 normalize=self.normalize,
             )
 
             self.subset_str = f"res/splits/real_dataset/{{0}}/{{1}}.p"
-        elif self.dataset_type == "sim":
+        elif self.config.type is DatasetType.SIM:
             from data import XmmSimDataset
 
             self.dataset = XmmSimDataset(
-                dataset_dir=self.dataset_dir,
-                lr_res=config["lr"]["res"],
-                hr_res=config["hr"]["res"],
-                dataset_lr_res=config["lr"]["res"],
-                mode=config["mode"],
-                lr_exps=self.lr_exps,
-                hr_exp=self.hr_exp,
+                config=self.config,
                 comb_hr_img=False,
-                lr_agn=config["lr"]["agn"],
-                hr_agn=config["hr"]["agn"],
-                lr_background=config["lr"]["background"],
-                hr_background=config["hr"]["background"],
-                det_mask=config["det_mask"],
-                check_files=self.check_files,
                 transform=self.transform,
                 normalize=self.normalize,
             )
 
-            self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
-        elif self.dataset_type == "boring":
+            self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.config.mode}.p"
+        elif self.config.type is DatasetType.BORING:
             from data import BoringDataset
 
             rank_zero_warn(
@@ -107,32 +93,32 @@ class XmmDataModule(BaseDataModule):
     def prepare_data(self) -> None:
         # Check that for every used exposure time there is a train/val/test split
         # If there is none, create one
-        if self.dataset_type == "sim":
+        if self.config.type is DatasetType.SIM:
             self._prepare_sim_dataset()
-        elif self.dataset_type == "real":
+        elif self.config.type is DatasetType.REAL:
             self._prepare_real_dataset()
 
     def _load_indices(self, subset: str):
-        exps_size = self.dataset.lr_exps.size
-        if self.dataset_type == "sim":
+        exps_size = len(self.config.lr.exps)
+        if self.config.type is DatasetType.SIM:
             with open(self.subset_str.format(subset), "rb") as f:
                 indices = pickle.load(f)
             mult = 1
             if exps_size > 1:
                 mult *= exps_size
 
-            if self.dataset.lr_background > 1:
-                mult *= self.dataset.lr_background
+            if self.config.lr.bkg > 1:
+                mult *= self.config.lr.bkg
 
-            if self.dataset.lr_agn > 1:
-                mult *= self.dataset.lr_agn
+            if self.config.agn > 1:
+                mult *= self.config.lr.agn
 
             indices = np.asarray([indices * (i + 1) for i in range(mult)])
             indices = np.concatenate(indices)
             return indices
-        elif self.dataset_type == "real":
+        elif self.config.type is DatasetType.REAL:
             used_lr_basenames = self.dataset.lr_img_files.index
-            lr_exp = self.dataset.lr_exps[0]
+            lr_exp = self.config.lr.exps[0]
             lr_img_files = find_img_files(self.dataset.lr_img_dirs)
             lr_img_files = match_file_list(
                 {lr_exp: lr_img_files[lr_exp]}, None, self.dataset.split_key
@@ -147,7 +133,7 @@ class XmmDataModule(BaseDataModule):
             return indices
 
     def setup(self, stage: str) -> None:
-        if self.dataset_type == "boring":
+        if self.config.type is DatasetType.BORING:
             train, val, test = random_split(self.dataset, [0.8, 0.1, 0.1])
             self.train_subset = Subset(self.dataset, train)
             self.val_subset = Subset(self.dataset, val)

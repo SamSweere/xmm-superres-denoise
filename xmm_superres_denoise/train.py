@@ -4,7 +4,6 @@ from pathlib import Path
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers.wandb import WandbLogger
-from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 
 import wandb
 from data import XmmDataModule, XmmDisplayDataModule
@@ -14,11 +13,14 @@ from metrics import (
     get_in_metrics,
     get_metrics,
 )
+from config.config import DatasetCfg, WandbCfg
 from models import Model
 from transforms import Normalize
 from utils import ImageLogger
 from utils.filehandling import read_yaml
 from utils.loss_functions import create_loss
+import tomllib
+from loguru import logger
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -26,47 +28,54 @@ if __name__ == "__main__":
         "routine", choices=["fit", "test"], help="What routine to execute"
     )
     parser.add_argument("run_config", type=Path, help="Path to the run config yaml.")
+    parser.add_argument("run_config_v2", type=Path, help="Path to the run config toml.")
     args = parser.parse_args()
 
-    run_config: dict = read_yaml(args.run_config)
-    wandb_config: dict = run_config["wandb"]
+    with open(args.run_config_v2, "rb") as file:
+        cfg: dict[str, dict] = tomllib.load(file)
 
-    dataset_config: dict = run_config["dataset"]
+    run_config: dict = read_yaml(args.run_config)
+    wandb_config: WandbCfg = WandbCfg(**cfg.pop("wandb"))
+
+    dataset_config: DatasetCfg = DatasetCfg(**cfg.pop("dataset"))
 
     model_config: dict = run_config["model"]
     model_config.update(
         read_yaml(Path("res") / "configs" / "model" / f"{model_config['name']}.yaml")
     )
-    model_config["batch_size"] = dataset_config["batch_size"]
+    model_config["batch_size"] = dataset_config.batch_size
 
     loss_config: dict = read_yaml(Path("res") / "configs" / "loss_functions.yaml")
 
     trainer_config: dict = run_config["trainer"]
 
-    if wandb_config["online"]:
-        wandb.login(key=wandb_config["api_key"])
+    if wandb_config.online:
+        wandb.login(key=wandb_config.api_key)
 
     wandb_logger = WandbLogger(
-        project=wandb_config["project"],
-        log_model=wandb_config["online"] and wandb_config["log_model"],
-        offline=not wandb_config["online"],
+        project=wandb_config.project,
+        log_model=wandb_config.online and wandb_config.log_model,
+        offline=not wandb_config.online,
         config=run_config,
-        resume="must" if wandb_config["run"]["id"] is not None else None,
-        id=wandb_config["run"]["id"],
+        resume="must" if wandb_config.run_id else None,
+        id=wandb_config.run_id if wandb_config.run_id else None,
     )
 
-    rank_zero_info("Creating data module...")
+    logger.info("Creating data module...")
     datamodule = XmmDataModule(dataset_config)
 
-    loss = create_loss(data_scaling=dataset_config["scaling"], loss_config=loss_config)
+    loss = create_loss(data_scaling=dataset_config.scaling, loss_config=loss_config)
 
-    rank_zero_info(f"Created loss function {loss}")
+    logger.info(f"Created loss function {loss}")
 
-    lr_max = dataset_config["lr"]["max"]
-    hr_max = dataset_config["hr"]["max"]
-    lr_shape = (dataset_config["lr"]["res"], dataset_config["lr"]["res"])
-    hr_shape = (dataset_config["hr"]["res"], dataset_config["hr"]["res"])
-    scaling_normalizers = [Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode="sqrt")]
+    lr_max = dataset_config.lr.clamp_max
+    hr_max = dataset_config.hr.clamp_max
+    lr_shape = (dataset_config.lr.res, dataset_config.lr.res)
+    hr_shape = (dataset_config.hr.res, dataset_config.hr.res)
+    scaling_normalizers = [
+        Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode=s_mode)
+        for s_mode in ["linear", "sqrt", "asinh", "log"]
+    ]
 
     pre = "val" if args.routine == "fit" else "test"
     metrics = get_metrics(
@@ -139,7 +148,7 @@ if __name__ == "__main__":
 
     if args.routine == "fit":
         if trainer_config["checkpoint_path"] is not None:
-            rank_zero_warn(
+            logger.warning(
                 "You have given a checkpoint_path in the trainer config! If it was on purpose, then "
                 "you can ignore this warning."
             )

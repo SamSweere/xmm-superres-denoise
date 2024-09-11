@@ -101,7 +101,9 @@ def check_img_corr(img_path, shape):
 def load_fits(fits_path: Path) -> np.ndarray:
     # Extract the image data from the fits file and convert to float
     # (these images will be in int but since we will work with floats in pytorch we convert them to float)
-    img = fits.getdata(fits_path, "PRIMARY").astype(np.float32)
+    img = fits.getdata(fits_path, "PRIMARY")
+
+    img = img.astype(np.float32)
 
     return img
 
@@ -127,8 +129,14 @@ def load_det_mask(res_mult: int):
         return hdu[0].data.astype(np.float32)
 
 
-def reshape_img_to_res(res: int, img: np.ndarray):
-    # The image has the shape (411, 403), we pad/crop this to (dataset_lr_res, dataset_lr_res)
+def reshape_img_to_res(res: int, img: np.ndarray) -> np.ndarray:
+    """
+    Reshape the given image into (res, res)
+
+    :param res: Resolution to be achieved
+    :param img: Image to pad/crop
+    :return: Padded/cropped image
+    """
     y_diff = res - img.shape[0]
     y_top_pad = int(np.floor(y_diff / 2.0))
     y_bottom_pad = y_diff - y_top_pad
