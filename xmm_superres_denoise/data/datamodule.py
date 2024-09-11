@@ -2,42 +2,39 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-from data.utils import find_img_files, match_file_list, save_splits
+from config.config import DatasetCfg, DatasetType
+from data.tools import find_img_files, match_file_list, save_splits
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader, Subset, random_split
-from torchvision.transforms import ToTensor
-from transforms import Crop, Normalize
+from transforms import Normalize
 
 
 class BaseDataModule(LightningDataModule):
-    def __init__(self, config):
-        super(BaseDataModule, self).__init__()
+    def __init__(self, config: DatasetCfg):
+        super().__init__()
+        self.config = config
 
-        self.num_workers = 0 if config["debug"] else 12
-        self.pin_memory = not config["debug"]
-        self.persistent_workers = not config["debug"]
+        self.num_workers = 0 if config.debug else 12
+        self.pin_memory = self.persistent_workers = not config.debug
 
-        self.batch_size = config["batch_size"]
-        self.dataset_type = config["type"]
-
-        self.transform = [
-            Crop(
-                crop_p=1.0,  # TODO
-                mode=config["crop_mode"],
-            ),
-            ToTensor(),
-        ]
+        # self.transform = [
+        #     Crop(
+        #         crop_p=1.0,  # TODO
+        #         mode=self.config.crop_mode,
+        #     ),
+        #     ToTensor(),
+        # ]
+        self.transform = None
 
         self.normalize = Normalize(
-            lr_max=config["lr"]["max"],
-            hr_max=config["hr"]["max"],
-            stretch_mode=config["scaling"],
+            lr_max=config.lr.clamp_max,
+            hr_max=config.hr.clamp_max,
+            stretch_mode=config.scaling,
         )
 
-        self.dataset_dir = Path(config["dir"]) / config["name"]
-        self.check_files = config["check_files"]
+        self.dataset_dir = Path(config.directory) / config.name
 
         self.dataset = None
         self.train_subset = None
@@ -59,7 +56,7 @@ class BaseDataModule(LightningDataModule):
     def get_dataloader(self, dataset, shuffle=False):
         return DataLoader(
             dataset,
-            batch_size=self.batch_size,
+            batch_size=self.config.batch_size,
             shuffle=shuffle,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
@@ -69,63 +66,37 @@ class BaseDataModule(LightningDataModule):
 
 class XmmDataModule(BaseDataModule):
     def __init__(self, config):
-        super(XmmDataModule, self).__init__(config)
+        super().__init__(config)
 
-        self.lr_exps = config["lr"]["exps"]
-        self.hr_exp = config["hr"]["exp"]
-
-        if self.dataset_type == "real":
-            from xmm_superres_denoise.data import XmmDataset
+        self.subset_str = None
+        if self.config.type is DatasetType.REAL or self.config.type is DatasetType.SIM:
+            from data import XmmDataset
 
             self.dataset = XmmDataset(
-                dataset_dir=self.dataset_dir,
-                dataset_lr_res=config["lr"]["res"],
-                lr_exps=self.lr_exps,
-                hr_exp=self.hr_exp,
-                det_mask=config["det_mask"],
-                check_files=self.check_files,
+                config=self.config,
+                comb_hr_img=False,
                 transform=self.transform,
                 normalize=self.normalize,
             )
 
-            self.subset_str = f"res/splits/real_dataset/{{0}}/{{1}}.p"
-        elif self.dataset_type == "sim":
-            from xmm_superres_denoise.data import XmmSimDataset
-
-            self.dataset = XmmSimDataset(
-                dataset_dir=self.dataset_dir,
-                lr_res=config["lr"]["res"],
-                hr_res=config["hr"]["res"],
-                dataset_lr_res=config["lr"]["res"],
-                mode=config["mode"],
-                lr_exps=self.lr_exps,
-                hr_exp=self.hr_exp,
-                lr_agn=config["lr"]["agn"],
-                hr_agn=config["hr"]["agn"],
-                lr_background=config["lr"]["background"],
-                hr_background=config["hr"]["background"],
-                det_mask=config["det_mask"],
-                check_files=self.check_files,
-                transform=self.transform,
-                normalize=self.normalize,
+            self.subset_str = (
+                f"res/splits/{self.config.name}/{{0}}/{self.config.mode}.p"
             )
-
-            self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
-        elif self.dataset_type == "boring":
-            from xmm_superres_denoise.data import BoringDataset
+        elif self.config.type is DatasetType.BORING:
+            from data.dataset import BoringDataset
 
             rank_zero_warn(
                 "You are using the BoringDataset which is meant for testing purposes!"
                 "Ignore this warning if this was on purpose."
             )
             self.dataset = BoringDataset(
-                lr_exp=self.lr_exps,
-                hr_exp=self.hr_exp,
-                hr_res_mult=config["hr"]["res"] // config["lr"]["res"],
+                lr_exps=self.config.lr.exps,
+                hr_exp=self.config.hr.exp,
+                hr_res_mult=self.config.res_mult,
             )
         else:
             raise ValueError(
-                f"Dataset type {self.dataset_type} not known, options: 'real', 'sim'"
+                f"Dataset type {self.config.type} not known, options: 'real', 'sim'"
             )
 
     def _prepare_sim_dataset(self):
@@ -160,32 +131,32 @@ class XmmDataModule(BaseDataModule):
     def prepare_data(self) -> None:
         # Check that for every used exposure time there is a train/val/test split
         # If there is none, create one
-        if self.dataset_type == "sim":
+        if self.config.type is DatasetType.SIM:
             self._prepare_sim_dataset()
-        elif self.dataset_type == "real":
+        elif self.config.type is DatasetType.REAL:
             self._prepare_real_dataset()
 
     def _load_indices(self, subset: str):
-        exps_size = self.dataset.lr_exps.size
-        if self.dataset_type == "sim":
+        exps_size = len(self.config.lr.exps)
+        if self.config.type is DatasetType.SIM:
             with open(self.subset_str.format(subset), "rb") as f:
                 indices = pickle.load(f)
             mult = 1
             if exps_size > 1:
                 mult *= exps_size
 
-            if self.dataset.lr_background > 1:
-                mult *= self.dataset.lr_background
+            if self.config.lr.bkg > 1:
+                mult *= self.config.lr.bkg
 
-            if self.dataset.lr_agn > 1:
-                mult *= self.dataset.lr_agn
+            if self.config.agn > 1:
+                mult *= self.config.lr.agn
 
             indices = np.asarray([indices * (i + 1) for i in range(mult)])
             indices = np.concatenate(indices)
             return indices
-        elif self.dataset_type == "real":
+        elif self.config.type is DatasetType.REAL:
             used_lr_basenames = self.dataset.lr_img_files.index
-            lr_exp = self.dataset.lr_exps[0]
+            lr_exp = self.config.lr.exps[0]
             lr_img_files = find_img_files(self.dataset.lr_img_dirs)
             lr_img_files = match_file_list(
                 {lr_exp: lr_img_files[lr_exp]}, None, self.dataset.split_key
@@ -200,7 +171,7 @@ class XmmDataModule(BaseDataModule):
             return indices
 
     def setup(self, stage: str) -> None:
-        if self.dataset_type == "boring":
+        if self.config.type is DatasetType.BORING:
             train, val, test = random_split(self.dataset, [0.8, 0.1, 0.1])
             self.train_subset = Subset(self.dataset, train)
             self.val_subset = Subset(self.dataset, val)

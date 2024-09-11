@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import torch
 from astropy.io import fits
 from astropy.visualization import ImageNormalize, PercentileInterval
-from data.utils import apply_transform, load_det_mask, load_fits, reshape_img_to_res
+from data.tools import apply_transform, load_det_mask, load_fits, reshape_img_to_res
 from matplotlib import colormaps
 from transforms import Crop, Normalize
 from transforms.totensor import ToTensor

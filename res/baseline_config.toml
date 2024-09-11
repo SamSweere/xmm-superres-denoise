@@ -12,6 +12,7 @@ checkpoint_path = ""
 devices = "auto"
 epochs = 50
 log_images_every_n_epochs = 0
+checkpoint_root = ""
 
 [dataset]
 agn = 1

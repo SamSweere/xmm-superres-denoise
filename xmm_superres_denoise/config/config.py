@@ -9,7 +9,6 @@ from pydantic import (
     NonNegativeFloat,
     NonNegativeInt,
     PositiveInt,
-    SecretStr,
     computed_field,
 )
 
@@ -34,6 +33,8 @@ class ImageType(StrEnum):
 def _check_path_before(value: str) -> Path | None:
     if value != "":
         return Path(value)
+
+    return None
 
 
 def _check_path_after(value: Path) -> Path | None:
@@ -146,7 +147,24 @@ class ModelCfg(BaseModel):
 
 
 class WandbCfg(BaseModel):
-    api_key: SecretStr
+    api_key: str
     project: str
     online: bool
     run_id: str
+    log_model: bool
+
+
+class TrainerCfg(BaseModel):
+    accelerator: Literal["auto", "cpu", "gpu"]
+    strategy: Literal["auto", "ddp"]
+    checkpoint_path: Annotated[
+        Path | None,
+        BeforeValidator(_check_path_before),
+    ]
+    checkpoint_root: Annotated[
+        Path | None,
+        BeforeValidator(_check_path_before),
+    ]
+    devices: PositiveInt | Literal["auto"]
+    epochs: PositiveInt
+    log_images_every_n_epochs: NonNegativeInt

@@ -2,7 +2,7 @@ import tomllib
 from argparse import ArgumentParser
 from pathlib import Path
 
-from config.config import DatasetCfg, WandbCfg
+from config.config import DatasetCfg, TrainerCfg, WandbCfg
 from loguru import logger
 from metrics import get_ext_metrics, get_in_ext_metrics, get_in_metrics, get_metrics
 from pytorch_lightning import Trainer
@@ -42,8 +42,10 @@ if __name__ == "__main__":
 
     loss_config: dict = read_yaml(Path("res") / "configs" / "loss_functions.yaml")
 
-    trainer_config: dict = run_config["trainer"]
+    trainer_config: TrainerCfg = TrainerCfg(**cfg.pop("trainer"))
 
+    # --- Initialise the logger --- #
+    logger.info("Creating the WandbLogger...")
     if wandb_config.online:
         wandb.login(key=wandb_config.api_key)
 
@@ -55,10 +57,15 @@ if __name__ == "__main__":
         resume="must" if wandb_config.run_id else None,
         id=wandb_config.run_id if wandb_config.run_id else None,
     )
+    del wandb_config
+    logger.success("Created WandbLogger!")
 
+    # --- Initialise the XmmDataModule --- #
     logger.info("Creating data module...")
     datamodule = XmmDataModule(dataset_config)
+    logger.success("Created the data module!")
 
+    # --- Create the loss function --- #
     loss = create_loss(data_scaling=dataset_config.scaling, loss_config=loss_config)
 
     logger.info(f"Created loss function {loss}")
@@ -118,10 +125,10 @@ if __name__ == "__main__":
 
     if args.routine == "fit":
         callbacks = []
-        if trainer_config["log_images_every_n_epochs"] > 0:
+        if trainer_config.log_images_every_n_epochs > 0:
             il = ImageLogger(
                 datamodule=XmmDisplayDataModule(dataset_config),
-                log_every_n_epochs=trainer_config["log_images_every_n_epochs"],
+                log_every_n_epochs=trainer_config.log_images_every_n_epochs,
                 normalize=datamodule.normalize,
                 scaling_normalizers=scaling_normalizers,
                 data_range=hr_max,
@@ -129,7 +136,8 @@ if __name__ == "__main__":
             callbacks.append(il)
         checkpoint_callback = ModelCheckpoint(
             monitor="val/loss",
-            dirpath=f"{trainer_config['checkpoint_dir']}/checkpoints",
+            dirpath=f"{trainer_config.checkpoint_root}/checkpoints/"
+            f"{wandb_logger.experiment.name}_{wandb_logger.experiment.id}",
             filename=f"epoch:{{epoch:05d}}-val_loss:{{val/loss:.5f}}",
             mode="min",
             auto_insert_metric_name=False,
@@ -138,23 +146,25 @@ if __name__ == "__main__":
 
     trainer = Trainer(
         logger=wandb_logger,
-        accelerator=trainer_config["accelerator"],
-        devices=trainer_config["devices"] if args.routine == "fit" else 1,
-        max_epochs=trainer_config["epochs"],
-        strategy=trainer_config["strategy"],
+        accelerator=trainer_config.accelerator,
+        devices=trainer_config.devices if args.routine == "fit" else 1,
+        max_epochs=trainer_config.epochs,
+        strategy=trainer_config.strategy,
         callbacks=callbacks,
+        limit_train_batches=10,
+        limit_val_batches=10,
     )
 
     if args.routine == "fit":
-        if trainer_config["checkpoint_path"] is not None:
+        if trainer_config.checkpoint_path is not None:
             logger.warning(
                 "You have given a checkpoint_path in the trainer config! If it was on purpose, then "
                 "you can ignore this warning."
             )
         trainer.fit(
-            model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"]
+            model, datamodule=datamodule, ckpt_path=trainer_config.checkpoint_path
         )
     else:
         trainer.test(
-            model, datamodule=datamodule, ckpt_path=trainer_config["checkpoint_path"]
+            model, datamodule=datamodule, ckpt_path=trainer_config.checkpoint_path
         )

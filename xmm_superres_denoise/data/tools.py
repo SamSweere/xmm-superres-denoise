@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 from astropy.io import fits
-from pytorch_lightning.utilities import rank_zero_info
+from loguru import logger
 from torch.utils.data import Subset
 from tqdm import tqdm
 
@@ -15,7 +15,7 @@ from tqdm import tqdm
 def save_splits(paths: List[Path], splits: List[Subset]):
     for path, split in zip(paths, splits):
         indices = np.asarray(split.indices)
-        rank_zero_info(f"\tSplit {path} contains {len(indices)} images")
+        logger.info(f"\tSplit {path} contains {len(indices)} images")
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w+b") as f:
             pickle.dump(indices, f)
@@ -32,7 +32,7 @@ def find_dir(parent: Path, pattern: str) -> Path:
         if res.name.endswith(".zip"):
             zip_file = res
     if dir_path is None and zip_file is not None:
-        rank_zero_info(f"Extracting {zip_file} to {parent}...")
+        logger.info(f"Extracting {zip_file} to {parent}...")
         with ZipFile(zip_file, "r") as zip_f:
             zip_f.extractall(parent)
         dir_path = parent / pattern.replace(
@@ -72,15 +72,17 @@ def find_img_files(exp_dirs_dict: Dict[int, list[Path]]) -> Dict[int, List[Path]
     return res
 
 
-def check_img_files(img_files: pd.DataFrame, shape: Tuple[int, int], msg: str = None):
+def check_img_files(
+    img_files: pd.DataFrame, shape: Tuple[int, int, int], msg: str = None
+):
     for base_name, files in tqdm(img_files.iterrows(), desc=msg):
-        for exp, path_list in files.items():
+        for exp, path_list in tqdm(files.items(), leave=False):
             for path in path_list:
                 check_img_corr(path, shape=shape)
 
 
 def check_img_corr(img_path, shape):
-    img = load_fits(img_path)["img"]
+    img = load_fits(img_path)
 
     max_val = 100000
     min_val = 0
@@ -90,22 +92,22 @@ def check_img_corr(img_path, shape):
             f"ERROR {img_path} wrong shape ({img.shape}, while desired shape is {shape}"
         )
 
-    if np.any(np.isnan(img)):
+    if torch.any(torch.isnan(img)):
         raise ValueError(f"ERROR {img_path} contains a NAN")
 
-    if np.any(img > max_val):
+    if torch.any(img > max_val):
         raise ValueError(f"ERROR {img_path} contains a value bigger then {max_val}")
 
-    if np.any(img < min_val):
+    if torch.any(img < min_val):
         raise ValueError(f"ERROR {img_path} contains a value smaller then {min_val}")
 
 
-def load_fits(fits_path: Path) -> np.ndarray:
+def load_fits(fits_path: Path) -> torch.Tensor:
     # Extract the image data from the fits file and convert to float
     # (these images will be in int but since we will work with floats in pytorch we convert them to float)
     img = fits.getdata(fits_path, "PRIMARY")
 
-    img = img.astype(np.float32)
+    img = torch.from_numpy(img.astype(np.float32)).unsqueeze(dim=0)
 
     return img
 
@@ -131,7 +133,7 @@ def load_det_mask(res_mult: int):
         return hdu[0].data.astype(np.float32)
 
 
-def reshape_img_to_res(res: int, img: np.ndarray) -> np.ndarray:
+def reshape_img_to_res(res: int, img: torch.Tensor) -> torch.Tensor:
     """
     Reshape the given image into (res, res)
 
@@ -139,31 +141,20 @@ def reshape_img_to_res(res: int, img: np.ndarray) -> np.ndarray:
     :param img: Image to pad/crop
     :return: Padded/cropped image
     """
-    y_diff = res - img.shape[0]
+    y_diff = res - img.shape[1]
     y_top_pad = int(np.floor(y_diff / 2.0))
     y_bottom_pad = y_diff - y_top_pad
 
-    x_diff = res - img.shape[1]
+    x_diff = res - img.shape[2]
     x_left_pad = int(np.floor(x_diff / 2.0))
     x_right_pad = x_diff - x_left_pad
 
-    if y_diff >= 0:
-        # Pad the image in the y direction
-        img = np.pad(
-            img, ((y_top_pad, y_bottom_pad), (0, 0)), "constant", constant_values=0.0
-        )
-    else:
-        # Crop the image in the y direction
-        img = img[abs(y_top_pad) : img.shape[0] - abs(y_bottom_pad)]
-
-    if x_diff >= 0:
-        # Pad the image in the x direction
-        img = np.pad(
-            img, ((0, 0), (x_left_pad, x_right_pad)), "constant", constant_values=0.0
-        )
-    else:
-        # Crop the image in the x direction
-        img = img[:, abs(x_left_pad) : img.shape[1] - abs(x_right_pad)]
+    img = torch.nn.functional.pad(
+        img,
+        (x_left_pad, x_right_pad, y_top_pad, y_bottom_pad, 0, 0),
+        mode="constant",
+        value=0,
+    )
 
     return img
 
@@ -174,7 +165,7 @@ def get_fits_files(dataset_dir: Path) -> List[Path]:
 
     res: List[Path] = list(dataset_dir.glob("*.fits"))
     res.extend(list(dataset_dir.glob("*.fits.gz")))
-    rank_zero_info(f"\tDetected {len(res)} fits files in {dataset_dir}")
+    logger.info(f"\tDetected {len(res)} fits files in {dataset_dir}")
 
     return sorted(res)
 

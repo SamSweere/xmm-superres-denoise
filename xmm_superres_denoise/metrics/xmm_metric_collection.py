@@ -141,9 +141,7 @@ class XMMMetricCollection(MetricCollection):
             metric_list.append(metrics.clone(prefix=f"{mode}/"))
 
         self.normalizer_dict = normalizer_dict
-        super(XMMMetricCollection, self).__init__(
-            metrics=metric_list, prefix=f"{prefix}/"
-        )
+        super().__init__(metrics=metric_list, prefix=f"{prefix}/")
 
     def update(self, preds, target) -> None:
         preds = self.dataset_normalizer.denormalize_hr_image(preds)
