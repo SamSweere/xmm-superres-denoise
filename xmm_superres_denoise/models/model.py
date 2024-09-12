@@ -69,6 +69,7 @@ class Model(pl.LightningModule):
             self.model = SwinFIR(
                 img_size=self.config.model.img_size,
                 window_size=self.config.model.window_size,
+                patch_size=self.config.model.patch_size,
                 embed_dim=self.config.model.embed_dim,
                 num_heads=self.config.model.num_heads,
                 depths=self.config.model.depths,
@@ -83,6 +84,7 @@ class Model(pl.LightningModule):
             self.model = DRCT(
                 img_size=self.config.model.img_size,
                 window_size=self.config.model.window_size,
+                patch_size=self.config.model.patch_size,
                 embed_dim=self.config.model.embed_dim,
                 num_heads=self.config.model.num_heads,
                 depths=self.config.model.depths,
@@ -96,6 +98,7 @@ class Model(pl.LightningModule):
             self.model = HAT(
                 img_size=self.config.model.img_size,
                 window_size=self.config.model.window_size,
+                patch_size=self.config.model.patch_size,
                 embed_dim=self.config.model.embed_dim,
                 num_heads=self.config.model.num_heads,
                 depths=self.config.model.depths,

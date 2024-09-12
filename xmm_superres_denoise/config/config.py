@@ -160,8 +160,9 @@ class RrdbCfg(BaseModel):
     residual_blocks: PositiveInt
 
 
-class SwinfirCfg(BaseModel):
+class TransformerCfg(BaseModel):
     base_model: Literal["swinfir", "drct", "hat"]
+    patch_size: PositiveInt
     img_size: PositiveInt
     window_size: PositiveInt
     embed_dim: PositiveInt
@@ -175,7 +176,7 @@ class ModelCfg(BaseModel):
     name: BaseModels
     memory_efficient: bool
     batch_size: PositiveInt
-    model: RrdbCfg | SwinfirCfg = Field(..., discriminator="base_model")
+    model: RrdbCfg | TransformerCfg = Field(..., discriminator="base_model")
     optimizer: OptimizerCfg
 
 

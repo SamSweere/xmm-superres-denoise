@@ -124,7 +124,7 @@ class RDG(nn.Module):
             img_size=img_size,
             patch_size=patch_size,
             in_chans=0,
-            embed_dim=dim,
+            embed_dim=-1,
         )
 
     def forward(self, x, xsize):
@@ -231,7 +231,7 @@ class DRCT(nn.Module):
             img_size=img_size,
             patch_size=patch_size,
             in_chans=embed_dim,
-            embed_dim=embed_dim,
+            embed_dim=-1,
         )
 
         # absolute position embedding

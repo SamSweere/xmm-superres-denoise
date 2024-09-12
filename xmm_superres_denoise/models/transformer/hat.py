@@ -660,7 +660,7 @@ class HAT(nn.Module):
         upsampler="",
         resi_connection="1conv",
     ):
-        super(HAT, self).__init__()
+        super().__init__()
 
         self.window_size = window_size
         self.shift_size = window_size // 2
