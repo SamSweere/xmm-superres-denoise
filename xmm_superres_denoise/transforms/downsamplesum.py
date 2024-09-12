@@ -79,8 +79,8 @@ class DownsampleSum(object):
             ).repeat(1, 1, 1, 1)
 
         # The conv2d needs the data to be in minibatches and have dimensions [1, x, x]
-        x = torch.unsqueeze(img, axis=0)
-        x = torch.unsqueeze(x, axis=0)
+        x = torch.unsqueeze(img, dim=0)
+        x = torch.unsqueeze(x, dim=0)
 
         output = torch.nn.functional.conv2d(x, self.weights, stride=self.kernel_size)
 

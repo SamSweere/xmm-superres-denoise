@@ -12,7 +12,7 @@ class ImageUpsample:
 
         if single_image:
             # Put the input into a batch
-            x = torch.unsqueeze(x, axis=0)
+            x = torch.unsqueeze(x, dim=0)
 
         x = self.upsample(x)
 

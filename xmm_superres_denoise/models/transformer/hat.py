@@ -193,7 +193,7 @@ class HAB(nn.Module):
         self.norm1 = norm_layer(dim)
         self.attn = WindowAttention(
             dim,
-            window_size=to_2tuple(self.window_size, 2),
+            window_size=to_2tuple(self.window_size),
             num_heads=num_heads,
             qkv_bias=qkv_bias,
             qk_scale=qk_scale,
