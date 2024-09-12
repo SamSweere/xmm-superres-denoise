@@ -37,6 +37,7 @@ class BaseModels(StrEnum):
     ESR_GEN = "esr_gen"
     RRDB_DENOISE = "rrdb_denoise"
     SWINFIR = "swinfir"
+    DRCT = "drct"
 
 
 def _check_path_before(value: str) -> Path | None:
@@ -159,7 +160,7 @@ class RrdbCfg(BaseModel):
 
 
 class SwinfirCfg(BaseModel):
-    base_model: Literal["swinfir"]
+    base_model: Literal["swinfir", "drct"]
     img_size: PositiveInt
     window_size: PositiveInt
     embed_dim: PositiveInt

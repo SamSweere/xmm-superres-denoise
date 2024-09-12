@@ -76,6 +76,20 @@ class Model(pl.LightningModule):
                 in_chans=self.config.model.in_channels,
                 use_checkpoint=self.config.memory_efficient,
             )
+
+        elif self.config.name is BaseModels.DRCT:
+            from models import DRCT
+
+            self.model = DRCT(
+                img_size=self.config.model.img_size,
+                window_size=self.config.model.window_size,
+                embed_dim=self.config.model.embed_dim,
+                num_heads=self.config.model.num_heads,
+                depths=self.config.model.depths,
+                upsampler=self.config.model.upsampler,
+                in_chans=self.config.model.in_channels,
+                use_checkpoint=self.config.memory_efficient,
+            )
         else:
             raise ValueError(
                 f"Base model name {self.config.name} is not a valid model name!"

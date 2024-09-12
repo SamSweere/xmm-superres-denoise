@@ -1,3 +1,4 @@
 from .model import Model
+from .modules.drct import DRCT
 from .modules.generator_rrdb import GeneratorRRDB_DN, GeneratorRRDB_SR
 from .modules.swinfir import SwinFIR
