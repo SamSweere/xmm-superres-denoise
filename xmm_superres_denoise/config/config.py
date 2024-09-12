@@ -36,7 +36,7 @@ class ImageType(StrEnum):
 class BaseModels(StrEnum):
     ESR_GEN = "esr_gen"
     RRDB_DENOISE = "rrdb_denoise"
-    SWINIR = "swinir"
+    SWINFIR = "swinfir"
 
 
 def _check_path_before(value: str) -> Path | None:
@@ -158,8 +158,8 @@ class RrdbCfg(BaseModel):
     residual_blocks: PositiveInt
 
 
-class SwinirCfg(BaseModel):
-    base_model: Literal["swinir"]
+class SwinfirCfg(BaseModel):
+    base_model: Literal["swinfir"]
     img_size: PositiveInt
     window_size: PositiveInt
     embed_dim: PositiveInt
@@ -173,7 +173,7 @@ class ModelCfg(BaseModel):
     name: BaseModels
     memory_efficient: bool
     batch_size: PositiveInt
-    model: RrdbCfg | SwinirCfg = Field(..., discriminator="base_model")
+    model: RrdbCfg | SwinfirCfg = Field(..., discriminator="base_model")
     optimizer: OptimizerCfg
 
 

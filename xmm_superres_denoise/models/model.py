@@ -63,10 +63,10 @@ class Model(pl.LightningModule):
                 num_res_blocks=self.config.model.residual_blocks,
                 memory_efficient=self.config.memory_efficient,
             )
-        elif self.config.name is BaseModels.SWINIR:
-            from models import SwinIR
+        elif self.config.name is BaseModels.SWINFIR:
+            from models import SwinFIR
 
-            self.model = SwinIR(
+            self.model = SwinFIR(
                 img_size=self.config.model.img_size,
                 window_size=self.config.model.window_size,
                 embed_dim=self.config.model.embed_dim,

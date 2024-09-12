@@ -6,4 +6,4 @@ RUN conda install \
     lightning pandas piq astropy timm matplotlib python-dotenv pydantic loguru tqdm\
     -c pytorch -c conda-forge -c photosynthesis-team
 
-RUN pip install wandb
+RUN pip install wandb einops
