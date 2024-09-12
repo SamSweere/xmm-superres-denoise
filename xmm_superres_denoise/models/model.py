@@ -64,7 +64,7 @@ class Model(pl.LightningModule):
                 memory_efficient=self.config.memory_efficient,
             )
         elif self.config.name is BaseModels.SWINFIR:
-            from models import SwinFIR
+            from models.transformer import SwinFIR
 
             self.model = SwinFIR(
                 img_size=self.config.model.img_size,
@@ -78,7 +78,7 @@ class Model(pl.LightningModule):
             )
 
         elif self.config.name is BaseModels.DRCT:
-            from models import DRCT
+            from models.transformer import DRCT
 
             self.model = DRCT(
                 img_size=self.config.model.img_size,
@@ -91,7 +91,7 @@ class Model(pl.LightningModule):
                 use_checkpoint=self.config.memory_efficient,
             )
         elif self.config.name is BaseModels.HAT:
-            from models import HAT
+            from models.transformer import HAT
 
             self.model = HAT(
                 img_size=self.config.model.img_size,
