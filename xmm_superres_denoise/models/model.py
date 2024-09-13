@@ -136,9 +136,9 @@ class Model(pl.LightningModule):
         batch["preds"] = self(batch["lr"])
 
     def _on_step(self, batch, stage) -> Optional[Tensor]:
-        lr, hr = batch
-        preds = self(lr)
-        target = hr if hr is not None else preds
+        lr_img, hr_img = batch
+        preds = self(lr_img)
+        target = hr_img if hr_img is not None else preds
 
         if stage == "train":
             loss = self.loss(preds=preds, target=target)
@@ -154,21 +154,21 @@ class Model(pl.LightningModule):
             self.loss.update(preds=preds, target=target)
 
             if self.in_metrics is not None or self.ext_metrics is not None:
-                scale_factor = target.shape[2] / lr.shape[2]
+                scale_factor = target.shape[2] / lr_img.shape[2]
                 if scale_factor != 1.0:
-                    lr = ImageUpsample(scale_factor=scale_factor)(lr)
+                    lr_img = ImageUpsample(scale_factor=scale_factor)(lr_img)
 
             if self.metrics is not None:
                 self.metrics.update(preds=preds, target=target)
 
             if self.in_metrics is not None:
-                self.in_metrics.update(preds=lr, target=target)
+                self.in_metrics.update(preds=lr_img, target=target)
 
             if self.ext_metrics is not None:
                 self.ext_metrics.update(preds=preds, target=target)
 
             if self.in_ext_metrics is not None:
-                self.in_ext_metrics.update(preds=lr, target=target)
+                self.in_ext_metrics.update(preds=lr_img, target=target)
 
     def _on_epoch_end(self, stage):
         if stage == "train":

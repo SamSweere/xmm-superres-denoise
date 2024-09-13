@@ -92,14 +92,12 @@ if __name__ == "__main__":
 
     pre = "val" if args.routine == "fit" else "test"
     metrics = get_metrics(
-        data_range=hr_max,
         dataset_normalizer=datamodule.normalize,
         scaling_normalizers=scaling_normalizers,
         prefix=pre,
     )
 
     in_metrics = get_in_metrics(
-        data_range=hr_max,
         dataset_normalizer=datamodule.normalize,
         scaling_normalizers=scaling_normalizers,
         prefix=pre,
@@ -108,14 +106,12 @@ if __name__ == "__main__":
     ext_metrics = in_ext_metrics = None
     if args.routine == "test":
         ext_metrics = get_ext_metrics(
-            data_range=hr_max,
             dataset_normalizer=datamodule.normalize,
             scaling_normalizers=scaling_normalizers,
             prefix=pre,
         )
 
         in_ext_metrics = get_in_ext_metrics(
-            data_range=hr_max,
             dataset_normalizer=datamodule.normalize,
             scaling_normalizers=scaling_normalizers,
             prefix=pre,

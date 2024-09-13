@@ -250,15 +250,17 @@ class XmmDataset(Dataset):
 
         return lr_img, hr_img
 
-    def __getitem__(self, idx) -> tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor | None]:
         # Load a sample based on the given index
         lr_img, hr_img = self.load_sample(idx=idx)
 
-        lr_img = apply_transform(lr_img, self.transform) if self.transform else lr_img
-        hr_img = apply_transform(hr_img, self.transform) if self.transform else hr_img
+        if self.transform:
+            lr_img = apply_transform(lr_img, self.transform)
+            hr_img = apply_transform(hr_img, self.transform)
 
-        lr_img = self.normalize.normalize_lr_image(lr_img) if self.normalize else lr_img
-        hr_img = self.normalize.normalize_hr_image(hr_img) if self.normalize else hr_img
+        if self.normalize:
+            lr_img = self.normalize.normalize_lr_image(lr_img)
+            hr_img = self.normalize.normalize_hr_image(hr_img)
 
         return lr_img, hr_img
 
