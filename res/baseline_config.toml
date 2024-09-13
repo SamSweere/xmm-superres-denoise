@@ -21,6 +21,7 @@ check_files = false
 crop_mode = "center"
 debug = false
 directory = ""
+comb_hr = false
 # The mode, img or agn. If agn the model samples from agn as if it is an image.
 mode = "img"
 name = "sim_dataset"

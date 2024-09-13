@@ -74,7 +74,7 @@ class XmmDataModule(BaseDataModule):
 
             self.dataset = XmmDataset(
                 config=self.config,
-                comb_hr_img=False,
+                comb_hr_img=self.config.comb_hr,
                 transform=self.transform,
                 normalize=self.normalize,
             )

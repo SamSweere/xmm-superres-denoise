@@ -91,6 +91,7 @@ class DatasetCfg(BaseModel):
     batch_size: PositiveInt
     check_files: bool
     debug: bool
+    comb_hr: bool
     crop_mode: Literal["center", "random", "boresight"]
     directory: Path
     mode: Literal["img", "agn"]
