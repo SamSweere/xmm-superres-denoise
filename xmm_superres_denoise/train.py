@@ -129,6 +129,8 @@ if __name__ == "__main__":
     )
     del model_config
 
+    model.compile()
+
     callbacks = None
 
     if args.routine == "fit":

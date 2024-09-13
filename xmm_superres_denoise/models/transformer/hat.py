@@ -4,6 +4,7 @@ from einops import rearrange
 from models.transformer.modules import DropPath, Mlp, PatchEmbed, PatchUnEmbed, Upsample
 from models.transformer.tools import init_weights, window_partition, window_reverse
 from timm.layers import to_2tuple, trunc_normal_
+from torch.utils.checkpoint import checkpoint
 
 
 class ChannelAttention(nn.Module):
@@ -491,9 +492,15 @@ class AttenBlocks(nn.Module):
 
     def forward(self, x, x_size, params):
         for blk in self.blocks:
-            x = blk(x, x_size, params["rpi_sa"], params["attn_mask"])
+            if self.use_checkpoint:
+                x = checkpoint(blk, x, x_size, params["rpi_sa"], params["attn_mask"])
+            else:
+                x = blk(x, x_size, params["rpi_sa"], params["attn_mask"])
 
-        x = self.overlap_attn(x, x_size, params["rpi_oca"])
+        if self.use_checkpoint:
+            x = checkpoint(self.overlap_attn, x, x_size, params["rpi_oca"])
+        else:
+            x = self.overlap_attn(x, x_size, params["rpi_oca"])
 
         if self.downsample is not None:
             x = self.downsample(x)
