@@ -8,6 +8,7 @@ from models.transformer.modules import (
 )
 from models.transformer.tools import init_weights
 from timm.layers import trunc_normal_
+from torch.utils.checkpoint import checkpoint
 
 
 class RDG(nn.Module):
@@ -27,9 +28,10 @@ class RDG(nn.Module):
         gc,
         patch_size,
         img_size,
+        use_checkpointing=False,
     ):
         super().__init__()
-
+        self.use_checkpointing = use_checkpointing
         self.swin1 = SwinTransformerBlock(
             dim=dim,
             input_resolution=input_resolution,
@@ -128,31 +130,55 @@ class RDG(nn.Module):
         )
 
     def forward(self, x, xsize):
-        x1 = self.pe(self.lrelu(self.adjust1(self.pue(self.swin1(x, xsize), xsize))))
-        x2 = self.pe(
-            self.lrelu(
-                self.adjust2(self.pue(self.swin2(torch.cat((x, x1), -1), xsize), xsize))
+        if self.use_checkpointing:
+            x1 = checkpoint(self.swin1, x, xsize)
+            x1 = self.pe(self.lrelu(self.adjust1(self.pue(x1, xsize))))
+
+            x2 = checkpoint(self.swin2, torch.cat((x, x1), -1), xsize)
+            x2 = self.pe(self.lrelu(self.adjust2(self.pue(x2, xsize))))
+
+            x3 = checkpoint(self.swin3, torch.cat((x, x1, x2), -1), xsize)
+            x3 = self.pe(self.lrelu(self.adjust3(self.pue(x3, xsize))))
+
+            x4 = checkpoint(self.swin4, torch.cat((x, x1, x2, x3), -1), xsize)
+            x4 = self.pe(self.lrelu(self.adjust4(self.pue(x4, xsize))))
+
+            x5 = checkpoint(self.swin5, torch.cat((x, x1, x2, x3, x4), -1), xsize)
+            x5 = self.pe(self.adjust5(self.pue(x5, xsize)))
+        else:
+            x1 = self.pe(
+                self.lrelu(self.adjust1(self.pue(self.swin1(x, xsize), xsize)))
             )
-        )
-        x3 = self.pe(
-            self.lrelu(
-                self.adjust3(
-                    self.pue(self.swin3(torch.cat((x, x1, x2), -1), xsize), xsize)
+            x2 = self.pe(
+                self.lrelu(
+                    self.adjust2(
+                        self.pue(self.swin2(torch.cat((x, x1), -1), xsize), xsize)
+                    )
                 )
             )
-        )
-        x4 = self.pe(
-            self.lrelu(
-                self.adjust4(
-                    self.pue(self.swin4(torch.cat((x, x1, x2, x3), -1), xsize), xsize)
+            x3 = self.pe(
+                self.lrelu(
+                    self.adjust3(
+                        self.pue(self.swin3(torch.cat((x, x1, x2), -1), xsize), xsize)
+                    )
                 )
             )
-        )
-        x5 = self.pe(
-            self.adjust5(
-                self.pue(self.swin5(torch.cat((x, x1, x2, x3, x4), -1), xsize), xsize)
+            x4 = self.pe(
+                self.lrelu(
+                    self.adjust4(
+                        self.pue(
+                            self.swin4(torch.cat((x, x1, x2, x3), -1), xsize), xsize
+                        )
+                    )
+                )
             )
-        )
+            x5 = self.pe(
+                self.adjust5(
+                    self.pue(
+                        self.swin5(torch.cat((x, x1, x2, x3, x4), -1), xsize), xsize
+                    )
+                )
+            )
 
         return x5 * 0.2 + x
 
@@ -266,6 +292,7 @@ class DRCT(nn.Module):
                 gc=gc,
                 img_size=img_size,
                 patch_size=patch_size,
+                use_checkpointing=use_checkpoint,
             )
 
             self.layers.append(layer)
