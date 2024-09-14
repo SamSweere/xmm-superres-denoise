@@ -148,38 +148,59 @@ class RDG(nn.Module):
         x1 = self.pe(
             self.lrelu(self.adjust1(self.pue(self.swin1(x, xsize), xsize)))
         )
+
+        x_x1 = torch.cat((x1, x), dim=-1)
+        del x1
+
         x2 = self.pe(
             self.lrelu(
                 self.adjust2(
-                    self.pue(self.swin2(torch.cat((x, x1), -1), xsize), xsize)
-                )
-            )
-        )
-        x3 = self.pe(
-            self.lrelu(
-                self.adjust3(
-                    self.pue(self.swin3(torch.cat((x, x1, x2), -1), xsize), xsize)
-                )
-            )
-        )
-        x4 = self.pe(
-            self.lrelu(
-                self.adjust4(
-                    self.pue(
-                        self.swin4(torch.cat((x, x1, x2, x3), -1), xsize), xsize
-                    )
-                )
-            )
-        )
-        x5 = self.pe(
-            self.adjust5(
-                self.pue(
-                    self.swin5(torch.cat((x, x1, x2, x3, x4), -1), xsize), xsize
+                    self.pue(self.swin2(x_x1, xsize), xsize)
                 )
             )
         )
 
-        return x5 * 0.2 + x
+        x_x1_x2 = torch.cat((x_x1, x2), dim=-1)
+        del x_x1, x2
+
+        x3 = self.pe(
+            self.lrelu(
+                self.adjust3(
+                    self.pue(self.swin3(x_x1_x2, xsize), xsize)
+                )
+            )
+        )
+
+        x_x1_x2_x3 = torch.cat((x_x1_x2, x3), dim=-1)
+        del x_x1_x2, x3
+
+        x4 = self.pe(
+            self.lrelu(
+                self.adjust4(
+                    self.pue(
+                        self.swin4(x_x1_x2_x3, xsize), xsize
+                    )
+                )
+            )
+        )
+
+        x_x1_x2_x3_x4 = torch.cat((x_x1_x2_x3, x4), dim=-1)
+        del x_x1_x2_x3, x4
+
+        x5 = self.pe(
+            self.adjust5(
+                self.pue(
+                    self.swin5(x_x1_x2_x3_x4, xsize), xsize
+                )
+            )
+        )
+
+        del x_x1_x2_x3_x4
+
+        x5 *= 0.2
+        x5 += x
+
+        return x
 
 
 class DRCT(nn.Module):
