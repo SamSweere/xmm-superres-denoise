@@ -41,6 +41,18 @@ class BaseModels(StrEnum):
     HAT = "hat"
 
 
+class TrainerStrategy(StrEnum):
+    AUTO = "auto"
+    DDP = "ddp"
+    FSDP = "fsdp"
+
+
+class TrainerAccelerator(StrEnum):
+    AUTO = "auto"
+    CPU = "cpu"
+    CUDA = "cuda"
+
+
 def _check_path_before(value: str) -> Path | None:
     if value != "":
         return Path(value)
@@ -190,8 +202,8 @@ class WandbCfg(BaseModel):
 
 
 class TrainerCfg(BaseModel):
-    accelerator: Literal["auto", "cpu", "gpu"]
-    strategy: Literal["auto", "ddp"]
+    accelerator: TrainerAccelerator
+    strategy: TrainerStrategy
     checkpoint_path: Annotated[
         Path | None,
         BeforeValidator(_check_path_before),

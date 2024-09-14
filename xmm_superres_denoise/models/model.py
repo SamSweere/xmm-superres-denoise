@@ -32,84 +32,19 @@ class Model(pl.LightningModule):
 
         # Model and model parameters
         self.loss = loss
-        self.model: torch.nn.Module
-        if self.config.name is BaseModels.ESR_GEN:
-            from models import GeneratorRRDB_SR
+        self.model: torch.nn.Module | None = None
+        self.hr_shape = hr_shape
+        self.lr_shape = lr_shape
+        self.auto_wrap_policy = None
+        self.activation_checkpointing_policy = None
 
-            up_scale = hr_shape[0] / lr_shape[0]
-            if up_scale % 2 != 0:
-                raise ValueError(
-                    f"Upscaling is not a multiple of two but {up_scale}, "
-                    f"based on in_dims {lr_shape} and out_dims {hr_shape}"
-                )
+        if self.config.name is BaseModels.DRCT:
+            from models.transformer.modules import SwinTransformerBlock
 
-            up_scale = int(up_scale / 2)
-            # Initialize generator and discriminator
-            self.model = GeneratorRRDB_SR(
-                in_channels=self.config.model.in_channels,
-                out_channels=self.config.model.out_channels,
-                num_filters=self.config.model.filters,
-                num_res_blocks=self.config.model.residual_blocks,
-                num_upsample=up_scale,
-                memory_efficient=self.config.memory_efficient,
-            )
-        elif self.config.name is BaseModels.RRDB_DENOISE:
-            from models import GeneratorRRDB_DN
+            self.auto_wrap_policy = {SwinTransformerBlock}
+            if self.config.memory_efficient:
+                self.activation_checkpointing_policy = {SwinTransformerBlock}
 
-            self.model = GeneratorRRDB_DN(
-                in_channels=self.config.model.in_channels,
-                out_channels=self.config.model.out_channels,
-                num_filters=self.config.model.filters,
-                num_res_blocks=self.config.model.residual_blocks,
-                memory_efficient=self.config.memory_efficient,
-            )
-        elif self.config.name is BaseModels.SWINFIR:
-            from models.transformer import SwinFIR
-
-            self.model = SwinFIR(
-                img_size=self.config.model.img_size,
-                window_size=self.config.model.window_size,
-                patch_size=self.config.model.patch_size,
-                embed_dim=self.config.model.embed_dim,
-                num_heads=self.config.model.num_heads,
-                depths=self.config.model.depths,
-                upsampler=self.config.model.upsampler,
-                in_chans=self.config.model.in_channels,
-                use_checkpoint=self.config.memory_efficient,
-            )
-
-        elif self.config.name is BaseModels.DRCT:
-            from models.transformer import DRCT
-
-            self.model = DRCT(
-                img_size=self.config.model.img_size,
-                window_size=self.config.model.window_size,
-                patch_size=self.config.model.patch_size,
-                embed_dim=self.config.model.embed_dim,
-                num_heads=self.config.model.num_heads,
-                depths=self.config.model.depths,
-                upsampler=self.config.model.upsampler,
-                in_chans=self.config.model.in_channels,
-                use_checkpoint=self.config.memory_efficient,
-            )
-        elif self.config.name is BaseModels.HAT:
-            from models.transformer import HAT
-
-            self.model = HAT(
-                img_size=self.config.model.img_size,
-                window_size=self.config.model.window_size,
-                patch_size=self.config.model.patch_size,
-                embed_dim=self.config.model.embed_dim,
-                num_heads=self.config.model.num_heads,
-                depths=self.config.model.depths,
-                upsampler=self.config.model.upsampler,
-                in_chans=self.config.model.in_channels,
-                use_checkpoint=self.config.memory_efficient,
-            )
-        else:
-            raise ValueError(
-                f"Base model name {self.config.name} is not a valid model name!"
-            )
 
     def forward(self, x) -> torch.Tensor:
         return torch.clamp(self.model(x), min=0.0, max=1.0)
@@ -215,6 +150,85 @@ class Model(pl.LightningModule):
                     on_epoch=True,
                     sync_dist=True,
                 )
+
+    def configure_model(self) -> None:
+        if self.model is not None:
+            return
+
+        if self.config.name is BaseModels.ESR_GEN:
+            from models import GeneratorRRDB_SR
+
+            up_scale = self.hr_shape[0] / self.lr_shape[0]
+            if up_scale % 2 != 0:
+                raise ValueError(
+                    f"Upscaling is not a multiple of two but {up_scale}, "
+                    f"based on in_dims {self.lr_shape} and out_dims {self.hr_shape}"
+                )
+
+            up_scale = int(up_scale / 2)
+            # Initialize generator and discriminator
+            self.model = GeneratorRRDB_SR(
+                in_channels=self.config.model.in_channels,
+                out_channels=self.config.model.out_channels,
+                num_filters=self.config.model.filters,
+                num_res_blocks=self.config.model.residual_blocks,
+                num_upsample=up_scale,
+                memory_efficient=self.config.memory_efficient,
+            )
+        elif self.config.name is BaseModels.RRDB_DENOISE:
+            from models import GeneratorRRDB_DN
+
+            self.model = GeneratorRRDB_DN(
+                in_channels=self.config.model.in_channels,
+                out_channels=self.config.model.out_channels,
+                num_filters=self.config.model.filters,
+                num_res_blocks=self.config.model.residual_blocks,
+                memory_efficient=self.config.memory_efficient,
+            )
+        elif self.config.name is BaseModels.SWINFIR:
+            from models.transformer import SwinFIR
+
+            self.model = SwinFIR(
+                img_size=self.config.model.img_size,
+                window_size=self.config.model.window_size,
+                patch_size=self.config.model.patch_size,
+                embed_dim=self.config.model.embed_dim,
+                num_heads=self.config.model.num_heads,
+                depths=self.config.model.depths,
+                upsampler=self.config.model.upsampler,
+                in_chans=self.config.model.in_channels,
+                use_checkpoint=self.config.memory_efficient,
+            )
+
+        elif self.config.name is BaseModels.DRCT:
+            from models.transformer import DRCT
+
+            self.model = DRCT(
+                img_size=self.config.model.img_size,
+                window_size=self.config.model.window_size,
+                patch_size=self.config.model.patch_size,
+                embed_dim=self.config.model.embed_dim,
+                num_heads=self.config.model.num_heads,
+                depths=self.config.model.depths,
+                upsampler=self.config.model.upsampler,
+                in_chans=self.config.model.in_channels,
+                use_checkpoint=self.config.memory_efficient,
+            )
+        elif self.config.name is BaseModels.HAT:
+            from models.transformer import HAT
+
+            self.model = HAT(
+                img_size=self.config.model.img_size,
+                window_size=self.config.model.window_size,
+                patch_size=self.config.model.patch_size,
+                embed_dim=self.config.model.embed_dim,
+                num_heads=self.config.model.num_heads,
+                depths=self.config.model.depths,
+                upsampler=self.config.model.upsampler,
+                in_chans=self.config.model.in_channels,
+                use_checkpoint=self.config.memory_efficient,
+            )
+
 
     def configure_optimizers(self):
         # Optimizers

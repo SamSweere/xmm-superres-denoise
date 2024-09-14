@@ -2,12 +2,13 @@ import tomllib
 from argparse import ArgumentParser
 from pathlib import Path
 
-from config.config import DatasetCfg, LossCfg, ModelCfg, TrainerCfg, WandbCfg
+from config.config import DatasetCfg, LossCfg, ModelCfg, TrainerCfg, WandbCfg, TrainerStrategy
 from loguru import logger
 from metrics import get_ext_metrics, get_in_ext_metrics, get_in_metrics, get_metrics
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers.wandb import WandbLogger
+from pytorch_lightning.strategies import FSDPStrategy
 from transforms import Normalize
 from utils import ImageLogger
 from utils.loss_functions import create_loss
@@ -85,10 +86,7 @@ if __name__ == "__main__":
     lr_shape = (dataset_config.lr.res, dataset_config.lr.res)
     hr_shape = (dataset_config.hr.res, dataset_config.hr.res)
     del dataset_config
-    scaling_normalizers = [
-        Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode=s_mode)
-        for s_mode in ["linear", "sqrt", "asinh", "log"]
-    ]
+    scaling_normalizers = [Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode="linear")]
 
     pre = "val" if args.routine == "fit" else "test"
     metrics = get_metrics(
@@ -153,6 +151,11 @@ if __name__ == "__main__":
             auto_insert_metric_name=False,
         )
         callbacks.append(checkpoint_callback)
+
+    strategy = trainer_config.strategy
+    if trainer_config.strategy is TrainerStrategy.FSDP:
+        strategy = FSDPStrategy(auto_wrap_policy=model.auto_wrap_policy,
+                                activation_checkpointing_policy=model.activation_checkpointing_policy)
 
     trainer = Trainer(
         logger=wandb_logger,
