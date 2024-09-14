@@ -39,11 +39,11 @@ class Model(pl.LightningModule):
         self.activation_checkpointing_policy = None
 
         if self.config.name is BaseModels.DRCT:
-            from models.transformer.modules import SwinTransformerBlock
+            from models.transformer.modules import SwinTransformerBlock, WindowAttention
 
-            self.auto_wrap_policy = {SwinTransformerBlock}
+            self.auto_wrap_policy = {SwinTransformerBlock, WindowAttention}
             if self.config.memory_efficient:
-                self.activation_checkpointing_policy = {SwinTransformerBlock}
+                self.activation_checkpointing_policy = {SwinTransformerBlock, WindowAttention}
 
 
     def forward(self, x) -> torch.Tensor:
