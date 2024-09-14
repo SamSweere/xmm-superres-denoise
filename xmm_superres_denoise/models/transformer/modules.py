@@ -129,8 +129,11 @@ class WindowAttention(nn.Module):
             qkv[2],
         )  # make torchscript happy (cannot use tensor as tuple)
 
-        q = q * self.scale
+        q *= self.scale
         attn = q @ k.transpose(-2, -1)
+
+        # Free up memory taken up by q and k
+        del q, k
 
         relative_position_bias = self.relative_position_bias_table[
             self.relative_position_index.view(-1)
@@ -142,7 +145,7 @@ class WindowAttention(nn.Module):
         relative_position_bias = relative_position_bias.permute(
             2, 0, 1
         ).contiguous()  # nH, Wh*Ww, Wh*Ww
-        attn = attn + relative_position_bias.unsqueeze(0)
+        attn += relative_position_bias.unsqueeze(0)
 
         if mask is not None:
             nW = mask.shape[0]
@@ -150,13 +153,21 @@ class WindowAttention(nn.Module):
                 1
             ).unsqueeze(0)
             attn = attn.view(-1, self.num_heads, n, n)
-            attn = self.softmax(attn)
-        else:
-            attn = self.softmax(attn)
+
+        attn = self.softmax(attn)
 
         attn = self.attn_drop(attn)
 
-        x = (attn @ v).transpose(1, 2).reshape(b_, n, c)
+        attn @= v
+
+        # Free up memory taken up by v
+        del v
+
+        x = attn.transpose(1, 2).reshape(b_, n, c)
+
+        # Free up memory taken up by attn
+        del attn
+
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
