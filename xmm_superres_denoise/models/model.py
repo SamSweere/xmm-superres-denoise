@@ -39,12 +39,11 @@ class Model(pl.LightningModule):
         self.activation_checkpointing_policy = None
 
         if self.config.name is BaseModels.DRCT:
-            from models.transformer.modules import SwinTransformerBlock, WindowAttention
+            from models.transformer.modules import SwinTransformerBlock
 
-            self.auto_wrap_policy = {SwinTransformerBlock, WindowAttention}
+            self.auto_wrap_policy = {SwinTransformerBlock}
             if self.config.memory_efficient:
-                self.activation_checkpointing_policy = {SwinTransformerBlock, WindowAttention}
-
+                self.activation_checkpointing_policy = {SwinTransformerBlock}
 
     def forward(self, x) -> torch.Tensor:
         return torch.clamp(self.model(x), min=0.0, max=1.0)
@@ -228,7 +227,14 @@ class Model(pl.LightningModule):
                 in_chans=self.config.model.in_channels,
                 use_checkpoint=self.config.memory_efficient,
             )
+        elif self.config.name is BaseModels.RESTORMER:
+            from models.transformer import Restormer
 
+            self.model = Restormer(
+                inp_channels=self.config.model.in_channels,
+                out_channels=self.config.model.out_channels,
+                dim=self.config.model.dim,
+            )
 
     def configure_optimizers(self):
         # Optimizers

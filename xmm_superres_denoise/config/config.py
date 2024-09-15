@@ -39,6 +39,7 @@ class BaseModels(StrEnum):
     SWINFIR = "swinfir"
     DRCT = "drct"
     HAT = "hat"
+    RESTORMER = "restormer"
 
 
 class TrainerStrategy(StrEnum):
@@ -185,11 +186,20 @@ class TransformerCfg(BaseModel):
     depths: list[PositiveInt]
 
 
+class RestormerCfg(BaseModel):
+    base_model: Literal["restormer"]
+    in_channels: PositiveInt
+    out_channels: PositiveInt
+    dim: PositiveInt
+
+
 class ModelCfg(BaseModel):
     name: BaseModels
     memory_efficient: bool
     batch_size: PositiveInt
-    model: RrdbCfg | TransformerCfg = Field(..., discriminator="base_model")
+    model: RrdbCfg | TransformerCfg | RestormerCfg = Field(
+        ..., discriminator="base_model"
+    )
     optimizer: OptimizerCfg
 
 

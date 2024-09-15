@@ -54,3 +54,11 @@ num_heads = [6, 6, 6, 6, 6, 6]
 depths = [6, 6, 6, 6, 6, 6]
 learning_rate = 0.0002
 betas = [0.9, 0.999]
+
+[restormer]
+base_model = "restormer"
+in_channels = 1
+out_channels = 1
+dim = 36
+learning_rate = 0.0001
+betas = [0.9, 0.999]
