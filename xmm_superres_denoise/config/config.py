@@ -113,7 +113,7 @@ class DatasetCfg(BaseModel):
     # TODO What about display type?
     type: DatasetType
     lr: LrDatasetCfg
-    hr: HrDatasetCfg
+    hr: HrDatasetCfg | None
 
     @computed_field
     @property

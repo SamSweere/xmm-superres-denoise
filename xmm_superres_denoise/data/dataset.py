@@ -18,7 +18,7 @@ from data.tools import (
 )
 from loguru import logger
 from torch.utils.data import Dataset, random_split
-from transforms import Normalize
+from transforms import ImageUpsample, Normalize
 
 
 def _load_and_combine_simulations(
@@ -27,6 +27,7 @@ def _load_and_combine_simulations(
     agn_path: Path = None,
     background_path: Path = None,
     det_mask: Path = None,
+    upsample: ImageUpsample = None,
 ):
     # Load the image data
     img = load_fits(img_path)
@@ -39,6 +40,9 @@ def _load_and_combine_simulations(
 
     if det_mask is not None:
         img *= load_fits(det_mask)  # Note the *=
+
+    if upsample is not None:
+        img = upsample(img)
 
     img = reshape_img_to_res(res=res, img=img)
 
@@ -111,7 +115,7 @@ class XmmDataset(Dataset):
         elif self.config.type is DatasetType.SIM:
             pattern = f"*/*/{self.config.res_mult}x"
 
-        if self.config.type is DatasetType.REAL and not self.config.hr.exp:
+        if self.config.type is DatasetType.REAL and self.config.hr is None:
             hr_img_files = None
         else:
             hr_img_dirs = find_img_dirs(
@@ -124,6 +128,13 @@ class XmmDataset(Dataset):
             lr_img_files, hr_img_files, split_key
         )
         del lr_img_dirs, lr_img_files, hr_img_dirs, hr_img_files
+
+        self.upsample = None
+        if (
+            self.config.type is DatasetType.REAL
+            and self.config.hr.res != self.config.lr.res
+        ):
+            self.upsample = ImageUpsample(self.config.res_mult)
 
         if self.config.check_files:
             check_img_files(
@@ -246,6 +257,7 @@ class XmmDataset(Dataset):
                 agn_path=hr_agn_path,
                 background_path=None,
                 det_mask=self.config.hr.det_mask,
+                upsample=self.upsample,
             )
 
         return lr_img, hr_img

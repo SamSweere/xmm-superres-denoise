@@ -2,7 +2,14 @@ import tomllib
 from argparse import ArgumentParser
 from pathlib import Path
 
-from config.config import DatasetCfg, LossCfg, ModelCfg, TrainerCfg, WandbCfg, TrainerStrategy
+from config.config import (
+    DatasetCfg,
+    LossCfg,
+    ModelCfg,
+    TrainerCfg,
+    TrainerStrategy,
+    WandbCfg,
+)
 from loguru import logger
 from metrics import get_ext_metrics, get_in_ext_metrics, get_in_metrics, get_metrics
 from pytorch_lightning import Trainer
@@ -30,6 +37,9 @@ if __name__ == "__main__":
 
     wandb_config: WandbCfg = WandbCfg(**cfg["wandb"])
 
+    dataset = cfg["dataset"]
+    if dataset["hr"]["exp"] == 0:
+        dataset["hr"] = None
     dataset_config: DatasetCfg = DatasetCfg(**cfg["dataset"])
 
     model_config: dict = cfg["model"]
@@ -86,7 +96,9 @@ if __name__ == "__main__":
     lr_shape = (dataset_config.lr.res, dataset_config.lr.res)
     hr_shape = (dataset_config.hr.res, dataset_config.hr.res)
     del dataset_config
-    scaling_normalizers = [Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode="linear")]
+    scaling_normalizers = [
+        Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode="linear")
+    ]
 
     pre = "val" if args.routine == "fit" else "test"
     metrics = get_metrics(
@@ -127,7 +139,7 @@ if __name__ == "__main__":
     )
     del model_config
 
-    model.compile()
+    # model.compile()
 
     callbacks = None
 
@@ -154,8 +166,10 @@ if __name__ == "__main__":
 
     strategy = trainer_config.strategy
     if trainer_config.strategy is TrainerStrategy.FSDP:
-        strategy = FSDPStrategy(auto_wrap_policy=model.auto_wrap_policy,
-                                activation_checkpointing_policy=model.activation_checkpointing_policy)
+        strategy = FSDPStrategy(
+            auto_wrap_policy=model.auto_wrap_policy,
+            activation_checkpointing_policy=model.activation_checkpointing_policy,
+        )
 
     trainer = Trainer(
         logger=wandb_logger,

@@ -79,9 +79,12 @@ class XmmDataModule(BaseDataModule):
                 normalize=self.normalize,
             )
 
-            self.subset_str = (
-                f"res/splits/{self.config.name}/{{0}}/{self.config.mode}.p"
-            )
+            if self.config.type is DatasetType.SIM:
+                self.subset_str = (
+                    f"res/splits/{self.config.name}/{{0}}/{self.config.mode}.p"
+                )
+            else:
+                self.subset_str = f"res/splits/{self.config.name}/{{0}}/{{1}}ks.p"
         elif self.config.type is DatasetType.BORING:
             from data.dataset import BoringDataset
 
@@ -114,9 +117,7 @@ class XmmDataModule(BaseDataModule):
 
     def _prepare_real_dataset(self):
         splits = ["train", "val", "test"]
-        img_files = find_img_files(self.dataset.lr_img_dirs)
-        img_files = match_file_list(img_files, None, self.dataset.split_key)[0]
-        for lr_exp in self.dataset.lr_exps:
+        for lr_exp in self.config.lr.exps:
             paths = [
                 Path(self.subset_str.format(split_name, lr_exp))
                 for split_name in splits
@@ -124,7 +125,7 @@ class XmmDataModule(BaseDataModule):
             exists = np.all([path.exists() for path in paths])
             if not exists:
                 rank_zero_info(f"Creating splits for {self.dataset_dir}...")
-                files = img_files[lr_exp]
+                files = self.dataset.lr_img_files[lr_exp]
                 train, val, test = random_split(files, [0.7, 0.15, 0.15])
                 save_splits(paths, [train, val, test])
 
@@ -157,13 +158,11 @@ class XmmDataModule(BaseDataModule):
         elif self.config.type is DatasetType.REAL:
             used_lr_basenames = self.dataset.lr_img_files.index
             lr_exp = self.config.lr.exps[0]
-            lr_img_files = find_img_files(self.dataset.lr_img_dirs)
-            lr_img_files = match_file_list(
-                {lr_exp: lr_img_files[lr_exp]}, None, self.dataset.split_key
-            )[0]
             with open(self.subset_str.format(subset, lr_exp), "rb") as f:
                 indices = pickle.load(f)
-            used_indices = used_lr_basenames.get_indexer(lr_img_files.index)
+            used_indices = used_lr_basenames.get_indexer(
+                self.dataset.lr_img_files.index
+            )
             indices = np.asarray(list(set(indices) & set(used_indices)))
             if exps_size > 1:
                 indices = np.asarray([indices * (i + 1) for i in range(exps_size)])
