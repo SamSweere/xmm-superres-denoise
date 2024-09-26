@@ -26,14 +26,18 @@ class BaseDataModule(LightningDataModule):
             ),
             ToTensor(),
         ]
-
-        self.normalize = Normalize(
-            lr_max=config["lr"]["max"],
-            hr_max=config["hr"]["max"],
-            config = config,
-            stretch_mode=config["scaling"],
-            clamp = config["clamp"]
-        )
+        
+        if config['normalize']:
+            self.normalize = Normalize(
+                lr_max=config["lr"]["max"],
+                hr_max=config["hr"]["max"],
+                config = config,
+                stretch_mode=config["scaling"],
+                clamp = config["clamp"]
+            )
+            
+        else: 
+            self.normalize = False
 
         self.dataset_dir = Path(config["dir"]) / config["name"]
         self.check_files = config["check_files"]

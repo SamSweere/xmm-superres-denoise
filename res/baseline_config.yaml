@@ -21,6 +21,7 @@ dataset:
   crop_mode: center
   # set whether or not to clamp the input data
   clamp: True
+  normalize: False
   constant_img_combs: True # Set to true to ensure that the same AGN and background components are used per idx every time
   det_mask: True
   debug: True
