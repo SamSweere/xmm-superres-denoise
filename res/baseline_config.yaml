@@ -1,6 +1,6 @@
 wandb:
   api_key: 
-  project: 
+  project: xmmsr_test
   online: True
   log_model: True
   run:
@@ -10,19 +10,20 @@ trainer:
   accelerator: auto
   strategy: auto
   checkpoint_path:
-  devices: auto
-  epochs: 300
+  devices: 0, 1, 2
+  epochs: 50
   log_images_every_n_epochs: 5
 
 dataset:
-  batch_size: 1
+  batch_size: 3
   check_files: False
   # Options: 'center', 'random', 'boresight'
   crop_mode: center
-  # set whether or not to clamp the input data (added by Yvonne) 
+  # set whether or not to clamp the input data
   clamp: True
+  constant_img_combs: True # Set to true to ensure that the same AGN and background components are used per idx every time
   det_mask: True
-  debug: False
+  debug: True
   dir: "/xmm-super/final_data/sim/"
   # dir: /home/xmmsas/mywork/xmm-superres-denoise/data/example_data/real
   display:
@@ -31,7 +32,7 @@ dataset:
     exposure:
       - 20
   lr:
-    agn: 1
+    agn: True
     background: 1
     exps:
       - 20
@@ -40,7 +41,7 @@ dataset:
   hr:
     agn: True
     background: False
-    exp: 50
+    exp: 100
     max: 0.0005584 #TODO: aggresive max, 200 times background, this is +-11 counts on 50ks
     res: 832
   # The mode, img or agn. If agn the model samples from agn as if it is an image.
@@ -63,6 +64,6 @@ dataset:
 
 model:
   name: esr_gen
-  memory_efficient: False
+  memory_efficient: True
   normalization_layer: False
   

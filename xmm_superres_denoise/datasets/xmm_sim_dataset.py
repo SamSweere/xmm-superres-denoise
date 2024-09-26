@@ -37,6 +37,7 @@ class XmmSimDataset(Dataset):
         lr_background: int,
         hr_background: bool,
         det_mask: bool = False,
+        constant_img_combs: bool = False,
         check_files: bool = False,
         transform: List[Callable] = None,
         normalize: Optional[Normalize] = None,
@@ -57,6 +58,7 @@ class XmmSimDataset(Dataset):
             hr_agn (bool): Include agns in the high resolution images
             hr_background (bool): Add background to high resolution
             det_mask (bool): Multiply the final image with the detectormask
+            constant_img_combs (bool): Assign the same AGN and background component per img idx everytime
             check_files (bool) (optional): Check the file integrity of the chosen dataset
             transform (callable) (optional): Optional transform to be applied
             normalize (callable) (optional): Optional normalization to be applied
@@ -75,6 +77,7 @@ class XmmSimDataset(Dataset):
         self.lr_agn = lr_agn
         self.hr_agn = hr_agn
         self.det_mask = det_mask
+        self.constant_img_combs = constant_img_combs
         self.lr_background = lr_background
         self.hr_background = hr_background
 
@@ -213,14 +216,12 @@ class XmmSimDataset(Dataset):
         )
 
         return img
-
+    
     def __len__(self):
         return self.dataset_size
-
-    def load_lr_hr_xmm_sample(self, idx):
-        lr_exp = idx % self.lr_exps.size
-        base_name = idx % self.base_name_count
-
+    
+    def define_paths_random_combinations(self, lr_exp, base_name):
+        
         lr_img_path = sample(self.lr_img_files.iloc[base_name].iloc[lr_exp], 1)[0]
         hr_img_path = sample(self.hr_img_files.iloc[base_name].iloc[0], 1)[0]
 
@@ -244,7 +245,63 @@ class XmmSimDataset(Dataset):
         hr_background_path = None
         if self.hr_background:
             hr_background_path = self.hr_background_files[self.hr_exp].sample(1).item()
+            
+            
+        return [lr_img_path, lr_agn_path, lr_background_path, hr_img_path, hr_agn_path, hr_background_path]
+            
+                   
+    def define_paths_constant_combinations(self, idx, lr_exp, base_name):
+        
+        # Assign unique index based on current index
+        lr_idx = idx % len(self.lr_img_files.iloc[base_name].iloc[lr_exp])
+        hr_idx = idx % len(self.hr_img_files.iloc[base_name].iloc[0])
 
+        lr_img_path = self.lr_img_files.iloc[base_name].iloc[lr_exp][lr_idx]
+        hr_img_path = self.hr_img_files.iloc[base_name].iloc[0][hr_idx]
+
+        lr_agn_path = None  # Define them as None in the case that self.agn is False
+        hr_agn_path = None
+
+        if self.lr_agn > 0 or self.hr_agn:
+            agn_idx = idx % self.base_agn_count
+
+            if self.lr_agn > 0:
+                lr_idx = idx % len(self.lr_agn_files.iloc[agn_idx].iloc[lr_exp])
+                lr_agn_path = self.lr_agn_files.iloc[agn_idx].iloc[lr_exp][lr_idx]
+
+            if self.hr_agn:
+                hr_idx = idx % len(self.hr_agn_files.iloc[agn_idx].iloc[0])
+                hr_agn_path = self.hr_agn_files.iloc[agn_idx].iloc[0][hr_idx]
+
+        lr_background_path = None
+        if self.lr_background > 0:
+            lr_background_path = self.lr_background_files[self.lr_exps[lr_exp]].iloc[base_name]
+            
+        hr_background_path = None
+        if self.hr_background:
+            hr_background_path= self.hr_background_files[self.hr_exp].iloc[base_name].item()
+            
+            
+        return [lr_img_path, lr_agn_path, lr_background_path, hr_img_path, hr_agn_path, hr_background_path]
+    
+   
+    def load_lr_hr_xmm_sample(self, idx):
+        lr_exp = idx % self.lr_exps.size
+        base_name = idx % self.base_name_count
+        
+        if self.constant_img_combs:
+            paths = self.define_paths_constant_combinations(idx, lr_exp, base_name)
+        else:
+            paths = self.define_paths_random_combinations(lr_exp, base_name)
+        
+        # Unpack for better legibility
+        lr_img_path = paths[0]
+        lr_agn_path = paths[1]
+        lr_background_path = paths[2]
+        hr_img_path = paths[3]
+        hr_agn_path = paths[4]
+        hr_background_path = paths[5]
+        
         # Load and combine the selected files
         lr_img = self.load_and_combine_simulations(
             res_mult=self.lr_res_mult,

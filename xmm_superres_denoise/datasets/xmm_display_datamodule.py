@@ -38,6 +38,7 @@ class XmmDisplayDataModule(BaseDataModule):
                 lr_background=False,
                 hr_background=False,
                 det_mask=det_mask,
+                constant_img_combs = config["constant_img_combs"],
                 check_files=check_files,
                 transform=self.transform,
                 normalize=self.normalize,

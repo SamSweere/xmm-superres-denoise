@@ -51,6 +51,7 @@ class XmmDataModule(BaseDataModule):
                 lr_background=config["lr"]["background"],
                 hr_background=config["hr"]["background"],
                 det_mask=config["det_mask"],
+                constant_img_combs = config["constant_img_combs"],
                 check_files=self.check_files,
                 transform=self.transform,
                 normalize=self.normalize,
