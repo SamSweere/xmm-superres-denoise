@@ -19,6 +19,7 @@ class XmmDataModule(BaseDataModule):
 
         self.lr_exps = config["lr"]["exps"]
         self.hr_exp = config["hr"]["exp"]
+        self.divide_dataset = config["divide_dataset"]
 
         if self.dataset_type == "real":
             from xmm_superres_denoise.datasets import XmmDataset
@@ -34,7 +35,20 @@ class XmmDataModule(BaseDataModule):
                 normalize=self.normalize,
             )
 
-            self.subset_str = f"res/splits/real_dataset/{{0}}/{{1}}.p"
+            if self.divide_dataset == 'all':
+                self.subset_str = f"res/splits/real_dataset/{{0}}/{{1}}ks.p"
+            
+            elif self.divide_dataset == 'below' or self.divide_dataset == 'above':
+                self.subset_str = f"res/splits/real_dataset/{{0}}/no_blended_agn_{config['lr']['res']}px_{{1}}ks_{self.divide_dataset}.p"
+
+            else: 
+                raise ValueError(
+                f"divide_dataset option {self.divide_dataset} not known, options: 'all', 'below', 'above'"
+                )
+        
+        
+        
+        
         elif self.dataset_type == "sim":
             from xmm_superres_denoise.datasets import XmmSimDataset
 
@@ -57,7 +71,20 @@ class XmmDataModule(BaseDataModule):
                 normalize=self.normalize,
             )
 
-            self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
+            if self.divide_dataset == 'all':
+                self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
+            
+            elif self.divide_dataset == 'below' or self.divide_dataset == 'above':
+                self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.divide_dataset}_{self.lr_exps[0]}ks_{config['lr']['res']}px_{self.dataset.mode}.p"
+
+            else: 
+                raise ValueError(
+                f"divide_dataset option {self.divide_dataset} not known, options: 'all', 'below', 'above'")
+        
+        
+        
+        
+        
         elif self.dataset_type == "boring":
             from xmm_superres_denoise.datasets import BoringDataset
 
@@ -149,9 +176,7 @@ class XmmDataModule(BaseDataModule):
     def setup(self, stage: str) -> None:
         if self.dataset_type == "boring":
             train, val, test = random_split(self.dataset, [0.8, 0.1, 0.1])
-            self.train_subset = Subset(self.dataset, train)
-            self.val_subset = Subset(self.dataset, val)
-            self.test_subset = Subset(self.dataset, test)
+            self.train_subset, self.val_subset, self.test_subset = train, val, test
         else:
             if stage == "fit":
                 train_indices = self._load_indices("train")

@@ -21,12 +21,12 @@ dataset:
   crop_mode: center
   # set whether or not to clamp the input data
   clamp: True
-  normalize: False
+  normalize: True
   constant_img_combs: True # Set to true to ensure that the same AGN and background components are used per idx every time
   det_mask: True
   debug: True
   dir: "/xmm-super/final_data/sim/"
-  # dir: /home/xmmsas/mywork/xmm-superres-denoise/data/example_data/real
+  # dir: "/xmm-super/final_data/real/"
   display:
     sim_display_name: xmm_sim_display_selection
     real_display_name: xmm_split_display_selection
@@ -48,6 +48,7 @@ dataset:
   # The mode, img or agn. If agn the model samples from agn as if it is an image.
   mode: img
   name: xmm_sim_dataset
+  # name: xmm_real_split_dataset
   # name: ""
   # Options: None and 'linear', 'sqrt', 'asinh', 'log', 'hist_eq'
   scaling: sqrt
@@ -59,6 +60,8 @@ dataset:
   hist_eq:
     tileGridSize: 4
     clipLimit: 2.0
+  # Only use input above ('above') or below ('all'). Use 'all' to use the entire dataset
+  divide_dataset: 'all'  # options are: 'above', 'below', 'all'
   
   # Options: real, sim
   type: sim
