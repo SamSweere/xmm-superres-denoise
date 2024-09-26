@@ -203,7 +203,7 @@ if __name__ == "__main__":
     
     # Make sure that no normalization is applied for the statistics and that the entire dataset is considered 
     dataset_config["normalize"]= False
-    dataset_config[constant_img_combs] = True
+    dataset_config["constant_img_combs"] = True
     # dataset_config["divide_dataset"]= 'all'
      
     if res != 'lr' and res != 'hr':
