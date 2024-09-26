@@ -1,5 +1,6 @@
 from pathlib import Path
-
+import pickle
+from torch.utils.data import Subset
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 
 from xmm_superres_denoise.datasets import BaseDataModule
@@ -13,6 +14,7 @@ class XmmDisplayDataModule(BaseDataModule):
         dataset_lr_res = config["lr"]["res"]
         lr_exps = config["display"]["exposure"]
         det_mask = config["det_mask"]
+        self.divide_dataset = config["divide_dataset"]
 
         # Display xmm_superres_denoise.datasets
         self.sim_display_dataset = None
@@ -43,6 +45,10 @@ class XmmDisplayDataModule(BaseDataModule):
                 transform=self.transform,
                 normalize=self.normalize,
             )
+            
+            if self.divide_dataset == 'below' or self.divide_dataset == 'above':
+                self.sim_subset_str = f"res/splits/sim_display_dataset/no_blended_agn_{config['lr']['res']}px_{config['lr']['exps'][0]}ks_{self.divide_dataset}.p"
+                test = 5
         if config["display"]["real_display_name"]:
             from xmm_superres_denoise.datasets import XmmDataset
 
@@ -61,7 +67,10 @@ class XmmDisplayDataModule(BaseDataModule):
                 transform=self.transform,
                 normalize=self.normalize,
             )
-
+            
+            if self.divide_dataset == 'below' or self.divide_dataset == 'above':
+                self.real_subset_str = f"res/splits/real_display_dataset/no_blended_agn_{config['lr']['res']}px_{config['lr']['exps'][0]}ks_{self.divide_dataset}.p"
+                test = 5
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         raise NotImplementedError(
             "Display xmm_superres_denoise.datasets are not to be used during training!"
@@ -70,9 +79,25 @@ class XmmDisplayDataModule(BaseDataModule):
     def val_dataloader(self) -> EVAL_DATALOADERS:
         dataloaders = []
         if self.real_display_dataset:
-            dataloaders.append(self.get_dataloader(self.real_display_dataset))
+                if self.divide_dataset != 'all':
+                    with open(self.real_subset_str, "rb") as f:
+                        real_display_indices = pickle.load(f)
+                    self.real_display_sub_dataset = Subset(self.real_display_dataset, real_display_indices)
+                    dataloaders.append(self.get_dataloader(self.real_display_sub_dataset))
+            
+                else:
+                    dataloaders.append(self.get_dataloader(self.real_display_dataset))
+                
+                
         if self.sim_display_dataset:
-            dataloaders.append(self.get_dataloader(self.sim_display_dataset))
+            if self.divide_dataset != 'all':
+                with open(self.sim_subset_str, "rb") as f:
+                    sim_display_indices = pickle.load(f)
+                self.sim_display_sub_dataset = Subset(self.sim_display_dataset, sim_display_indices)
+                dataloaders.append(self.get_dataloader(self.sim_display_sub_dataset))
+            else:
+                dataloaders.append(self.get_dataloader(self.sim_display_dataset))
+
         return dataloaders
 
     def test_dataloader(self) -> EVAL_DATALOADERS:

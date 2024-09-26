@@ -75,14 +75,12 @@ class XmmDataModule(BaseDataModule):
                 self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
             
             elif self.divide_dataset == 'below' or self.divide_dataset == 'above':
-                self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.divide_dataset}_{self.lr_exps[0]}ks_{config['lr']['res']}px_{self.dataset.mode}.p"
+                self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.divide_dataset}_{self.lr_exps[0]}ks_{config['lr']['res']}px_no_blended_agn_{self.dataset.mode}.p"
+              
 
             else: 
                 raise ValueError(
                 f"divide_dataset option {self.divide_dataset} not known, options: 'all', 'below', 'above'")
-        
-        
-        
         
         
         elif self.dataset_type == "boring":
