@@ -29,12 +29,12 @@ def read_csv_data(filename, quantile_value=0.9999):
 
 def load_subset_indices(stages, input_type, exposure=None):
     """
-    Load the indices defining the subsets.
+    Load the indices defining the train, validation and testing subsets.
 
     Parameters:
     stages (list): List of strings containing the subset names.
     input_type (str): Type of input data ('sim' or 'real').
-    exposure (int, optional): Exposure value in ks if input type is 'real'.
+    exposure (int, optional): Exposure time of input data from statistics file.
 
     Returns:
     list: List of PyTorch tensors with subset indices.
@@ -56,13 +56,13 @@ def load_subset_indices(stages, input_type, exposure=None):
 
 def make_gen_split_files(data, args, subset_indices, stages):
     """
-    Create and save split files based on the fraction threshold.
+    Create split files for the general (non-display) dataset.
 
     Parameters:
     data (tuple): Data containing means, variances, maxes, quantiles, and fractions over lr max.
+    args (): Input arguments from terminal
     subset_indices (list): List of PyTorch tensors with subset indices.
     stages (list): List of strings containing the subset names.
-    fraction (float): Fraction threshold to split the indices.
     """
     means, variances, maxes, quantiles, fractions_over_lr_max_all = data
 
@@ -104,13 +104,11 @@ def make_gen_split_files(data, args, subset_indices, stages):
             
 def make_dis_split_files(data, args):
     """
-    Create and save split files based on the fraction threshold.
+    Create split files for the display dataset.
 
     Parameters:
     data (tuple): Data containing means, variances, maxes, quantiles, and fractions over lr max.
-    subset_indices (list): List of PyTorch tensors with subset indices.
-    stages (list): List of strings containing the subset names.
-    fraction (float): Fraction threshold to split the indices.
+    args (): Input arguments from terminal
     """
     means, variances, maxes, quantiles, fractions_over_lr_max_all = data
 
@@ -138,12 +136,7 @@ def make_dis_split_files(data, args):
 
 
 def main_gen(args):
-    """
-    Main function to process statistics and subset indices based on input parameters for general (non-display) dataset.
     
-    Parameters:
-    args (argparse.Namespace): Parsed command line arguments.
-    """
     # Generate the statistics file path
     statistics_file = f'res/statistics/input_statistics_{args.input_type}_{args.res_name}_{args.pixel_res}pxs_{args.exp}ks_{args.agns}.csv'
     
@@ -159,12 +152,7 @@ def main_gen(args):
     make_gen_split_files(data, args, subset_indices, stages)
     
 def main_dis(args):
-    """
-    Main function to process statistics and subset indices based on input parameters for display dataset.
-    
-    Parameters:
-    args (argparse.Namespace): Parsed command line arguments.
-    """
+   
     # Generate the statistics file path
     statistics_file = f'res/statistics/input_statistics_{args.input_type}_{args.res_name}_{args.pixel_res}pxs_{args.exp}ks_{args.agns}.csv'
     
