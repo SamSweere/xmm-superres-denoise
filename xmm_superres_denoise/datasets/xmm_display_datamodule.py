@@ -4,6 +4,8 @@ from torch.utils.data import Subset
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 
 from xmm_superres_denoise.datasets import BaseDataModule
+from xmm_superres_denoise.transforms import  Normalize
+import pandas as pd
 
 
 class XmmDisplayDataModule(BaseDataModule):
@@ -13,8 +15,46 @@ class XmmDisplayDataModule(BaseDataModule):
         check_files = config["check_files"]
         dataset_lr_res = config["lr"]["res"]
         lr_exps = config["display"]["exposure"]
+        hr_exp = config["hr"]["exp"]
         det_mask = config["det_mask"]
         self.divide_dataset = config["divide_dataset"]
+        
+        if config["normalize"]:
+            blended_agn = 'blended_agn' if config['deblend_agn_dir'] else 'no_blended_agn'
+            
+            self.sim_lr_statistics_path = f'res/statistics/input_statistics_sim_display_lr_{config["lr"]["res"]}pxs_{lr_exps[0]}ks_{blended_agn}.csv'
+            self.sim_hr_statistics_path = f'res/statistics/input_statistics_sim_display_hr_{config["hr"]["res"]}pxs_{hr_exp}ks_{blended_agn}.csv'
+            self.real_lr_statistics_path = f'res/statistics/input_statistics_real_display_lr_{config["lr"]["res"]}pxs_{lr_exps[0]}ks_{blended_agn}.csv'
+
+            self.sim_normalize = Normalize(
+                lr_max=config["lr"]["max"],
+                hr_max=config["hr"]["max"],
+                config = config,
+                lr_statistics= pd.read_csv(self.sim_lr_statistics_path), 
+                hr_statistics= pd.read_csv(self.sim_hr_statistics_path), 
+                stretch_mode=config["scaling"],
+                clamp = config["clamp"],
+                sigma_clamp = config["sigma_clamp"],
+                quantile_clamp = config["quantile_clamp"],
+            )
+
+            self.real_normalize = Normalize(
+                lr_max=config["lr"]["max"],
+                hr_max=config["hr"]["max"],
+                config = config,
+                lr_statistics= pd.read_csv(self.real_lr_statistics_path), 
+                stretch_mode=config["scaling"],
+                clamp = config["clamp"],
+                sigma_clamp = config["sigma_clamp"],
+                quantile_clamp = config["quantile_clamp"]
+            )
+
+        else:
+            
+            self.sim_normalize = False 
+            self.real_normalize = False
+
+        
 
         # Display xmm_superres_denoise.datasets
         self.sim_display_dataset = None
@@ -34,7 +74,7 @@ class XmmDisplayDataModule(BaseDataModule):
                 dataset_lr_res=dataset_lr_res,
                 mode=config["mode"],
                 lr_exps=lr_exps,
-                hr_exp=config["hr"]["exp"],
+                hr_exp=hr_exp,
                 lr_agn=False,
                 hr_agn=False,
                 lr_background=False,
@@ -43,7 +83,7 @@ class XmmDisplayDataModule(BaseDataModule):
                 constant_img_combs = config["constant_img_combs"],
                 check_files=check_files,
                 transform=self.transform,
-                normalize=self.normalize,
+                normalize=self.sim_normalize,
             )
             
             if self.divide_dataset == 'below' or self.divide_dataset == 'above':
@@ -65,7 +105,7 @@ class XmmDisplayDataModule(BaseDataModule):
                 det_mask=det_mask,
                 check_files=check_files,
                 transform=self.transform,
-                normalize=self.normalize,
+                normalize=self.real_normalize,
             )
             
             if self.divide_dataset == 'below' or self.divide_dataset == 'above':

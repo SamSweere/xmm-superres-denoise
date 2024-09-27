@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from xmm_superres_denoise.transforms.data_scaling_functions import (
     asinh_scale,
@@ -24,14 +25,28 @@ class Normalize(object):
 
     """
 
-    def __init__(self, lr_max, hr_max, config, stretch_mode="linear", clamp = True):
+    def __init__(self, lr_max, hr_max,  config,lr_statistics, hr_statistics = None, stretch_mode="linear", clamp = True, sigma_clamp = False, quantile_clamp = False):
         assert isinstance(stretch_mode, str)
 
         # I am now passing all of the configs for the normalization paraemters, so we don't need to pass the individual arguments anymore, but I don't want to mess with this for now 
         self.stretch_mode = stretch_mode
         self.lr_max = lr_max
         self.hr_max = hr_max
+        
         self.clamp = clamp
+        self.sigma_clamp = sigma_clamp
+        self.quantile_clamp = quantile_clamp
+        
+        self.lr_statistics = lr_statistics
+        self.hr_statistics = hr_statistics
+        
+        
+        # Compute the max-value used for normalization based on the clamping technique
+        self.lr_max_vals = self.compute_max_vals(lr_statistics, lr_max)
+        if hr_statistics is not None:
+            self.hr_max_vals = self.compute_max_vals(hr_statistics, hr_max)
+        else:
+            self.hr_max_vals = self.lr_max_vals/4
 
         self.stretch_f = None
         if stretch_mode == "linear":
@@ -51,47 +66,106 @@ class Normalize(object):
             self.args = (config["hist_eq"]["clipLimit"], config["hist_eq"]["tileGridSize"])
         else:
             raise ValueError(f"Stretching function {stretch_mode} is not implemented")
+        
+    def compute_max_vals(self, statistics, max):
+
+        if self.clamp:
+            if self.sigma_clamp:
+
+                if self.quantile_clamp:
+                    raise ValueError(f"Invalid combination of parameters 'sigma_clamp' ({self.sigma_clamp}) and 'quantile_clamp' ({self.quantile_clamp}). These parameters cannot both be True")
+
+                
+                # Compute the x-sigma values 
+                means = torch.tensor(statistics['Means'].values, dtype=torch.float32)
+                variances = torch.tensor(statistics['Variances'].values, dtype=torch.float32)
+                stds = torch.sqrt(variances)
+
+                max_vals = means + self.sigma_clamp*stds 
+           
+
+            elif self.quantile_clamp:
+                
+                # Retrieve the specified qunatiles 
+                quantiles =  statistics[f'quantile_{self.quantile_clamp}'].values
+                max_vals = torch.tensor(np.array([quantiles]), dtype=torch.float32).reshape(quantiles.shape[-1])
+                # max_vals = torch.as_tensor(1)
+                # self.plot_histogram(max_vals, 0.002)
+
+            else:
+
+                # Just use the lr_max/ hr_max value from the config file 
+                max_vals = torch.as_tensor(max).expand(len(statistics["Means"]))
+        else:
+            # Check if the combination of parameters is valid
+            if self.sigma_clamp:
+                raise ValueError(f"Invalid combination of parameters 'clamp' ({self.clamp}) and 'sigma_clamp' ({self.sigma_clamp}). 'sigma_clamp' can only be True if 'clamp' is also True)")
+            
+            elif self.quantile_clamp: 
+                 raise ValueError(f"Invalid combination of parameters 'clamp' ({self.clamp}) and 'quantile_clamp' ({self.quantile_clamp}). 'quantile_clamp' can only be True if 'clamp' is also True)")
+            else:
+                # Use the actual max within each image as "clamping" value
+                max_vals = torch.tensor(statistics['Maxes'].values, dtype=torch.float32)
+                
+                
+        # Make sure that the max values of empty images dont lead to instability
+        max_vals = max_vals.clone()
+        max_vals[torch.where(max_vals == 0)] = 1
+
+        return max_vals
+
 
     def normalize_image(self, image, max_val, clamp = True):
-
+        
+        #TODO: check if there isnt a more efficient way to put this 
+        # Adjust the dimensions of the max value 
+        max_val = max_val.to(image.device).view(-1, *([1] * (image.dim() - 1)))
+       
         if clamp: 
-            image = torch.clamp(image, min=0.0, max=max_val)
-
+            min_val = torch.as_tensor(0).to(image.device)
+            image = torch.clamp(image, min=min_val, max=max_val)
+            
         # Normalize the image
         image = image / max_val
-
+            
         # Apply the stretching function
         image = self.stretch_f(image, *self.args)
-
+       
         # Clip the final image in order to prevent rounding errors
         image = torch.clamp(image, min=0.0, max=1.0)
 
         return image
 
     def denormalize_image(self, image, max_val, clamp = True):
+        
+
+        max_val = max_val.to(image.device).view(-1, *([1] * (image.dim() - 1)))
+        
         # De-normalizes the image
         image = self.stretch_f(image, *self.args, inverse=True)
-
+       
         # Denormalize the max val
+        image = image * max_val
+        # test = torch.amax(image, dim = (1,2,3))
+
         if clamp: 
-            image = image * max_val
-
-        # The denormalized image cannot be bigger than the maximum value and cannot be negative
-        image = torch.clamp(image, min=0.0, max=max_val)
-
+            # The denormalized image cannot be bigger than the maximum value and cannot be negative
+            min_val = torch.as_tensor(0).to(image.device)
+            image = torch.clamp(image, min=min_val, max=max_val)
+               
         return image
 
-    def normalize_lr_image(self, image):
-        return self.normalize_image(image, max_val=self.lr_max, clamp = self.clamp)
+    def normalize_lr_image(self, image, idx):
+        return self.normalize_image(image, max_val = self.lr_max_vals.to(image.device)[idx], clamp = self.clamp)
+       
+    def normalize_hr_image(self, image, idx):
+        return self.normalize_image(image, max_val = self.hr_max_vals.to(image.device)[idx], clamp = self.clamp)
 
-    def normalize_hr_image(self, image):
-        return self.normalize_image(image, max_val=self.hr_max, clamp = self.clamp)
+    def denormalize_lr_image(self, image, idx):
+        return self.denormalize_image(image, max_val = self.lr_max_vals.to(image.device)[idx], clamp = self.clamp)
 
-    def denormalize_lr_image(self, image):
-        return self.denormalize_image(image, max_val=self.lr_max, clamp = self.clamp)
-
-    def denormalize_hr_image(self, image):
-        return self.denormalize_image(image, max_val=self.hr_max, clamp = self.clamp)
+    def denormalize_hr_image(self, image, idx):
+        return self.denormalize_image(image, max_val = self.hr_max_vals.to(image.device)[idx], clamp = self.clamp)
 
     def __call__(self, image):
         # Returns the transformed image if one image, a list of transformed images if a list of images

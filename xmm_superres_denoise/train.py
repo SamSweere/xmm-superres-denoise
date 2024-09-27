@@ -19,17 +19,21 @@ from xmm_superres_denoise.transforms import Normalize
 from xmm_superres_denoise.utils import ImageLogger
 from xmm_superres_denoise.utils.filehandling import read_yaml
 from xmm_superres_denoise.utils.loss_functions import create_loss
+import os 
+import torch
 
 if __name__ == "__main__":
 
     debug_mode = True
+    os.environ["CUDA_VISIBLE_DEVICES"]= '0, 1, 2'
+    torch.cuda.empty_cache()
 
     if debug_mode: 
 
         args = {}
         
         routine = "fit"
-        run_config = "/home/xmmsas/mywork/backup/xmm-superres-denoise/res/baseline_config.yaml"
+        run_config = "/home/xmmsas/mywork/cleanup/xmm-superres-denoise/res/baseline_config.yaml"
 
     else:
         
@@ -78,6 +82,7 @@ if __name__ == "__main__":
 
     rank_zero_info("Creating data module...")
     datamodule = XmmDataModule(dataset_config)
+    dis_datamodule=XmmDisplayDataModule(dataset_config)
 
     loss = create_loss(data_scaling=dataset_config["scaling"], loss_config=loss_config)
 
@@ -86,10 +91,23 @@ if __name__ == "__main__":
     lr_max = dataset_config["lr"]["max"]
     hr_max = dataset_config["hr"]["max"]
     clamp = dataset_config["clamp"]
+    quantile_clamp = dataset_config["quantile_clamp"]
+    
     lr_shape = (dataset_config["lr"]["res"], dataset_config["lr"]["res"])
     hr_shape = (dataset_config["hr"]["res"], dataset_config["hr"]["res"])
+    
     scaling_normalizers = [
-        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, stretch_mode=s_mode, clamp = clamp)
+        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = datamodule.normalize.lr_statistics, hr_statistics = datamodule.normalize.hr_statistics, stretch_mode=s_mode, clamp = clamp, quantile_clamp=quantile_clamp)
+        for s_mode in ["linear", "sqrt", "asinh", "log", "hist_eq"]
+    ]
+
+    real_dis_scaling_normalizers =  [
+        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = dis_datamodule.real_normalize.lr_statistics, hr_statistics = dis_datamodule.real_normalize.hr_statistics, stretch_mode=s_mode, clamp = clamp, quantile_clamp=quantile_clamp)
+        for s_mode in ["linear", "sqrt", "asinh", "log", "hist_eq"]
+    ]
+   
+    sim_dis_scaling_normalizers =  [
+        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = dis_datamodule.sim_normalize.lr_statistics, hr_statistics = dis_datamodule.sim_normalize.hr_statistics, stretch_mode=s_mode, clamp = clamp, quantile_clamp=quantile_clamp)
         for s_mode in ["linear", "sqrt", "asinh", "log", "hist_eq"]
     ]
 
@@ -145,11 +163,14 @@ if __name__ == "__main__":
         callbacks = []
         if trainer_config["log_images_every_n_epochs"] > 0:
             il = ImageLogger(
-                datamodule=XmmDisplayDataModule(dataset_config),
+                datamodule=dis_datamodule,
                 log_every_n_epochs=trainer_config["log_images_every_n_epochs"],
-                normalize=datamodule.normalize,
-                scaling_normalizers=scaling_normalizers,
+                real_normalize=dis_datamodule.real_normalize,
+                sim_normalize=dis_datamodule.sim_normalize,
+                real_scaling_normalizers=real_dis_scaling_normalizers,
+                sim_scaling_normalizers=sim_dis_scaling_normalizers,
                 data_range=hr_max,
+                dataset_config=dataset_config
             )
             callbacks.append(il)
         checkpoint_callback = ModelCheckpoint(
@@ -164,10 +185,14 @@ if __name__ == "__main__":
     trainer = Trainer(
         logger=wandb_logger,
         accelerator=trainer_config["accelerator"],
-        devices=trainer_config["devices"] if routine == "fit" else 1,
+        # devices=trainer_config["devices"] if routine == "fit" else 1,
+        devices=trainer_config["devices"],
         max_epochs=trainer_config["epochs"],
         strategy=trainer_config["strategy"],
         callbacks=callbacks,
+        limit_train_batches=1.,  
+        limit_val_batches=1.,   
+        limit_test_batches=1.,  
     )
 
     if routine == "fit":

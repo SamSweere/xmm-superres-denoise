@@ -134,19 +134,20 @@ class XmmDataset(Dataset):
         lr_img_sample, hr_img_sample = self.load_xmm_sample(idx=idx)
 
         lr_img = apply_transform(lr_img_sample["img"], self.transform)
-        lr_img = self.normalize.normalize_lr_image(lr_img) if self.normalize else lr_img
+        lr_img = self.normalize.normalize_lr_image(lr_img, idx = idx) if self.normalize else lr_img
 
         item = {
             "lr": lr_img,
             "lr_exp": lr_img_sample["exp"] // 1000,
             "lr_img_file_name": lr_img_sample["file_name"],
             "lr_header": lr_img_sample["header"],
+            "idx": idx,
         }
 
         if hr_img_sample:
             hr_img = apply_transform(hr_img_sample["img"], self.transform)
             hr_img = (
-                self.normalize.normalize_hr_image(hr_img) if self.normalize else hr_img
+                self.normalize.normalize_hr_image(hr_img, idx = idx) if self.normalize else hr_img
             )
 
             item["hr"] = hr_img
@@ -155,3 +156,4 @@ class XmmDataset(Dataset):
             item["hr_img_file_name"] = hr_img_sample["file_name"]
 
         return item
+

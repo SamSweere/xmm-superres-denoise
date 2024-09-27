@@ -342,8 +342,8 @@ class XmmSimDataset(Dataset):
             print('Alllaaaarm!: ', test)
         
 
-        lr_img = self.normalize.normalize_lr_image(lr_img) if self.normalize else lr_img
-        hr_img = self.normalize.normalize_hr_image(hr_img) if self.normalize else hr_img
+        lr_img = self.normalize.normalize_lr_image(lr_img, idx = idx) if self.normalize else lr_img
+        hr_img = self.normalize.normalize_hr_image(hr_img, idx = idx) if self.normalize else hr_img
 
         item = {
             "lr": lr_img,
@@ -351,6 +351,7 @@ class XmmSimDataset(Dataset):
             "lr_exp": lr_img_sample["exp"] // 1000,
             "hr_exp": hr_img_sample["exp"] // 1000,
             "lr_img_file_name": lr_img_sample["file_name"],
+            "idx": idx,
         }
 
         return item

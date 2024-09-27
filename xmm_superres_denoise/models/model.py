@@ -8,6 +8,7 @@ from torchmetrics import Metric
 
 from xmm_superres_denoise.metrics import XMMMetricCollection
 from xmm_superres_denoise.transforms import ImageUpsample
+import datetime
 
 
 class Model(pl.LightningModule):
@@ -121,6 +122,7 @@ class Model(pl.LightningModule):
 
     def _on_step(self, batch, stage) -> Optional[Tensor]:
         lr = batch["lr"]
+        idx = batch["idx"].to()
         preds = self(lr)
         target = batch.get("hr", preds)
 
@@ -143,16 +145,16 @@ class Model(pl.LightningModule):
                     lr = ImageUpsample(scale_factor=scale_factor)(lr)
 
             if self.metrics is not None:
-                self.metrics.update(preds=preds, target=target, clamp = self.clamp)
+                self.metrics.hr_update(preds=preds, target=target, idx = batch["idx"])
 
             if self.in_metrics is not None:
-                self.in_metrics.update(preds=lr, target=target, clamp = self.clamp)
+                self.in_metrics.lr_update(preds=lr, target=target, idx = batch["idx"])
 
             if self.ext_metrics is not None:
-                self.ext_metrics.update(preds=preds, target=target, clamp = self.clamp)
+                self.ext_metrics.hr_update(preds=preds, target=target, idx = batch["idx"])
 
             if self.in_ext_metrics is not None:
-                self.in_ext_metrics.update(preds=lr, target=target, clamp = self.clamp)
+                self.in_ext_metrics.lr_update(preds=lr, target=target, idx = batch["idx"])
 
     def _on_epoch_end(self, stage):
         if stage == "train":
@@ -199,6 +201,15 @@ class Model(pl.LightningModule):
                     on_epoch=True,
                     sync_dist=True,
                 )
+                
+            # Get the current date and time
+            current_datetime = datetime.now()
+
+            # Format the date and time as a string (e.g., "2023-12-04_12-34-56")
+            formatted_datetime = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+            checkpoint_path = f"checkpoints/model_epoch_{self.current_epoch}_{self.config['name']}_{formatted_datetime}.ckpt"
+            self.trainer.save_checkpoint(checkpoint_path)
+
 
     def configure_optimizers(self):
         # Optimizers

@@ -154,16 +154,31 @@ class XMMMetricCollection(MetricCollection):
         super(XMMMetricCollection, self).__init__(
             metrics=metric_list, prefix=f"{prefix}/"
         )
-
-    def update(self, preds, target, clamp = True) -> None:
-        preds = self.dataset_normalizer.denormalize_hr_image(preds)
-        target = self.dataset_normalizer.denormalize_hr_image(target)
-        if clamp:
-            preds = torch.clamp(preds, min=0.0, max=self.data_range)
-            target = torch.clamp(target, min=0.0, max=self.data_range)
+  
+    def lr_update(self, preds, target, idx) -> None:
+      
+        preds = self.dataset_normalizer.denormalize_lr_image(preds, idx)
+        target = self.dataset_normalizer.denormalize_hr_image(target, idx)
+       
         for metric_name, metric in self.items(copy_state=False):
             mode = metric_name.split("/")[1]
             normalizer = self.normalizer_dict[mode]
-            preds_scaled = normalizer.normalize_hr_image(preds)
-            target_scaled = normalizer.normalize_hr_image(target)
+            
+            preds_scaled = normalizer.normalize_lr_image(preds, idx)
+            target_scaled = normalizer.normalize_hr_image(target, idx)
             metric.update(preds=preds_scaled, target=target_scaled)
+
+
+    def hr_update(self, preds, target, idx) -> None:
+      
+        preds = self.dataset_normalizer.denormalize_hr_image(preds, idx)
+        target = self.dataset_normalizer.denormalize_hr_image(target, idx)
+        
+        for metric_name, metric in self.items(copy_state=False):
+            mode = metric_name.split("/")[1]
+            normalizer = self.normalizer_dict[mode]
+            
+            preds_scaled = normalizer.normalize_hr_image(preds, idx)
+            target_scaled = normalizer.normalize_hr_image(target, idx)
+            metric.update(preds=preds_scaled, target=target_scaled)
+

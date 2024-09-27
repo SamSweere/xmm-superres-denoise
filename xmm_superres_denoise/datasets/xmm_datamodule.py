@@ -5,6 +5,9 @@ import numpy as np
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 from torch.utils.data import Subset, random_split
 
+
+from xmm_superres_denoise.transforms import  Normalize
+
 from xmm_superres_denoise.datasets import BaseDataModule
 from xmm_superres_denoise.datasets.utils import (
     find_img_files,
@@ -12,6 +15,7 @@ from xmm_superres_denoise.datasets.utils import (
     save_splits,
 )
 
+import pandas as pd
 
 class XmmDataModule(BaseDataModule):
     def __init__(self, config):
@@ -20,9 +24,31 @@ class XmmDataModule(BaseDataModule):
         self.lr_exps = config["lr"]["exps"]
         self.hr_exp = config["hr"]["exp"]
         self.divide_dataset = config["divide_dataset"]
+        
+        if config["normalize"]:
+            
+            blended_agn = 'blended_agn' if config['deblend_agn_dir'] else 'no_blended_agn'
+
+            self.lr_statistics_path = f'res/statistics/input_statistics_{config["type"]}_lr_{config["lr"]["res"]}pxs_{self.lr_exps[0]}ks_{blended_agn}.csv'
+            self.hr_statistics_path = f'res/statistics/input_statistics_{config["type"]}_hr_{config["hr"]["res"]}pxs_{self.hr_exp}ks_{blended_agn}.csv'
+
 
         if self.dataset_type == "real":
             from xmm_superres_denoise.datasets import XmmDataset
+            
+            if config["normalize"]:
+                self.normalize = Normalize(
+                    lr_max=config["lr"]["max"],
+                    hr_max=config["hr"]["max"],
+                    config = config,
+                    lr_statistics= pd.read_csv(self.lr_statistics_path), 
+                    stretch_mode=config["scaling"],
+                    clamp = config["clamp"],
+                    sigma_clamp = config["sigma_clamp"],
+                    quantile_clamp = config["quantile_clamp"],
+                )
+            else:
+                self.normalize = False
 
             self.dataset = XmmDataset(
                 dataset_dir=self.dataset_dir,
@@ -51,6 +77,22 @@ class XmmDataModule(BaseDataModule):
         
         elif self.dataset_type == "sim":
             from xmm_superres_denoise.datasets import XmmSimDataset
+            
+            if config["normalize"]:
+                self.normalize = Normalize(
+                    lr_max=config["lr"]["max"],
+                    hr_max=config["hr"]["max"],
+                    config = config,
+                    lr_statistics= pd.read_csv(self.lr_statistics_path), 
+                    hr_statistics= pd.read_csv(self.hr_statistics_path), 
+                    stretch_mode=config["scaling"],
+                    clamp = config["clamp"],
+                    sigma_clamp = config["sigma_clamp"],
+                    quantile_clamp = config["quantile_clamp"]
+                )
+                
+            else:
+                self.normalize = False
 
             self.dataset = XmmSimDataset(
                 dataset_dir=self.dataset_dir,

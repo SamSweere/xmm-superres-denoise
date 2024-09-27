@@ -142,18 +142,29 @@ class ImageLogger(pl.Callback):
         self,
         datamodule: XmmDisplayDataModule,
         log_every_n_epochs,
-        normalize,
-        scaling_normalizers,
+        real_normalize,
+        sim_normalize,
+        real_scaling_normalizers,
+        sim_scaling_normalizers,
         data_range,
+        dataset_config,
     ):
         super(ImageLogger, self).__init__()
 
         self.datamodule = datamodule
-        self.normalize = normalize
-        self.scaling_normalizers = scaling_normalizers
+        self.real_normalize = real_normalize
+        self.sim_normalize = sim_normalize
+        self.real_scaling_normalizers = real_scaling_normalizers
+        self.sim_scaling_normalizers = sim_scaling_normalizers
+        self.square_scaling_normalizers = square_scaling_normalizers
         self.data_range = data_range
 
         self.log_every_n_epochs = log_every_n_epochs
+        self.sigma_clamp = dataset_config["sigma_clamp"]
+        self.clamp = dataset_config["clamp"]
+        self.lr_max = dataset_config["lr"]["max"]
+        self.hr_max = dataset_config["hr"]["max"]
+
 
     @rank_zero_only
     def _get_samples(
@@ -166,11 +177,13 @@ class ImageLogger(pl.Callback):
             "lr_exp": [],
             "hr_exp": [],
             "filenames": [],
+            "indices":[]
         }
         for dataloader in dataloaders:
             for batch in dataloader:
                 lr = batch["lr"].to(pl_module.device)
                 lr_exp = batch["lr_exp"]
+                idx = batch["idx"]
 
                 pred = pl_module(lr)
 
@@ -191,12 +204,14 @@ class ImageLogger(pl.Callback):
                 outputs["lr_exp"].append(lr_exp)
                 outputs["hr_exp"].append(hr_exp)
                 outputs["filenames"].extend(batch["lr_img_file_name"])
+                outputs["indices"].append(idx)
 
         outputs["lr"] = torch.cat(outputs["lr"], dim=0)
         outputs["pred"] = torch.cat(outputs["pred"], dim=0)
         outputs["true"] = torch.cat(outputs["true"], dim=0)
         outputs["lr_exp"] = torch.cat(outputs["lr_exp"], dim=0).to(pl_module.device)
         outputs["hr_exp"] = torch.cat(outputs["hr_exp"], dim=0).to(pl_module.device)
+        outputs["indices"] = torch.cat(outputs["indices"], dim=0).to(outputs["lr"].device)
 
         return outputs
 
@@ -219,23 +234,27 @@ class ImageLogger(pl.Callback):
 
         lr_exp = outputs.pop("lr_exp")
         hr_exp = outputs.pop("hr_exp")
+        
+        gi_indices = outputs.pop("indices")
 
         real_indices = lr_exp == hr_exp
         sim_indices = lr_exp != hr_exp
 
         filenames = np.asarray(outputs.pop("filenames"))
 
-        for display_type, indices in zip(["real", "sim"], [real_indices, sim_indices]):
+        for display_type, indices, scaling_normalizers, normalize in zip(["real", "sim"], [real_indices, sim_indices], [self.real_scaling_normalizers, self.sim_scaling_normalizers], [self.real_normalize, self.sim_normalize]):
             lr_sub = lr[indices]
             pred_sub = pred[indices]
             true_sub = true[indices]
             lr_exp_sub = lr_exp[indices]
             hr_exp_sub = hr_exp[indices]
             filenames_sub = filenames[indices.cpu().numpy()].tolist()
+            gi_indices_sub = gi_indices[indices]
 
-            lr_sub = self.normalize.denormalize_lr_image(lr_sub)
-            pred_sub = self.normalize.denormalize_hr_image(pred_sub)
-            true_sub = self.normalize.denormalize_hr_image(true_sub)
+            if normalize:
+                lr_sub = normalize.denormalize_lr_image(lr_sub, idx = gi_indices_sub)
+                pred_sub = normalize.denormalize_hr_image(pred_sub, idx = gi_indices_sub)
+                true_sub = normalize.denormalize_hr_image(true_sub, idx = gi_indices_sub)
 
             _save_fits_image(
                 parent_dir=Path(logger.experiment.dir)
@@ -251,15 +270,15 @@ class ImageLogger(pl.Callback):
             )
 
             if first_epoch:
-                for scale_normalizer in self.scaling_normalizers:
+                for scale_normalizer in scaling_normalizers:
                     stretch_name = scale_normalizer.stretch_mode
-                    scaled_lr = scale_normalizer.normalize_lr_image(lr_sub)
+                    scaled_lr = scale_normalizer.normalize_lr_image(lr_sub, idx = gi_indices_sub)
                     to_wandb(
                         logger, "input", stretch_name, scaled_lr, f"{display_type}"
                     )
 
                     if display_type == "sim":
-                        scaled_labels = scale_normalizer.normalize_hr_image(true_sub)
+                        scaled_labels = scale_normalizer.normalize_hr_image(true_sub, idx = gi_indices_sub)
                         to_wandb(
                             logger,
                             "label",
@@ -268,10 +287,10 @@ class ImageLogger(pl.Callback):
                             f"{display_type}",
                         )
             else:
-                for scale_normalizer in self.scaling_normalizers:
+                for scale_normalizer in scaling_normalizers:
                     stretch_name = scale_normalizer.stretch_mode
 
-                    scaled_pred = scale_normalizer.normalize_hr_image(pred_sub)
+                    scaled_pred = scale_normalizer.normalize_hr_image(pred_sub, idx = gi_indices_sub)
                     to_wandb(
                         logger,
                         "generated",
@@ -281,7 +300,7 @@ class ImageLogger(pl.Callback):
                     )
 
                     if display_type == "sim":
-                        scaled_true = scale_normalizer.normalize_hr_image(true_sub)
+                        scaled_true = scale_normalizer.normalize_hr_image(true_sub, idx = gi_indices_sub)
                         ssim_image = ssim(
                             preds=scaled_pred,
                             target=scaled_true,
@@ -329,7 +348,8 @@ class ImageLogger(pl.Callback):
     def on_test_end(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        self._log_images(self.datamodule.test_dataloader(), pl_module, "test")
+        # self._log_images(self.datamodule.test_dataloader(), pl_module, "test")
+        self._log_images(trainer.logger, pl_module, self.datamodule.test_dataloader(), "test")
 
     def on_predict_batch_end(
         self,
@@ -346,16 +366,27 @@ class ImageLogger(pl.Callback):
         filenames = batch["lr_img_file_name"]
         lr_in_header = batch.get("lr_header", None)
         hr_in_header = batch.get("hr_header", None)
+        indices = batch["idx"]
 
         lr_exp = batch["lr_exp"]
         hr_exp = batch["hr_exp"] if "hr" in batch else lr_exp
+        
+        print("Normalizer has not been adjusted to 3-sigma yet!!!!!")
 
-        lr = self.normalize.denormalize_lr_image(lr)
-        preds = self.normalize.denormalize_hr_image(preds)
-        hr = self.normalize.denormalize_hr_image(hr) if "hr" in batch else None
+        if "hr" in batch:
+            lr = self.sim_normalize.denormalize_lr_image(lr, idx = indices)
+            preds = self.sim_normalize.denormalize_hr_image(preds, idx = indices)
+            hr = self.sim_normalize.denormalize_hr_image(hr, idx = indices) if "hr" in batch else None
 
-        display_type = "sim" if "hr" in batch else "real"
+            display_type = "sim"
+        else:
+            lr = self.real_normalize.denormalize_lr_image(lr, idx = indices)
+            preds = self.real_normalize.denormalize_hr_image(preds, idx = indices)
+            hr = self.real_normalize.denormalize_hr_image(hr, idx = indices) if "hr" in batch else None
 
+            display_type = "real"
+
+        
         _save_fits_image(
             parent_dir=Path(trainer.logger.experiment.dir)
             / "fits_out"

@@ -27,18 +27,6 @@ class BaseDataModule(LightningDataModule):
             ToTensor(),
         ]
         
-        if config['normalize']:
-            self.normalize = Normalize(
-                lr_max=config["lr"]["max"],
-                hr_max=config["hr"]["max"],
-                config = config,
-                stretch_mode=config["scaling"],
-                clamp = config["clamp"]
-            )
-            
-        else: 
-            self.normalize = False
-
         self.dataset_dir = Path(config["dir"]) / config["name"]
         self.check_files = config["check_files"]
 
@@ -65,6 +53,7 @@ class BaseDataModule(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=shuffle,
             num_workers=self.num_workers,
+            # num_workers = 16,
             pin_memory=self.pin_memory,
             persistent_workers=self.persistent_workers,
         )
