@@ -29,17 +29,27 @@ dataset:
   # Options: 'center', 'random', 'boresight'
   crop_mode:
   # Apply the detector mask. Options: True, False
+  clamp: 
+  # Apply clamping. Options: True, False
+  sigma_clamp:
+  # Apply sigma clamping. Options: True, False
+  quantile_clamp:
+  # Apply quantile claping. options: 0.001, 0.01, 0.05, 0.5, 0.95, 0.99, 0.999, 0.9999
   det_mask:
   # Set debug to true if debugging. Will make your life easier. Options: True, False
   debug:
   # The parent folder of all datasets
   dir:
+  deblend_agn_dir:
+  # Use the AGN dataset containing blended sources. Options: <name of the directory containing the dataset>, False
   display:
     # These images are used in our ImageLogger. After log_images_every_n_epochs (see trainer -> log_images_every_n_epochs)
     # we iterate through these images, predict on them and log the inputs (just once), predictions, differences,
     # and true_hr (if available)
     sim_display_name:
     real_display_name:
+    comps:
+    # Use composed images (img, AGN, background) for the display dataset. Options: True, False
     exposure:
       -
   lr:
@@ -71,6 +81,16 @@ dataset:
   # Options: None and 'linear', 'sqrt', 'asinh', 'log'
   scaling:
   # Options: real, sim
+  asinh:
+    a: 
+    # Parameter in the asinh normalization
+  hist_eq:
+    tileGridSize:
+    # Tile grid size for the histogram equalization normaliation
+    clipLimit:
+    # Clip limit for the histogram equalization
+  divide_dataset:
+    # Divide the dataset into input only below or above the clamping threshold or use the entire dataset. Options: 'above', 'below', 'all'
   type:
 
 model:
