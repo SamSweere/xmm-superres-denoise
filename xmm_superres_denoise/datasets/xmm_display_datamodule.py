@@ -21,13 +21,13 @@ class XmmDisplayDataModule(BaseDataModule):
         hr_exp = config["hr"]["exp"]
         det_mask = config["det_mask"]
         self.divide_dataset = config["divide_dataset"]
+        self.blended_agn = 'blended_agn' if config['deblend_agn_dir'] else 'no_blended_agn'
         
         if config["normalize"]:
-            blended_agn = 'blended_agn' if config['deblend_agn_dir'] else 'no_blended_agn'
             
-            self.sim_lr_statistics_path = f'res/statistics/input_statistics_sim_display_lr_{config["lr"]["res"]}pxs_{lr_exps[0]}ks_{blended_agn}.csv'
-            self.sim_hr_statistics_path = f'res/statistics/input_statistics_sim_display_hr_{config["hr"]["res"]}pxs_{hr_exp}ks_{blended_agn}.csv'
-            self.real_lr_statistics_path = f'res/statistics/input_statistics_real_display_lr_{config["lr"]["res"]}pxs_{lr_exps[0]}ks_{blended_agn}.csv'
+            self.sim_lr_statistics_path = f'res/statistics/input_statistics_sim_display_lr_{config["lr"]["res"]}pxs_{lr_exps[0]}ks_{self.blended_agn}.csv'
+            self.sim_hr_statistics_path = f'res/statistics/input_statistics_sim_display_hr_{config["hr"]["res"]}pxs_{hr_exp}ks_{self.blended_agn}.csv'
+            self.real_lr_statistics_path = f'res/statistics/input_statistics_real_display_lr_{config["lr"]["res"]}pxs_{lr_exps[0]}ks_{self.blended_agn}.csv'
 
             self.sim_normalize = Normalize(
                 lr_max=config["lr"]["max"],
@@ -84,6 +84,7 @@ class XmmDisplayDataModule(BaseDataModule):
             
             self.sim_display_dataset = XmmSimDataset(
                 dataset_dir=dataset_dir,
+                deblend_agn_dir= config["deblend_agn_dir"],
                 lr_res=config["lr"]["res"],
                 hr_res=config["hr"]["res"],
                 dataset_lr_res=dataset_lr_res,
@@ -102,7 +103,7 @@ class XmmDisplayDataModule(BaseDataModule):
             )
             
             if self.divide_dataset == 'below' or self.divide_dataset == 'above':
-                self.sim_subset_str = f"res/splits/sim_display_dataset/no_blended_agn_{config['lr']['res']}px_{config['lr']['exps'][0]}ks_{self.divide_dataset}.p"
+                self.sim_subset_str = f"res/splits/sim_display_dataset/{self.blended_agn}_{config['lr']['res']}px_{config['lr']['exps'][0]}ks_{self.divide_dataset}.p"
                 test = 5
         if config["display"]["real_display_name"]:
             from xmm_superres_denoise.datasets import XmmDataset
@@ -124,7 +125,7 @@ class XmmDisplayDataModule(BaseDataModule):
             )
             
             if self.divide_dataset == 'below' or self.divide_dataset == 'above':
-                self.real_subset_str = f"res/splits/real_display_dataset/no_blended_agn_{config['lr']['res']}px_{config['lr']['exps'][0]}ks_{self.divide_dataset}.p"
+                self.real_subset_str = f"res/splits/real_display_dataset/{self.blended_agn}_{config['lr']['res']}px_{config['lr']['exps'][0]}ks_{self.divide_dataset}.p"
                 test = 5
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         raise NotImplementedError(

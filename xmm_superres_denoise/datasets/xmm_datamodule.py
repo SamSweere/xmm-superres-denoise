@@ -24,13 +24,11 @@ class XmmDataModule(BaseDataModule):
         self.lr_exps = config["lr"]["exps"]
         self.hr_exp = config["hr"]["exp"]
         self.divide_dataset = config["divide_dataset"]
+        self.blended_agn = 'blended_agn' if config['deblend_agn_dir'] else 'no_blended_agn'
         
         if config["normalize"]:
-            
-            blended_agn = 'blended_agn' if config['deblend_agn_dir'] else 'no_blended_agn'
-
-            self.lr_statistics_path = f'res/statistics/input_statistics_{config["type"]}_lr_{config["lr"]["res"]}pxs_{self.lr_exps[0]}ks_{blended_agn}.csv'
-            self.hr_statistics_path = f'res/statistics/input_statistics_{config["type"]}_hr_{config["hr"]["res"]}pxs_{self.hr_exp}ks_{blended_agn}.csv'
+            self.lr_statistics_path = f'res/statistics/input_statistics_{config["type"]}_lr_{config["lr"]["res"]}pxs_{self.lr_exps[0]}ks_{self.blended_agn}.csv'
+            self.hr_statistics_path = f'res/statistics/input_statistics_{config["type"]}_hr_{config["hr"]["res"]}pxs_{self.hr_exp}ks_{self.blended_agn}.csv'
 
 
         if self.dataset_type == "real":
@@ -65,7 +63,7 @@ class XmmDataModule(BaseDataModule):
                 self.subset_str = f"res/splits/real_dataset/{{0}}/{{1}}ks.p"
             
             elif self.divide_dataset == 'below' or self.divide_dataset == 'above':
-                self.subset_str = f"res/splits/real_dataset/{{0}}/no_blended_agn_{config['lr']['res']}px_{{1}}ks_{self.divide_dataset}.p"
+                self.subset_str = f"res/splits/real_dataset/{{0}}/{self.blended_agn}_{config['lr']['res']}px_{{1}}ks_{self.divide_dataset}.p"
 
             else: 
                 raise ValueError(
@@ -96,6 +94,7 @@ class XmmDataModule(BaseDataModule):
 
             self.dataset = XmmSimDataset(
                 dataset_dir=self.dataset_dir,
+                deblend_agn_dir= config["deblend_agn_dir"],
                 lr_res=config["lr"]["res"],
                 hr_res=config["hr"]["res"],
                 dataset_lr_res=config["lr"]["res"],
@@ -117,7 +116,7 @@ class XmmDataModule(BaseDataModule):
                 self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
             
             elif self.divide_dataset == 'below' or self.divide_dataset == 'above':
-                self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.divide_dataset}_{self.lr_exps[0]}ks_{config['lr']['res']}px_no_blended_agn_{self.dataset.mode}.p"
+                self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.divide_dataset}_{self.lr_exps[0]}ks_{config['lr']['res']}px_{self.blended_agn}_{self.dataset.mode}.p"
               
 
             else: 

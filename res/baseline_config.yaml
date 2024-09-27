@@ -29,12 +29,13 @@ dataset:
   debug: True
   dir: "/xmm-super/final_data/sim/"
   # dir: "/xmm-super/final_data/real/"
-  # deblend_agn_dir: "blended_agn"
-  deblend_agn_dir: False
+  deblend_agn_dir: "blended_agn"
+  # deblend_agn_dir: False
   display:
-    sim_display_name: xmm_sim_display_selection
-    sim_display_name: xmm_sim_comp_img   # --> Use this for composed display images
-    real_display_name: xmm_split_display_selection
+    # sim_display_name: xmm_sim_display_selection
+    sim_display_name: xmm_sim_comp_img
+    real_display_name: False
+    # real_display_name: xmm_split_display_selection
     comps: True # If True the display images are also composed of img, agn and background
     exposure:
       - 20

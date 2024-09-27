@@ -27,6 +27,7 @@ class XmmSimDataset(Dataset):
     def __init__(
         self,
         dataset_dir: Path,
+        deblend_agn_dir: Path,
         lr_res: int,
         hr_res: int,
         dataset_lr_res: int,
@@ -88,6 +89,8 @@ class XmmSimDataset(Dataset):
         # Set the image dimensions
         self.dataset_lr_res = dataset_lr_res
         self.dataset_hr_res = self.dataset_lr_res * self.hr_res_mult
+        
+        self.deblend_agn_dir = deblend_agn_dir
 
         # Get all the image directories
         # Note that if the mode is agn we consider them as the base images
@@ -113,16 +116,19 @@ class XmmSimDataset(Dataset):
             msg1 = msg1 + " * lr_agn_count"
             msg2 = msg2 + f" * {self.lr_agn}"
             self.dataset_size = self.dataset_size * self.lr_agn
+           
+            agn_folder_name = deblend_agn_dir if deblend_agn_dir else 'agn'
+ 
             lr_agn_dirs = find_img_dirs(
-                dataset_dir, self.lr_exps, f"agn/{self.lr_res_mult}x"
+            dataset_dir, self.lr_exps, f"{agn_folder_name}/{self.lr_res_mult}x"
             )
+            
             lr_agn_files = find_img_files(lr_agn_dirs)
-
             hr_agn_dirs = find_img_dirs(
-                dataset_dir, self.hr_exp, f"agn/{self.hr_res_mult}x"
+                dataset_dir, self.hr_exp, f"{agn_folder_name}/{self.hr_res_mult}x"
             )
+            
             hr_agn_files = find_img_files(hr_agn_dirs)
-
             self.lr_agn_files, self.hr_agn_files, self.base_agn_count = match_file_list(
                 lr_agn_files, hr_agn_files, split_key
             )
@@ -203,12 +209,22 @@ class XmmSimDataset(Dataset):
         img = load_fits(img_path)
 
         if agn_path:
-            img["img"] += load_fits(agn_path)["img"]
-
+            agn_img = load_fits(agn_path)["img"]
+            
+            #TODO: Find a more elegant way to solve this issue 
+            # The blended hr agn images have dimensions of 822 x 805 instead of 822 x 806, so I am adding an extra column here 
+            if self.deblend_agn_dir and res_mult == 2:
+                zeros_column = np.zeros((agn_img.shape[0], 1))  # Create a column of zeros with the same number of rows as 'array'
+                agn_img = np.hstack((agn_img, zeros_column)) 
+            img["img"] += agn_img
+            
         if background_path:
             img["img"] += load_fits(background_path)["img"]
 
         if det_mask is not None:
+            # The 4x resolution images were made with the new simulator and have slightly different dimensions
+            if res_mult == 4:
+                img["img"] = np.pad(img["img"], ((0, 1), (0, 3)), mode='constant', constant_values=0)   
             img["img"] *= det_mask  # Note the *=
 
         # The image has the shape (411, 403), we pad/crop this to (dataset_lr_res, dataset_lr_res)
@@ -336,10 +352,10 @@ class XmmSimDataset(Dataset):
             else hr_img_sample["img"]
         )
         
-        test = torch.max(lr_img) - 0.0022336
+        # test = torch.max(lr_img) - 0.0022336
         
-        if test>0:
-            print('Alllaaaarm!: ', test)
+        # if test>0:
+        #     print('Alllaaaarm!: ', test)
         
 
         lr_img = self.normalize.normalize_lr_image(lr_img, idx = idx) if self.normalize else lr_img
