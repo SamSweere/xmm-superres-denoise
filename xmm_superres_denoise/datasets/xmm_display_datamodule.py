@@ -8,6 +8,9 @@ from xmm_superres_denoise.transforms import  Normalize
 import pandas as pd
 
 
+from pytorch_lightning.utilities import rank_zero_warn
+
+
 class XmmDisplayDataModule(BaseDataModule):
     def __init__(self, config):
         super(XmmDisplayDataModule, self).__init__(config)
@@ -67,6 +70,18 @@ class XmmDisplayDataModule(BaseDataModule):
                 / "display_datasets"
                 / f"{config['display']['sim_display_name']}"
             )
+            
+            if config["display"]["comps"]:
+                
+                rank_zero_warn(
+                "You are using the 'composed display image' option, make sure to use the corresponding display dataset."
+                )
+                
+                lr_agn, hr_agn, lr_background, hr_background = config["lr"]["agn"], config["hr"]["agn"], config["lr"]["background"], config["hr"]["background"]
+            
+            else: 
+                lr_agn, hr_agn, lr_background, hr_background = False, False, False, False
+            
             self.sim_display_dataset = XmmSimDataset(
                 dataset_dir=dataset_dir,
                 lr_res=config["lr"]["res"],
@@ -75,10 +90,10 @@ class XmmDisplayDataModule(BaseDataModule):
                 mode=config["mode"],
                 lr_exps=lr_exps,
                 hr_exp=hr_exp,
-                lr_agn=False,
-                hr_agn=False,
-                lr_background=False,
-                hr_background=False,
+                lr_agn=lr_agn,
+                hr_agn=hr_agn,
+                lr_background=lr_background,
+                hr_background=hr_background,
                 det_mask=det_mask,
                 constant_img_combs = config["constant_img_combs"],
                 check_files=check_files,
