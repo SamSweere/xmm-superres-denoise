@@ -8,7 +8,7 @@ from torchmetrics import Metric
 
 from xmm_superres_denoise.metrics import XMMMetricCollection
 from xmm_superres_denoise.transforms import ImageUpsample
-import datetime
+from datetime import datetime
 
 
 class Model(pl.LightningModule):
@@ -29,6 +29,8 @@ class Model(pl.LightningModule):
         self.ext_metrics = extended_metrics
         self.in_metrics = in_metrics
         self.in_ext_metrics = in_extended_metrics
+        self.config = config
+
 
         # Optimizer parameters
         self.learning_rate = config["learning_rate"]

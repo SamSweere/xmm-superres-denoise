@@ -156,7 +156,6 @@ class ImageLogger(pl.Callback):
         self.sim_normalize = sim_normalize
         self.real_scaling_normalizers = real_scaling_normalizers
         self.sim_scaling_normalizers = sim_scaling_normalizers
-        self.square_scaling_normalizers = square_scaling_normalizers
         self.data_range = data_range
 
         self.log_every_n_epochs = log_every_n_epochs
