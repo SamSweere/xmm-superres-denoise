@@ -1,5 +1,6 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Union
+
 
 import pytorch_lightning as pl
 import torch
@@ -7,9 +8,10 @@ from torch import Tensor
 from torchmetrics import Metric
 
 from xmm_superres_denoise.metrics import XMMMetricCollection
-from xmm_superres_denoise.transforms import ImageUpsample
+from xmm_superres_denoise.transforms import ImageUpsample, CustomSigmoid
 from datetime import datetime
 
+from pytorch_lightning.utilities import rank_zero_warn
 
 class Model(pl.LightningModule):
     def __init__(
@@ -18,6 +20,7 @@ class Model(pl.LightningModule):
         lr_shape: Tuple[int, int],
         hr_shape: Tuple[int, int],
         loss: Optional[Metric],
+        loss_config: Dict[str, Union[int, dict]],
         metrics: Optional[XMMMetricCollection],
         extended_metrics: Optional[XMMMetricCollection],
         in_metrics: Optional[XMMMetricCollection],
@@ -30,8 +33,16 @@ class Model(pl.LightningModule):
         self.in_metrics = in_metrics
         self.in_ext_metrics = in_extended_metrics
         self.config = config
-
-
+        
+        # Tried to apply the loss_normalizer in the loss_definition, but that's not possible since you cannot input a CompositionalMetric into torch functions
+        # Parameters for sigmoid applied to loss function 
+        if loss_config['apply_sigmoid_to_loss']:
+            
+            rank_zero_warn(
+                "You are applying a Sigmoid function to the trianing loss. Make sure that the Sigmoid function parameters in the loss_functions.yaml file match the expected statistics of the chosen loss function(s)."
+            )
+            self.sigmoid_loss_normalizer = CustomSigmoid(loss_config['k'], loss_config['x0'])
+            
         # Optimizer parameters
         self.learning_rate = config["learning_rate"]
         self.betas = (config["b1"], config["b2"])
@@ -39,7 +50,8 @@ class Model(pl.LightningModule):
         # Model and model parameters
         self.memory_efficient = config["memory_efficient"]
         self.model_name = config["name"]
-        self.loss = loss
+        self.loss = loss 
+        self.loss_config = loss_config
         self.clamp = config["clamp"]
         self.batch_size = config["batch_size"]
         self.model: torch.nn.Module
@@ -130,6 +142,7 @@ class Model(pl.LightningModule):
 
         if stage == "train":
             loss = self.loss(preds=preds, target=target)
+            loss = self.sigmoid_loss_normalizer(loss) if self.loss_config['apply_sigmoid_to_loss'] else loss
             self.log(
                 f"{stage}/loss",
                 loss,

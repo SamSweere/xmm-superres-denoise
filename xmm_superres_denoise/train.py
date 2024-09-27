@@ -25,7 +25,7 @@ import torch
 if __name__ == "__main__":
 
     debug_mode = True
-    os.environ["CUDA_VISIBLE_DEVICES"]= '0, 1, 2'
+    os.environ["CUDA_VISIBLE_DEVICES"]= '0,1,  2'
     torch.cuda.empty_cache()
 
     if debug_mode: 
@@ -151,6 +151,7 @@ if __name__ == "__main__":
         lr_shape=lr_shape,
         hr_shape=hr_shape,
         loss=loss,
+        loss_config=loss_config,
         metrics=metrics,
         in_metrics=in_metrics,
         extended_metrics=ext_metrics,
@@ -173,6 +174,8 @@ if __name__ == "__main__":
                 dataset_config=dataset_config
             )
             callbacks.append(il)
+            
+        
         checkpoint_callback = ModelCheckpoint(
             monitor="val/loss",
             dirpath=f"{wandb_logger.experiment.dir}/checkpoints",
@@ -190,9 +193,9 @@ if __name__ == "__main__":
         max_epochs=trainer_config["epochs"],
         strategy=trainer_config["strategy"],
         callbacks=callbacks,
-        limit_train_batches=1.,  
-        limit_val_batches=1.,   
-        limit_test_batches=1.,  
+        limit_train_batches=0.01,  
+        limit_val_batches=0.01,   
+        limit_test_batches=0.01,  
     )
 
     if routine == "fit":
