@@ -113,12 +113,13 @@ def prepare_statistics(
         exp = dataset_config[res]["exps"][0]        
     elif res == 'hr':
         exp = dataset_config[res]["exp"] 
-          
+    agns = 'blended_agn' if dataset_config["deblend_agn_dir"] else 'no_blended_agns'
+
     # Load dataset
     datamodule = XmmDataModule(dataset_config)
     dataset = datamodule.dataset
 
-    filename = Path(f'res/statistics/input_statistics_{input_type}_{res}_{img_res}pxs_{exp}ks.csv')
+    filename = Path(f'res/statistics/input_statistics_{input_type}_{res}_{img_res}pxs_{exp}ks_{agns}.csv')
     print(f'Computing {res} statistics for the {input_type} general dataset')
     compute_statistics(dataset, clamp_th, filename, res, fraction = 1)
     print()
@@ -142,7 +143,8 @@ def prepare_display_statistics(dataset_config, res):
         exp = dataset_config[res]["exps"][0]        
     elif res == 'hr':
         exp = dataset_config[res]["exp"] 
-        
+    agns = 'blended_agn' if dataset_config["deblend_agn_dir"] else 'no_blended_agns'
+
     
     # Load the datasets
     datamodule = XmmDisplayDataModule(dataset_config)
@@ -164,7 +166,7 @@ def prepare_display_statistics(dataset_config, res):
         datasets = [sim_display_dataset]
 
     for i, dataset in enumerate(datasets):
-        filename = Path(f'res/statistics/input_statistics_{dataset_names[i]}_{res}_{img_res}pxs_{exp}ks.csv')
+        filename = Path(f'res/statistics/input_statistics_{dataset_names[i]}_{res}_{img_res}pxs_{exp}ks_{agns}.csv')
         print(f'Computing {res} statistics for the {dataset_names[i]} dataset')
         compute_statistics(dataset, clamp_th, filename, res, fraction = 1)
         print()
@@ -191,7 +193,7 @@ if __name__ == "__main__":
         "-d",
         "--dataset",
         type=str,
-        default="gen",
+        default="dis",
         help="Whether to consider the general ('gen') or display ('dis') dataset",
     )
    
@@ -204,7 +206,7 @@ if __name__ == "__main__":
     # Make sure that no normalization is applied for the statistics and that the entire dataset is considered 
     dataset_config["normalize"]= False
     dataset_config["constant_img_combs"] = True
-    # dataset_config["divide_dataset"]= 'all'
+    dataset_config["divide_dataset"]= 'all'
      
     if res != 'lr' and res != 'hr':
         raise ValueError("Invalid input for the 'resolution' argument. Valid arguments are 'lr' for low resolution or 'hr' for high resolution")
