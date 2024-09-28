@@ -352,10 +352,10 @@ class XmmSimDataset(Dataset):
             else hr_img_sample["img"]
         )
         
-        # test = torch.max(lr_img) - 0.0022336
+        test = torch.max(lr_img) - 0.0022336
         
-        # if test>0:
-        #     print('Alllaaaarm!: ', test)
+        if test>0:
+            print('Alllaaaarm!: ', test)
         
 
         lr_img = self.normalize.normalize_lr_image(lr_img, idx = idx) if self.normalize else lr_img

@@ -159,8 +159,7 @@ class ImageLogger(pl.Callback):
         self.data_range = data_range
 
         self.log_every_n_epochs = log_every_n_epochs
-        self.sigma_clamp = dataset_config["sigma_clamp"]
-        self.clamp = dataset_config["clamp"]
+     
         self.lr_max = dataset_config["lr"]["max"]
         self.hr_max = dataset_config["hr"]["max"]
 
@@ -178,7 +177,10 @@ class ImageLogger(pl.Callback):
             "filenames": [],
             "indices":[]
         }
+        
         for dataloader in dataloaders:
+            print("Start of display module")
+            print()
             for batch in dataloader:
                 lr = batch["lr"].to(pl_module.device)
                 lr_exp = batch["lr_exp"]

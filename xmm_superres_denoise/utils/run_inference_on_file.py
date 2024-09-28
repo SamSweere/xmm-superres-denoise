@@ -85,7 +85,7 @@ def run_on_file(
     model_config["batch_size"] = dataset_config["batch_size"]
     model_config["H_in"] = dataset_config["lr"]["res"]
     model_config["W_in"] = dataset_config["lr"]["res"]
-    model_config["clamp"] = dataset_config["clamp"]
+    
 
     in_name, pred_name = _infer_file(
         fits_file=fits_file,
@@ -218,10 +218,7 @@ def _infer_file(
         hr_max=dataset_config["hr"]["max"],
         config = dataset_config,
         lr_statistics=lr_statistics,
-        stretch_mode=dataset_config["scaling"],
-        clamp = dataset_config["clamp"],
-        sigma_clamp = dataset_config["sigma_clamp"],
-        quantile_clamp = dataset_config["quantile_clamp"],
+        stretch_mode=dataset_config["scaling"]
     )
 
    

@@ -1,8 +1,8 @@
 
 # Apply a Sigmoid function to the training loss
 apply_sigmoid_to_loss: False
-k: 0.5 # Steepness of sigmoid curve
-x0: 2  # Midpoint of the sigmoid curve
+k: 2.5 # Steepness of sigmoid curve
+x0: 2.5  # Midpoint of the sigmoid curve
   
 # Loss function relative percentages
 # Set to True if you want to use the scaling and correction as described in the paper.

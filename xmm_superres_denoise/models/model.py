@@ -52,7 +52,6 @@ class Model(pl.LightningModule):
         self.model_name = config["name"]
         self.loss = loss 
         self.loss_config = loss_config
-        self.clamp = config["clamp"]
         self.batch_size = config["batch_size"]
         self.model: torch.nn.Module
         if self.model_name == "esr_gen":
@@ -174,6 +173,14 @@ class Model(pl.LightningModule):
     def _on_epoch_end(self, stage):
         if stage == "train":
             self.loss.reset()
+            
+            # Get the current date and time
+            current_datetime = datetime.now()
+                
+            # Format the date and time as a string (e.g., "2023-12-04_12-34-56")
+            formatted_datetime = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+            checkpoint_path = f"checkpoints/model_epoch_{self.current_epoch}_{self.config['name']}_{formatted_datetime}.ckpt"
+            self.trainer.save_checkpoint(checkpoint_path)
         else:
             loss = self.loss.compute()
             self.log(
@@ -217,13 +224,7 @@ class Model(pl.LightningModule):
                     sync_dist=True,
                 )
                 
-            # Get the current date and time
-            current_datetime = datetime.now()
-
-            # Format the date and time as a string (e.g., "2023-12-04_12-34-56")
-            formatted_datetime = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
-            checkpoint_path = f"checkpoints/model_epoch_{self.current_epoch}_{self.config['name']}_{formatted_datetime}.ckpt"
-            self.trainer.save_checkpoint(checkpoint_path)
+          
 
 
     def configure_optimizers(self):

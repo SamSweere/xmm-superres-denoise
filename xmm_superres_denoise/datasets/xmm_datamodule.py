@@ -40,10 +40,7 @@ class XmmDataModule(BaseDataModule):
                     hr_max=config["hr"]["max"],
                     config = config,
                     lr_statistics= pd.read_csv(self.lr_statistics_path), 
-                    stretch_mode=config["scaling"],
-                    clamp = config["clamp"],
-                    sigma_clamp = config["sigma_clamp"],
-                    quantile_clamp = config["quantile_clamp"],
+                    stretch_mode=config["scaling"]
                 )
             else:
                 self.normalize = False
@@ -83,10 +80,7 @@ class XmmDataModule(BaseDataModule):
                     config = config,
                     lr_statistics= pd.read_csv(self.lr_statistics_path), 
                     hr_statistics= pd.read_csv(self.hr_statistics_path), 
-                    stretch_mode=config["scaling"],
-                    clamp = config["clamp"],
-                    sigma_clamp = config["sigma_clamp"],
-                    quantile_clamp = config["quantile_clamp"]
+                    stretch_mode=config["scaling"]
                 )
                 
             else:

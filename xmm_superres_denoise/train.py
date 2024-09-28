@@ -32,8 +32,8 @@ if __name__ == "__main__":
 
         args = {}
         
-        routine = "fit"
-        run_config = "/home/xmmsas/mywork/cleanup/xmm-superres-denoise/res/baseline_config.yaml"
+        routine = "test"
+        run_config = "/home/xmmsas/mywork/cleanup_new/xmm-superres-denoise/res/baseline_config.yaml"
 
     else:
         
@@ -62,8 +62,7 @@ if __name__ == "__main__":
     model_config["batch_size"] = dataset_config["batch_size"]
     model_config["H_in"] = dataset_config["lr"]["res"]
     model_config["W_in"] = dataset_config["lr"]["res"]
-    model_config["clamp"] = dataset_config["clamp"]
-
+    
     loss_config: dict = read_yaml(Path("res") / "configs" / "loss_functions.yaml")
 
     trainer_config: dict = run_config["trainer"]
@@ -90,24 +89,22 @@ if __name__ == "__main__":
 
     lr_max = dataset_config["lr"]["max"]
     hr_max = dataset_config["hr"]["max"]
-    clamp = dataset_config["clamp"]
-    quantile_clamp = dataset_config["quantile_clamp"]
     
     lr_shape = (dataset_config["lr"]["res"], dataset_config["lr"]["res"])
     hr_shape = (dataset_config["hr"]["res"], dataset_config["hr"]["res"])
     
     scaling_normalizers = [
-        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = datamodule.normalize.lr_statistics, hr_statistics = datamodule.normalize.hr_statistics, stretch_mode=s_mode, clamp = clamp, quantile_clamp=quantile_clamp)
+        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = datamodule.normalize.lr_statistics, hr_statistics = datamodule.normalize.hr_statistics, stretch_mode=s_mode)
         for s_mode in ["linear", "sqrt", "asinh", "log", "hist_eq"]
     ]
 
     real_dis_scaling_normalizers =  [
-        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = dis_datamodule.real_normalize.lr_statistics, hr_statistics = dis_datamodule.real_normalize.hr_statistics, stretch_mode=s_mode, clamp = clamp, quantile_clamp=quantile_clamp)
+        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = dis_datamodule.real_normalize.lr_statistics, hr_statistics = dis_datamodule.real_normalize.hr_statistics, stretch_mode=s_mode)
         for s_mode in ["linear", "sqrt", "asinh", "log", "hist_eq"]
     ]
    
     sim_dis_scaling_normalizers =  [
-        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = dis_datamodule.sim_normalize.lr_statistics, hr_statistics = dis_datamodule.sim_normalize.hr_statistics, stretch_mode=s_mode, clamp = clamp, quantile_clamp=quantile_clamp)
+        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = dis_datamodule.sim_normalize.lr_statistics, hr_statistics = dis_datamodule.sim_normalize.hr_statistics, stretch_mode=s_mode)
         for s_mode in ["linear", "sqrt", "asinh", "log", "hist_eq"]
     ]
 
@@ -152,15 +149,15 @@ if __name__ == "__main__":
         hr_shape=hr_shape,
         loss=loss,
         loss_config=loss_config,
-        metrics=metrics,
-        in_metrics=in_metrics,
-        extended_metrics=ext_metrics,
-        in_extended_metrics=in_ext_metrics,
+        metrics=None,
+        in_metrics=None,
+        extended_metrics=None,
+        in_extended_metrics=None,
     )
 
     callbacks = None
 
-    if routine == "fit":
+    if routine == "fit" or "train":
         callbacks = []
         if trainer_config["log_images_every_n_epochs"] > 0:
             il = ImageLogger(
@@ -195,7 +192,7 @@ if __name__ == "__main__":
         callbacks=callbacks,
         limit_train_batches=0.01,  
         limit_val_batches=0.01,   
-        limit_test_batches=0.01,  
+        limit_test_batches=0.1,  
     )
 
     if routine == "fit":

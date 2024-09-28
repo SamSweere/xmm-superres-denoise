@@ -35,10 +35,7 @@ class XmmDisplayDataModule(BaseDataModule):
                 config = config,
                 lr_statistics= pd.read_csv(self.sim_lr_statistics_path), 
                 hr_statistics= pd.read_csv(self.sim_hr_statistics_path), 
-                stretch_mode=config["scaling"],
-                clamp = config["clamp"],
-                sigma_clamp = config["sigma_clamp"],
-                quantile_clamp = config["quantile_clamp"],
+                stretch_mode=config["scaling"]
             )
 
             self.real_normalize = Normalize(
@@ -46,10 +43,7 @@ class XmmDisplayDataModule(BaseDataModule):
                 hr_max=config["hr"]["max"],
                 config = config,
                 lr_statistics= pd.read_csv(self.real_lr_statistics_path), 
-                stretch_mode=config["scaling"],
-                clamp = config["clamp"],
-                sigma_clamp = config["sigma_clamp"],
-                quantile_clamp = config["quantile_clamp"]
+                stretch_mode=config["scaling"]
             )
 
         else:
@@ -104,7 +98,7 @@ class XmmDisplayDataModule(BaseDataModule):
             
             if self.divide_dataset == 'below' or self.divide_dataset == 'above':
                 self.sim_subset_str = f"res/splits/sim_display_dataset/{self.blended_agn}_{config['lr']['res']}px_{config['lr']['exps'][0]}ks_{self.divide_dataset}.p"
-                test = 5
+                
         if config["display"]["real_display_name"]:
             from xmm_superres_denoise.datasets import XmmDataset
 
