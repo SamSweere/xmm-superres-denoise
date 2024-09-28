@@ -77,8 +77,8 @@ def main(base_save_path, down_scales, br_diffs_scales, exposures, resolutions):
                 
                 for shift_amount in np.arange(5):
                     # Define paths to save the images 
-                    save_path = Path(base_save_path + f'original_grids/{res}x_{ds:.2f}ds')
-                    shifted_save_path = Path(base_save_path + f'shifted_grids/br_diff_sc{br_diff}/{res}x_{ds:.2f}ds/shift{shift_amount}')
+                    save_path = Path(base_save_path + f'original_grids/input/{res}x_{ds:.2f}ds')
+                    shifted_save_path = Path(base_save_path + f'shifted_grids/input/br_diff_sc{br_diff}/{res}x_{ds:.2f}ds/shift{shift_amount}')
                     
                     # Create paths if they dont exist yet
                     create_directory_if_not_exists(save_path)
@@ -93,6 +93,7 @@ def main(base_save_path, down_scales, br_diffs_scales, exposures, resolutions):
 
                         fits_path = Path(base_dir + grid_dir)
                         fits_shifted_save_path = shifted_save_path / Path(f'shifted_{grid_dir}')
+                        fits_original_save_path = save_path/Path(f'original_{grid_dir}')
                     
                         # Load FITS file
                         img = load_fits(fits_path)            
@@ -103,6 +104,7 @@ def main(base_save_path, down_scales, br_diffs_scales, exposures, resolutions):
 
                         # Save the combined image as a fits file
                         modify_and_save_fits(fits_path, fits_shifted_save_path, combined_img)
+                        modify_and_save_fits(fits_path, fits_original_save_path, img)
 
                         # Plot the images and save as 'grid_sources.pdf'
                         plot_images(img, combined_img, img_save_path, img_shifted_save_path, sqrt_scale)
