@@ -12,7 +12,7 @@ class BaseDataModule(LightningDataModule):
     def __init__(self, config):
         super(BaseDataModule, self).__init__()
 
-        self.num_workers = 0 if config["debug"] else 12
+        self.num_workers = 0 if config["debug"] else 150
         self.pin_memory = not config["debug"]
         self.persistent_workers = not config["debug"]
 
