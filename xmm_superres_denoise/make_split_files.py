@@ -150,10 +150,10 @@ def make_dis_split_files(data, args):
 
     # Save the indices to the file
     with open(below_path, "wb") as f:
-        pickle.dump(np.asarray(above_indices), f)
+        pickle.dump(np.asarray(below_indices), f)
 
     with open(above_path, "wb") as f:
-        pickle.dump(np.asarray(below_indices), f)
+        pickle.dump(np.asarray(above_indices), f)
 
 
 def main_gen(args):
@@ -188,10 +188,10 @@ if __name__ == "__main__":
     # Setup argparse for terminal inputs
     parser = argparse.ArgumentParser(description='Process statistics and subset indices.')
     parser.add_argument('--exp', type=int, default=20, help='Exposure value in ks (default: 20).')
-    parser.add_argument('--input_type', type=str, default='real_display', choices=['sim', 'real', 'sim_display', 'real_display'], help='Input type: "sim" or "real" (default: sim).')
-    parser.add_argument('--pixel_res', type=int, default=256, help='Pixel resolution (default: 256).')
+    parser.add_argument('--input_type', type=str, default='sim_display', choices=['sim', 'real', 'sim_display', 'real_display'], help='Input type: "sim" or "real" (default: sim).')
+    parser.add_argument('--pixel_res', type=int, default=416, help='Pixel resolution (default: 256).')
     parser.add_argument('--res_name', type=str, default='lr', help='Resolution name (default: lr).')
-    parser.add_argument('--agns', type=str, default='no_blended_agn', help='AGN type (default: no_blended_agn).')
+    parser.add_argument('--agns', type=str, default='blended_agn', help='AGN type (default: no_blended_agn).')
     parser.add_argument('--fraction', type=float, default=0.0, help='Fraction threshold for split (default: 0.0).')
 
     args = parser.parse_args()
