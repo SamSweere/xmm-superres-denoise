@@ -350,6 +350,8 @@ class ImageLogger(pl.Callback):
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
         # self._log_images(self.datamodule.test_dataloader(), pl_module, "test")
+        #Call it once like it is the first epoch so we get the input and target images as well
+        self._log_images(trainer.logger, pl_module, self.datamodule.test_dataloader(), "test", True)
         self._log_images(trainer.logger, pl_module, self.datamodule.test_dataloader(), "test")
 
     def on_predict_batch_end(
