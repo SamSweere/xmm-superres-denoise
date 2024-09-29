@@ -24,32 +24,22 @@ import torch
 
 if __name__ == "__main__":
 
-    debug_mode = True
-    os.environ["CUDA_VISIBLE_DEVICES"]= '0,1,  2'
+   
+    os.environ["CUDA_VISIBLE_DEVICES"]= '0,2,3'
     torch.cuda.empty_cache()
 
-    if debug_mode: 
+    # from command line 
+    parser = ArgumentParser()
+    parser.add_argument(
+        "routine", choices=["fit", "test"], help="What routine to execute"
+    )
+    parser.add_argument("run_config", type=Path, help="Path to the run config yaml.")
+    args = parser.parse_args()
 
-        args = {}
-        
-        routine = "test"
-        run_config = "/home/xmmsas/mywork/cleanup_new/xmm-superres-denoise/res/baseline_config.yaml"
-
-    else:
-        
-        # from command line 
-        parser = ArgumentParser()
-        parser.add_argument(
-            "routine", choices=["fit", "test"], help="What routine to execute"
-        )
-        parser.add_argument("run_config", type=Path, help="Path to the run config yaml.")
-        args = parser.parse_args()
-
-        run_config = args.run_config
-        routine = args.routine
+    run_config = args.run_config
+    routine = args.routine
 
     
-   
     run_config: dict = read_yaml(run_config)
     wandb_config: dict = run_config["wandb"]
 
@@ -149,10 +139,10 @@ if __name__ == "__main__":
         hr_shape=hr_shape,
         loss=loss,
         loss_config=loss_config,
-        metrics=None,
-        in_metrics=None,
-        extended_metrics=None,
-        in_extended_metrics=None,
+        metrics=metrics,
+        in_metrics=in_metrics,
+        extended_metrics=ext_metrics,
+        in_extended_metrics=in_ext_metrics,
     )
 
     callbacks = None
@@ -190,9 +180,9 @@ if __name__ == "__main__":
         max_epochs=trainer_config["epochs"],
         strategy=trainer_config["strategy"],
         callbacks=callbacks,
-        limit_train_batches=0.01,  
-        limit_val_batches=0.01,   
-        limit_test_batches=0.1,  
+        limit_train_batches=1.,  
+        limit_val_batches=1.,   
+        limit_test_batches=1.,  
     )
 
     if routine == "fit":
