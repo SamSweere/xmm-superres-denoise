@@ -113,7 +113,7 @@ def main(base_save_path, down_scales, br_diffs_scales, exposures, resolutions):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process FITS files with specified parameters.')
 
-    parser.add_argument('--base_save_path', type=str, default='/home/xmmsas/mywork/cleanup_new/xmm-superres-denoise/shifted_grid_sources/results/', help='Base directory for saving results.')
+    parser.add_argument('--base_save_path', type=str, default='shifted_grid_sources/results/', help='Base directory for saving results.')
     parser.add_argument('--down_scales', nargs='+', type=float, default=[0.25, 0.5, 0.75, 1], help='List of factors used to downscale the input.')
     parser.add_argument('--br_diffs_scales', nargs='+', type=float, default=[1], help='List of brightness differences between the original and the shifted image.')
     parser.add_argument('--exposures', nargs='+', type=int, default=[20, 100], help='Exposure of low and high resolution imaage, respectively')
