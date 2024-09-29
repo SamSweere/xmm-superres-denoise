@@ -29,12 +29,18 @@ dataset:
   # Options: 'center', 'random', 'boresight'
   crop_mode:
   # Apply the detector mask. Options: True, False
-  clamp: 
-  # Apply clamping. Options: True, False
+  input_clamp: 
+  # Apply clamping to the input image. Options: True, False
+  target_clamp:
+  # Apply clamping to the input image. Options: True, False
   sigma_clamp:
   # Apply sigma clamping. Options: True, False
   quantile_clamp:
-  # Apply quantile claping. options: 0.001, 0.01, 0.05, 0.5, 0.95, 0.99, 0.999, 0.9999
+  # Apply quantile claping. Options: 0.001, 0.01, 0.05, 0.5, 0.95, 0.99, 0.999, 0.9999
+  normalize:
+  # Normalize the input image. Options: True, False (only set to False to compute statistics of input data)
+  constant_img_combs: 
+  # Always use the same combinations of img, AGN, and background components per idx. Options: True, False
   det_mask:
   # Set debug to true if debugging. Will make your life easier. Options: True, False
   debug:

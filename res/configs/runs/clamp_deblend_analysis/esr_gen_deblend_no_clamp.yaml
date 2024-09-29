@@ -20,7 +20,9 @@ dataset:
   # Options: 'center', 'random', 'boresight'
   crop_mode: center
   # set whether or not to clamp the input data
-  clamp: True
+  input_clamp: True
+  target_clamp: True
+  target_norm: 'same'
   sigma_clamp: False
   quantile_clamp: 0.9999  #0.9999
   normalize: True
