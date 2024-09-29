@@ -113,10 +113,10 @@ class Normalize(object):
                 max_vals = torch.as_tensor(max).expand(len(statistics["Means"]))
         else:
             # Check if the combination of parameters is valid
-            if self.sigma_clamp:
+            if self.sigma_clamp and self.input_clamp == self.target_clamp:
                 raise ValueError(f"Invalid combination of parameters 'clamp' ({clamp}) and 'sigma_clamp' ({self.sigma_clamp}). 'sigma_clamp' can only be True if 'clamp' is also True)")
             
-            elif self.quantile_clamp: 
+            elif self.quantile_clamp and self.input_clamp == self.target_clamp: 
                  raise ValueError(f"Invalid combination of parameters 'clamp' ({clamp}) and 'quantile_clamp' ({self.quantile_clamp}). 'quantile_clamp' can only be True if 'clamp' is also True)")
             else:
                 # Use the actual max within each image as "clamping" value
@@ -129,11 +129,11 @@ class Normalize(object):
 
         return max_vals
     
-    def compute_norm_vals(self, statistics, norm, max_val, max):
+    def compute_norm_vals(self, statistics, norm, max_vals, max):
         
         if norm == 'same':
             # Target norm is equal to the clamping value 
-            norm_val = max_val
+            norm_val = max_vals
         elif norm == 'equiv':
             # Use the norm that corresponds to the clamping kind of the input image 
             norm_val = self.compute_max_vals(statistics, max, self.input_clamp)
@@ -141,18 +141,19 @@ class Normalize(object):
         return norm_val 
 
 
-    def normalize_image(self, image, max_val, norm,  clamp = True):
+    def normalize_image(self, image, max_val, norm_val,  clamp = True):
         
         #TODO: check if there isnt a more efficient way to put this 
         # Adjust the dimensions of the max value 
         max_val = max_val.to(image.device).view(-1, *([1] * (image.dim() - 1)))
+        norm_val = norm_val.to(image.device).view(-1, *([1] * (image.dim() - 1)))
        
         if clamp: 
             min_val = torch.as_tensor(0).to(image.device)
             image = torch.clamp(image, min=min_val, max=max_val)
             
         # Normalize the image
-        image = image / norm
+        image = image / norm_val
                  
         # Apply the stretching function
         image = self.stretch_f(image, *self.args)
@@ -162,16 +163,16 @@ class Normalize(object):
 
         return image
 
-    def denormalize_image(self, image, max_val, norm, clamp = True):
+    def denormalize_image(self, image, max_val, norm_val, clamp = True):
         
-
         max_val = max_val.to(image.device).view(-1, *([1] * (image.dim() - 1)))
+        norm_val = norm_val.to(image.device).view(-1, *([1] * (image.dim() - 1)))
         
         # De-normalizes the image
         image = self.stretch_f(image, *self.args, inverse=True)
        
         # Denormalize the max val
-        image = image * norm
+        image = image * norm_val
         # test = torch.amax(image, dim = (1,2,3))
 
         if clamp: 
@@ -183,19 +184,19 @@ class Normalize(object):
 
     def normalize_lr_image(self, image, idx):
         max_val = self.lr_max_vals.to(image.device)[idx]
-        return self.normalize_image(image, max_val = max_val, norm = max_val, clamp = self.input_clamp)
+        return self.normalize_image(image, max_val = max_val, norm_val = max_val, clamp = self.input_clamp)
        
     def normalize_hr_image(self, image, idx):
         max_val = self.hr_max_vals.to(image.device)[idx]
-        return self.normalize_image(image, max_val = max_val, norm = self.target_norms.to(image.device)[idx], clamp = self.target_clamp)
+        return self.normalize_image(image, max_val = max_val, norm_val = self.target_norms.to(image.device)[idx], clamp = self.target_clamp)
 
     def denormalize_lr_image(self, image, idx):
         max_val = self.lr_max_vals.to(image.device)[idx]
-        return self.denormalize_image(image, max_val = max_val, norm = max_val, clamp = self.input_clamp)
+        return self.denormalize_image(image, max_val = max_val, norm_val = max_val, clamp = self.input_clamp)
 
     def denormalize_hr_image(self, image, idx):
         max_val = self.hr_max_vals.to(image.device)[idx]
-        return self.denormalize_image(image, max_val = max_val, norm = self.target_norms.to(image.device)[idx], clamp = self.target_clamp)
+        return self.denormalize_image(image, max_val = max_val, norm_val = self.target_norms.to(image.device)[idx], clamp = self.target_clamp)
 
     
 
