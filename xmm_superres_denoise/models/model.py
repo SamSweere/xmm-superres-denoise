@@ -12,6 +12,7 @@ from xmm_superres_denoise.transforms import ImageUpsample, CustomSigmoid
 from datetime import datetime
 
 from pytorch_lightning.utilities import rank_zero_warn
+import torch.nn.functional as F
 
 class Model(pl.LightningModule):
     def __init__(
@@ -50,21 +51,23 @@ class Model(pl.LightningModule):
         # Model and model parameters
         self.memory_efficient = config["memory_efficient"]
         self.model_name = config["name"]
-        self.loss = loss 
+        if loss: 
+            self.loss = loss.clone()
+            self.loss_input_target = loss.clone()
         self.loss_config = loss_config
         self.batch_size = config["batch_size"]
         self.model: torch.nn.Module
         if self.model_name == "esr_gen":
             from xmm_superres_denoise.models import GeneratorRRDB_SR
 
-            up_scale = hr_shape[0] / lr_shape[0]
-            if up_scale % 2 != 0:
+            self.up_scale = hr_shape[0] / lr_shape[0]
+            if self.up_scale % 2 != 0:
                 raise ValueError(
-                    f"Upscaling is not a multiple of two but {up_scale}, "
+                    f"Upscaling is not a multiple of two but {self.up_scale}, "
                     f"based on in_dims {lr_shape} and out_dims {hr_shape}"
                 )
 
-            up_scale = int(up_scale / 2)
+            self.up_scale = int(self.up_scale / 2)
             # Initialize generator and discriminator
             self.model = GeneratorRRDB_SR(
                 in_channels=config["in_channels"],
@@ -73,7 +76,7 @@ class Model(pl.LightningModule):
                 num_res_blocks=config["residual_blocks"],
                 H_in = config["H_in"], 
                 W_in = config["W_in"],
-                num_upsample=up_scale,
+                num_upsample=self.up_scale,
                 memory_efficient=self.memory_efficient,
                 normalization_layer=config["normalization_layer"]
             )
@@ -151,7 +154,14 @@ class Model(pl.LightningModule):
             )
             return loss
         else:
+            
             self.loss.update(preds=preds, target=target)
+            
+            if stage == 'test':
+                # Also compute the loss between input and target during testing
+                # up_scale is divided by 2 in the computation above, so we multiply by 2 here 
+                lr_upscaled =  F.interpolate(lr, scale_factor=2*self.up_scale, mode='bilinear', align_corners=False)
+                self.loss_input_target.update(preds= lr_upscaled, target = target)
 
             if self.in_metrics is not None or self.ext_metrics is not None:
                 scale_factor = target.shape[2] / lr.shape[2]
@@ -191,6 +201,16 @@ class Model(pl.LightningModule):
                 on_epoch=True,
                 sync_dist=True,
             )
+            if stage =='test':
+                loss_input_target = self.loss_input_target.compute()
+                self.log(
+                    f"{stage}/loss_input_target",
+                    loss_input_target,
+                    batch_size=self.batch_size,
+                    on_step=False,
+                    on_epoch=True,
+                    sync_dist=True,
+                )
             self.loss.reset()
 
             to_log: List[dict] = []
