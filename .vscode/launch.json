@@ -1,0 +1,59 @@
+{
+    {
+        // Use IntelliSense to learn about possible attributes.
+        // Hover to view descriptions of existing attributes.
+        // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Python: Current File",
+                "type": "debugpy",
+                "request": "launch",
+                "program": "${file}",
+                "console": "integratedTerminal",
+                "justMyCode": true,
+            }, 
+            {
+                "name": "Python Debugger: train",
+                "type": "debugpy",
+                "request": "launch",
+                "program": "${file}",
+                "console": "integratedTerminal",
+                "justMyCode": true,
+                "args": [
+                  "routine", "train",
+                  "run_config", "${workspaceFolder}/res/baseline_config.yaml",
+                ]
+              },
+              {
+                "name": "Python Debugger: get_input_statistics",
+                "type": "debugpy",
+                "request": "launch",
+                "program": "${file}",
+                "console": "integratedTerminal",
+                "justMyCode": true,
+                "args": [
+                  "-p", "${workspaceFolder}/res/baseline_config.yaml",
+                  "-d", "dis",
+                  "-r", "lr",
+                ]
+              },
+              {
+                "name": "Python Debugger: make_statistics_files",
+                "type": "debugpy",
+                "request": "launch",
+                "program": "${workspaceFolder}/xmm_superres_denoise/make_statistics_files.py",
+                "console": "integratedTerminal",
+                "args": [
+                    "-p", "${workspaceFolder}/res/baseline_config.yaml",
+                    "-r", "lr",
+                    "-d", "gen"
+                ],
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}"
+                },
+                "justMyCode": true
+            }
+        ]
+    }
+    
