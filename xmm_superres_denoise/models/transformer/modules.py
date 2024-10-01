@@ -4,8 +4,6 @@ import torch
 import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
 from models.transformer.tools import drop_path, window_partition, window_reverse
-
-# TODO Check if DropPath does the same as the DropPath from swinfir_utils
 from timm.models.layers import to_2tuple, trunc_normal_
 
 
@@ -370,52 +368,6 @@ class SwinTransformerBlock(nn.Module):
         flops += 2 * h * w * self.dim * self.dim * self.mlp_ratio
         # norm2
         flops += self.dim * h * w
-        return flops
-
-
-class PatchMerging(nn.Module):
-    r"""Patch Merging Layer.
-
-    Args:
-        input_resolution (tuple[int]): Resolution of input feature.
-        dim (int): Number of input channels.
-        norm_layer (nn.Module, optional): Normalization layer.  Default: nn.LayerNorm
-    """
-
-    def __init__(self, input_resolution, dim, norm_layer=nn.LayerNorm):
-        super().__init__()
-        self.input_resolution = input_resolution
-        self.dim = dim
-        self.reduction = nn.Linear(4 * dim, 2 * dim, bias=False)
-        self.norm = norm_layer(4 * dim)
-
-    def forward(self, x):
-        """
-        x: b, h*w, c
-        """
-        h, w = self.input_resolution
-        b, seq_len, c = x.shape
-        assert seq_len == h * w, "input feature has wrong size"
-        assert h % 2 == 0 and w % 2 == 0, f"x size ({h}*{w}) are not even."
-
-        x = x.view(b, h, w, c)
-
-        x0 = x[:, 0::2, 0::2, :]  # b h/2 w/2 c
-        x1 = x[:, 1::2, 0::2, :]  # b h/2 w/2 c
-        x2 = x[:, 0::2, 1::2, :]  # b h/2 w/2 c
-        x3 = x[:, 1::2, 1::2, :]  # b h/2 w/2 c
-        x = torch.cat([x0, x1, x2, x3], -1)  # b h/2 w/2 4*c
-        x = x.view(b, -1, 4 * c)  # b h/2*w/2 4*c
-
-        x = self.norm(x)
-        x = self.reduction(x)
-
-        return x
-
-    def flops(self):
-        h, w = self.input_resolution
-        flops = h * w * self.dim
-        flops += (h // 2) * (w // 2) * 4 * self.dim * 2 * self.dim
         return flops
 
 
