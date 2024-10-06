@@ -128,10 +128,11 @@ def apply_transform(
 
 
 def load_det_mask(res_mult: int):
-    with fits.open(
-        Path("res") / "detector_mask" / f"pn_mask_500_2000_detxy_{res_mult}x.ds"
-    ) as hdu:
-        return hdu[0].data.astype(np.float32)
+    data = fits.getdata(
+        Path("res") / "detector_mask" / f"pn_mask_500_2000_detxy_{res_mult}x.ds", 0
+    )
+
+    return data.astype(np.float32)
 
 
 def reshape_img_to_res(res: int, img: torch.Tensor) -> torch.Tensor:
