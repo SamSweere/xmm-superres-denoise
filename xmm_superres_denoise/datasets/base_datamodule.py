@@ -12,7 +12,7 @@ class BaseDataModule(LightningDataModule):
     def __init__(self, config):
         super(BaseDataModule, self).__init__()
 
-        self.num_workers = 0 if config["debug"] else 12
+        self.num_workers = 0 if config["debug"] else 150
         self.pin_memory = not config["debug"]
         self.persistent_workers = not config["debug"]
 
@@ -26,13 +26,7 @@ class BaseDataModule(LightningDataModule):
             ),
             ToTensor(),
         ]
-
-        self.normalize = Normalize(
-            lr_max=config["lr"]["max"],
-            hr_max=config["hr"]["max"],
-            stretch_mode=config["scaling"],
-        )
-
+        
         self.dataset_dir = Path(config["dir"]) / config["name"]
         self.check_files = config["check_files"]
 
@@ -59,6 +53,7 @@ class BaseDataModule(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=shuffle,
             num_workers=self.num_workers,
+            # num_workers = 16,
             pin_memory=self.pin_memory,
             persistent_workers=self.persistent_workers,
         )

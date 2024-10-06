@@ -19,8 +19,16 @@ from xmm_superres_denoise.transforms import Normalize
 from xmm_superres_denoise.utils import ImageLogger
 from xmm_superres_denoise.utils.filehandling import read_yaml
 from xmm_superres_denoise.utils.loss_functions import create_loss
+import os 
+import torch
 
 if __name__ == "__main__":
+
+   
+    os.environ["CUDA_VISIBLE_DEVICES"]= '0,2,3'
+    torch.cuda.empty_cache()
+
+    # from command line 
     parser = ArgumentParser()
     parser.add_argument(
         "routine", choices=["fit", "test"], help="What routine to execute"
@@ -28,7 +36,11 @@ if __name__ == "__main__":
     parser.add_argument("run_config", type=Path, help="Path to the run config yaml.")
     args = parser.parse_args()
 
-    run_config: dict = read_yaml(args.run_config)
+    run_config = args.run_config
+    routine = args.routine
+
+    
+    run_config: dict = read_yaml(run_config)
     wandb_config: dict = run_config["wandb"]
 
     dataset_config: dict = run_config["dataset"]
@@ -38,7 +50,9 @@ if __name__ == "__main__":
         read_yaml(Path("res") / "configs" / "model" / f"{model_config['name']}.yaml")
     )
     model_config["batch_size"] = dataset_config["batch_size"]
-
+    model_config["H_in"] = dataset_config["lr"]["res"]
+    model_config["W_in"] = dataset_config["lr"]["res"]
+    
     loss_config: dict = read_yaml(Path("res") / "configs" / "loss_functions.yaml")
 
     trainer_config: dict = run_config["trainer"]
@@ -51,12 +65,13 @@ if __name__ == "__main__":
         log_model=wandb_config["online"] and wandb_config["log_model"],
         offline=not wandb_config["online"],
         config=run_config,
-        resume="must" if wandb_config["run"]["id"] is not None else None,
+        resume="allow" if wandb_config["run"]["id"] is not None else None,
         id=wandb_config["run"]["id"],
     )
 
     rank_zero_info("Creating data module...")
     datamodule = XmmDataModule(dataset_config)
+    dis_datamodule=XmmDisplayDataModule(dataset_config)
 
     loss = create_loss(data_scaling=dataset_config["scaling"], loss_config=loss_config)
 
@@ -64,14 +79,26 @@ if __name__ == "__main__":
 
     lr_max = dataset_config["lr"]["max"]
     hr_max = dataset_config["hr"]["max"]
+    
     lr_shape = (dataset_config["lr"]["res"], dataset_config["lr"]["res"])
     hr_shape = (dataset_config["hr"]["res"], dataset_config["hr"]["res"])
+    
     scaling_normalizers = [
-        Normalize(lr_max=lr_max, hr_max=hr_max, stretch_mode=s_mode)
-        for s_mode in ["linear", "sqrt", "asinh", "log"]
+        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = datamodule.normalize.lr_statistics, hr_statistics = datamodule.normalize.hr_statistics, stretch_mode=s_mode)
+        for s_mode in ["linear", "sqrt", "asinh", "log", "hist_eq"]
     ]
 
-    pre = "val" if args.routine == "fit" else "test"
+    real_dis_scaling_normalizers =  [
+        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = dis_datamodule.real_normalize.lr_statistics, hr_statistics = dis_datamodule.real_normalize.hr_statistics, stretch_mode=s_mode)
+        for s_mode in ["linear", "sqrt", "asinh", "log", "hist_eq"]
+    ]
+   
+    sim_dis_scaling_normalizers =  [
+        Normalize(lr_max=lr_max, hr_max=hr_max, config = dataset_config, lr_statistics = dis_datamodule.sim_normalize.lr_statistics, hr_statistics = dis_datamodule.sim_normalize.hr_statistics, stretch_mode=s_mode)
+        for s_mode in ["linear", "sqrt", "asinh", "log", "hist_eq"]
+    ]
+
+    pre = "val" if routine == "fit" else "test"
     metrics = get_metrics(
         data_range=hr_max,
         dataset_normalizer=datamodule.normalize,
@@ -92,7 +119,7 @@ if __name__ == "__main__":
             scaling_normalizers=scaling_normalizers,
             prefix=pre,
         )
-        if args.routine == "test"
+        if routine == "test"
         else None
     )
     in_ext_metrics = (
@@ -102,7 +129,7 @@ if __name__ == "__main__":
             scaling_normalizers=scaling_normalizers,
             prefix=pre,
         )
-        if args.routine == "test"
+        if routine == "test"
         else None
     )
 
@@ -111,6 +138,7 @@ if __name__ == "__main__":
         lr_shape=lr_shape,
         hr_shape=hr_shape,
         loss=loss,
+        loss_config=loss_config,
         metrics=metrics,
         in_metrics=in_metrics,
         extended_metrics=ext_metrics,
@@ -119,17 +147,22 @@ if __name__ == "__main__":
 
     callbacks = None
 
-    if args.routine == "fit":
+    if routine == "fit" or "train":
         callbacks = []
         if trainer_config["log_images_every_n_epochs"] > 0:
             il = ImageLogger(
-                datamodule=XmmDisplayDataModule(dataset_config),
+                datamodule=dis_datamodule,
                 log_every_n_epochs=trainer_config["log_images_every_n_epochs"],
-                normalize=datamodule.normalize,
-                scaling_normalizers=scaling_normalizers,
+                real_normalize=dis_datamodule.real_normalize,
+                sim_normalize=dis_datamodule.sim_normalize,
+                real_scaling_normalizers=real_dis_scaling_normalizers,
+                sim_scaling_normalizers=sim_dis_scaling_normalizers,
                 data_range=hr_max,
+                dataset_config=dataset_config
             )
             callbacks.append(il)
+            
+        
         checkpoint_callback = ModelCheckpoint(
             monitor="val/loss",
             dirpath=f"{wandb_logger.experiment.dir}/checkpoints",
@@ -142,13 +175,17 @@ if __name__ == "__main__":
     trainer = Trainer(
         logger=wandb_logger,
         accelerator=trainer_config["accelerator"],
-        devices=trainer_config["devices"] if args.routine == "fit" else 1,
+        # devices=trainer_config["devices"] if routine == "fit" else 1,
+        devices=trainer_config["devices"],
         max_epochs=trainer_config["epochs"],
         strategy=trainer_config["strategy"],
         callbacks=callbacks,
+        limit_train_batches=1.,  
+        limit_val_batches=1.,   
+        limit_test_batches=1.,  
     )
 
-    if args.routine == "fit":
+    if routine == "fit":
         if trainer_config["checkpoint_path"] is not None:
             rank_zero_warn(
                 "You have given a checkpoint_path in the trainer config! If it was on purpose, then "

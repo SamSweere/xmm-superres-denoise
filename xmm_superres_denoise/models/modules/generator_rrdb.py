@@ -6,6 +6,8 @@ from torch import nn
 
 from xmm_superres_denoise.models.modules import RRDB, make_layer
 
+from xmm_superres_denoise.models.modules.rrdb_blocks import get_conv2d_output_size
+
 
 class _GeneratorRRDB(nn.Module):
     def __init__(
@@ -14,21 +16,22 @@ class _GeneratorRRDB(nn.Module):
         out_channels: int,
         num_filters: int,
         num_res_blocks: int,
+        H_in: int,
+        W_in: int,
         memory_efficient: bool = False,
+        normalization_layer: bool = False
     ):
         super(_GeneratorRRDB, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.num_filters = num_filters
         self.num_res_blocks = num_res_blocks
+        # self.H_in = H_in, 
+        # self.W_in = W_in,
         self.memory_efficient = memory_efficient
-
-        rrdb = functools.partial(
-            RRDB,
-            nf=self.num_filters,
-            gc=num_filters,
-            memory_efficient=self.memory_efficient,
-        )
+        # self.normalization_layer = normalization_layer
+        
+        # swapped the order so I can compute the image output dimensions after the first convolution in case the choice of convolutional parameters changes it (Yvonne)
         self.conv_first = nn.Conv2d(
             in_channels=self.in_channels,
             out_channels=self.num_filters,
@@ -36,6 +39,20 @@ class _GeneratorRRDB(nn.Module):
             stride=1,
             padding=1,
         )
+
+        # compute output size of first convolutional layer (not sure if neccessary. If not H/W_first_out = H/W_in) (Yvonne)
+        self.H_first_out, self.W_first_out = get_conv2d_output_size((H_in, W_in), self.conv_first)
+
+        rrdb = functools.partial(
+            RRDB,
+            H_in = self.H_first_out, 
+            W_in = self.W_first_out,
+            nf=self.num_filters,
+            gc=num_filters,
+            memory_efficient=self.memory_efficient,
+            layer_normalization = normalization_layer
+        )
+        
         self.rrdb = make_layer(rrdb, self.num_res_blocks)
         self.trunk_conv = nn.Conv2d(
             in_channels=self.num_filters,
@@ -77,15 +94,21 @@ class GeneratorRRDB_SR(_GeneratorRRDB):
         out_channels: int,
         num_filters: int,
         num_res_blocks: int,
+        H_in: int, 
+        W_in: int,
         num_upsample: int = 2,
         memory_efficient: bool = False,
+        normalization_layer: bool = False,
     ):
         super(GeneratorRRDB_SR, self).__init__(
             in_channels=in_channels,
             out_channels=out_channels,
             num_filters=num_filters,
             num_res_blocks=num_res_blocks,
+            H_in = H_in, 
+            W_in = W_in,
             memory_efficient=memory_efficient,
+            normalization_layer=normalization_layer,
         )
         self.num_upsample = num_upsample
 
@@ -118,14 +141,20 @@ class GeneratorRRDB_DN(_GeneratorRRDB):
         out_channels,
         num_filters,
         num_res_blocks,
+        H_in, 
+        W_in,
         memory_efficient=False,
+        normalization_layer = False,
     ):
         super(GeneratorRRDB_DN, self).__init__(
             in_channels=in_channels,
             out_channels=out_channels,
             num_filters=num_filters,
             num_res_blocks=num_res_blocks,
+            H_in = H_in, 
+            W_in = W_in,
             memory_efficient=memory_efficient,
+            normalization_layer=normalization_layer,
         )
 
     def forward(self, x):

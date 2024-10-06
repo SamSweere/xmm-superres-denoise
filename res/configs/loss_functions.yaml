@@ -1,8 +1,14 @@
+
+# Apply a Sigmoid function to the training loss
+apply_sigmoid_to_loss: False
+k: 2.5 # Steepness of sigmoid curve
+x0: 2.5  # Midpoint of the sigmoid curve
+  
 # Loss function relative percentages
 # Set to True if you want to use the scaling and correction as described in the paper.
 ## Only affects l1, poisson, psnr, ssim, ms_ssim
 ## Values can be found down below
-use_scaling: False
+use_scaling: True
 l1: 0.0
 poisson: 0.0
 psnr: 0.5

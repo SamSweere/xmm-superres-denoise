@@ -6,6 +6,8 @@ data/output/
 data/datasets/
 res/splits/sim_dataset/
 res/splits/real_dataset/
+shifted_grid_sources/results/
+checkpoints/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

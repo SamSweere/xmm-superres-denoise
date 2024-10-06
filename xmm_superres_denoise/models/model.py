@@ -1,5 +1,6 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Union
+
 
 import pytorch_lightning as pl
 import torch
@@ -7,8 +8,11 @@ from torch import Tensor
 from torchmetrics import Metric
 
 from xmm_superres_denoise.metrics import XMMMetricCollection
-from xmm_superres_denoise.transforms import ImageUpsample
+from xmm_superres_denoise.transforms import ImageUpsample, CustomSigmoid
+from datetime import datetime
 
+from pytorch_lightning.utilities import rank_zero_warn
+import torch.nn.functional as F
 
 class Model(pl.LightningModule):
     def __init__(
@@ -17,6 +21,7 @@ class Model(pl.LightningModule):
         lr_shape: Tuple[int, int],
         hr_shape: Tuple[int, int],
         loss: Optional[Metric],
+        loss_config: Dict[str, Union[int, dict]],
         metrics: Optional[XMMMetricCollection],
         extended_metrics: Optional[XMMMetricCollection],
         in_metrics: Optional[XMMMetricCollection],
@@ -28,7 +33,17 @@ class Model(pl.LightningModule):
         self.ext_metrics = extended_metrics
         self.in_metrics = in_metrics
         self.in_ext_metrics = in_extended_metrics
-
+        self.config = config
+        
+        # Tried to apply the loss_normalizer in the loss_definition, but that's not possible since you cannot input a CompositionalMetric into torch functions
+        # Parameters for sigmoid applied to loss function 
+        if loss_config['apply_sigmoid_to_loss']:
+            
+            rank_zero_warn(
+                "You are applying a Sigmoid function to the trianing loss. Make sure that the Sigmoid function parameters in the loss_functions.yaml file match the expected statistics of the chosen loss function(s)."
+            )
+            self.sigmoid_loss_normalizer = CustomSigmoid(loss_config['k'], loss_config['x0'])
+            
         # Optimizer parameters
         self.learning_rate = config["learning_rate"]
         self.betas = (config["b1"], config["b2"])
@@ -36,28 +51,34 @@ class Model(pl.LightningModule):
         # Model and model parameters
         self.memory_efficient = config["memory_efficient"]
         self.model_name = config["name"]
-        self.loss = loss
+        if loss: 
+            self.loss = loss.clone()
+            self.loss_input_target = loss.clone()
+        self.loss_config = loss_config
         self.batch_size = config["batch_size"]
         self.model: torch.nn.Module
         if self.model_name == "esr_gen":
             from xmm_superres_denoise.models import GeneratorRRDB_SR
 
-            up_scale = hr_shape[0] / lr_shape[0]
-            if up_scale % 2 != 0:
+            self.up_scale = hr_shape[0] / lr_shape[0]
+            if self.up_scale % 2 != 0:
                 raise ValueError(
-                    f"Upscaling is not a multiple of two but {up_scale}, "
+                    f"Upscaling is not a multiple of two but {self.up_scale}, "
                     f"based on in_dims {lr_shape} and out_dims {hr_shape}"
                 )
 
-            up_scale = int(up_scale / 2)
+            self.up_scale = int(self.up_scale / 2)
             # Initialize generator and discriminator
             self.model = GeneratorRRDB_SR(
                 in_channels=config["in_channels"],
                 out_channels=config["out_channels"],
                 num_filters=config["filters"],
                 num_res_blocks=config["residual_blocks"],
-                num_upsample=up_scale,
+                H_in = config["H_in"], 
+                W_in = config["W_in"],
+                num_upsample=self.up_scale,
                 memory_efficient=self.memory_efficient,
+                normalization_layer=config["normalization_layer"]
             )
         elif self.model_name == "rrdb_denoise":
             from xmm_superres_denoise.models import GeneratorRRDB_DN
@@ -67,7 +88,10 @@ class Model(pl.LightningModule):
                 out_channels=config["out_channels"],
                 num_filters=config["filters"],
                 num_res_blocks=config["residual_blocks"],
+                H_in = config["H_in"], 
+                W_in = config["W_in"],
                 memory_efficient=self.memory_efficient,
+                normalization_layer=config["normalization_layer"]
             )
         elif self.model_name == "swinir":
             from xmm_superres_denoise.models import SwinIR
@@ -88,6 +112,7 @@ class Model(pl.LightningModule):
             )
 
     def forward(self, x) -> torch.Tensor:
+        #TODO: figure out if this should be included in clamping or not
         return torch.clamp(self.model(x), min=0.0, max=1.0)
 
     def training_step(self, batch, batch_idx):
@@ -113,11 +138,13 @@ class Model(pl.LightningModule):
 
     def _on_step(self, batch, stage) -> Optional[Tensor]:
         lr = batch["lr"]
+        idx = batch["idx"].to()
         preds = self(lr)
         target = batch.get("hr", preds)
 
         if stage == "train":
             loss = self.loss(preds=preds, target=target)
+            loss = self.sigmoid_loss_normalizer(loss) if self.loss_config['apply_sigmoid_to_loss'] else loss
             self.log(
                 f"{stage}/loss",
                 loss,
@@ -127,7 +154,14 @@ class Model(pl.LightningModule):
             )
             return loss
         else:
+            
             self.loss.update(preds=preds, target=target)
+            
+            if stage == 'test':
+                # Also compute the loss between input and target during testing
+                # up_scale is divided by 2 in the computation above, so we multiply by 2 here 
+                lr_upscaled =  F.interpolate(lr, scale_factor=2*self.up_scale, mode='bilinear', align_corners=False)
+                self.loss_input_target.update(preds= lr_upscaled, target = target)
 
             if self.in_metrics is not None or self.ext_metrics is not None:
                 scale_factor = target.shape[2] / lr.shape[2]
@@ -135,20 +169,28 @@ class Model(pl.LightningModule):
                     lr = ImageUpsample(scale_factor=scale_factor)(lr)
 
             if self.metrics is not None:
-                self.metrics.update(preds=preds, target=target)
+                self.metrics.hr_update(preds=preds, target=target, idx = batch["idx"])
 
             if self.in_metrics is not None:
-                self.in_metrics.update(preds=lr, target=target)
+                self.in_metrics.lr_update(preds=lr, target=target, idx = batch["idx"])
 
             if self.ext_metrics is not None:
-                self.ext_metrics.update(preds=preds, target=target)
+                self.ext_metrics.hr_update(preds=preds, target=target, idx = batch["idx"])
 
             if self.in_ext_metrics is not None:
-                self.in_ext_metrics.update(preds=lr, target=target)
+                self.in_ext_metrics.lr_update(preds=lr, target=target, idx = batch["idx"])
 
     def _on_epoch_end(self, stage):
         if stage == "train":
             self.loss.reset()
+            
+            # Get the current date and time
+            current_datetime = datetime.now()
+                
+            # Format the date and time as a string (e.g., "2023-12-04_12-34-56")
+            formatted_datetime = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+            checkpoint_path = f"checkpoints/model_epoch_{self.current_epoch}_{self.config['name']}_{formatted_datetime}.ckpt"
+            self.trainer.save_checkpoint(checkpoint_path)
         else:
             loss = self.loss.compute()
             self.log(
@@ -159,6 +201,16 @@ class Model(pl.LightningModule):
                 on_epoch=True,
                 sync_dist=True,
             )
+            if stage =='test':
+                loss_input_target = self.loss_input_target.compute()
+                self.log(
+                    f"{stage}/loss_input_target",
+                    loss_input_target,
+                    batch_size=self.batch_size,
+                    on_step=False,
+                    on_epoch=True,
+                    sync_dist=True,
+                )
             self.loss.reset()
 
             to_log: List[dict] = []
@@ -191,6 +243,9 @@ class Model(pl.LightningModule):
                     on_epoch=True,
                     sync_dist=True,
                 )
+                
+          
+
 
     def configure_optimizers(self):
         # Optimizers

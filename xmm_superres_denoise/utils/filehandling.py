@@ -5,6 +5,8 @@ from datetime import datetime
 import yaml
 from astropy.io import fits
 
+import matplotlib.pyplot as plt
+
 
 def write_xmm_file_to_fits(
     img,
@@ -197,6 +199,8 @@ def write_xmm_file_to_fits_wcs(
         for omit_key in header_keys_to_omit:
             header_to_add.pop(omit_key, None)
 
+        # print("")
+        # print('header to add: ', header_to_add)
         for key in header_to_add.keys():
             header[key] = header_to_add[key]
 
@@ -216,18 +220,18 @@ def write_xmm_file_to_fits_wcs(
         header["CDELT1"] = cdelt1
         header["CDELT2"] = cdelt2
         #
-        crota2 = 90.0 - float(header["PA_PNT"])
-        header["CROT2"] = crota2
-        crota2_rad = math.radians(crota2)
-        # add the CD matrix, just in case?
-        cd1_1 = cdelt1 * math.cos(crota2_rad)
-        cd1_2 = -1.0 * cdelt2 * math.sin(crota2_rad)
-        cd2_1 = cdelt1 * math.sin(crota2_rad)
-        cd2_2 = cdelt2 * math.cos(crota2_rad)
-        header["CD1_1"] = cd1_1
-        header["CD1_2"] = cd1_2
-        header["CD2_1"] = cd2_1
-        header["CD2_2"] = cd2_2
+        # crota2 = 90.0 - float(header["PA_PNT"])
+        # header["CROT2"] = crota2
+        # crota2_rad = math.radians(crota2)
+        # # add the CD matrix, just in case?
+        # cd1_1 = cdelt1 * math.cos(crota2_rad)
+        # cd1_2 = -1.0 * cdelt2 * math.sin(crota2_rad)
+        # cd2_1 = cdelt1 * math.sin(crota2_rad)
+        # cd2_2 = cdelt2 * math.cos(crota2_rad)
+        # header["CD1_1"] = cd1_1
+        # header["CD1_2"] = cd1_2
+        # header["CD2_1"] = cd2_1
+        # header["CD2_2"] = cd2_2
 
     if comment is not None:
         header["COMMENT"] = comment

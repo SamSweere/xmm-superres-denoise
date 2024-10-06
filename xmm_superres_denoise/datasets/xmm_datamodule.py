@@ -5,6 +5,9 @@ import numpy as np
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 from torch.utils.data import Subset, random_split
 
+
+from xmm_superres_denoise.transforms import  Normalize
+
 from xmm_superres_denoise.datasets import BaseDataModule
 from xmm_superres_denoise.datasets.utils import (
     find_img_files,
@@ -12,6 +15,7 @@ from xmm_superres_denoise.datasets.utils import (
     save_splits,
 )
 
+import pandas as pd
 
 class XmmDataModule(BaseDataModule):
     def __init__(self, config):
@@ -19,9 +23,27 @@ class XmmDataModule(BaseDataModule):
 
         self.lr_exps = config["lr"]["exps"]
         self.hr_exp = config["hr"]["exp"]
+        self.divide_dataset = config["divide_dataset"]
+        self.blended_agn = 'blended_agn' if config['deblend_agn_dir'] else 'no_blended_agn'
+        
+        if config["normalize"]:
+            self.lr_statistics_path = f'res/statistics/input_statistics_{config["type"]}_lr_{config["lr"]["res"]}pxs_{self.lr_exps[0]}ks_{self.blended_agn}.csv'
+            self.hr_statistics_path = f'res/statistics/input_statistics_{config["type"]}_hr_{config["hr"]["res"]}pxs_{self.hr_exp}ks_{self.blended_agn}.csv'
+
 
         if self.dataset_type == "real":
             from xmm_superres_denoise.datasets import XmmDataset
+            
+            if config["normalize"]:
+                self.normalize = Normalize(
+                    lr_max=config["lr"]["max"],
+                    hr_max=config["hr"]["max"],
+                    config = config,
+                    lr_statistics= pd.read_csv(self.lr_statistics_path), 
+                    stretch_mode=config["scaling"]
+                )
+            else:
+                self.normalize = False
 
             self.dataset = XmmDataset(
                 dataset_dir=self.dataset_dir,
@@ -34,12 +56,39 @@ class XmmDataModule(BaseDataModule):
                 normalize=self.normalize,
             )
 
-            self.subset_str = f"res/splits/real_dataset/{{0}}/{{1}}.p"
+            if self.divide_dataset == 'all':
+                self.subset_str = f"res/splits/real_dataset/{{0}}/{{1}}ks.p"
+            
+            elif self.divide_dataset == 'below' or self.divide_dataset == 'above':
+                self.subset_str = f"res/splits/real_dataset/{{0}}/{self.blended_agn}_{config['lr']['res']}px_{{1}}ks_{self.divide_dataset}.p"
+
+            else: 
+                raise ValueError(
+                f"divide_dataset option {self.divide_dataset} not known, options: 'all', 'below', 'above'"
+                )
+        
+        
+        
+        
         elif self.dataset_type == "sim":
             from xmm_superres_denoise.datasets import XmmSimDataset
+            
+            if config["normalize"]:
+                self.normalize = Normalize(
+                    lr_max=config["lr"]["max"],
+                    hr_max=config["hr"]["max"],
+                    config = config,
+                    lr_statistics= pd.read_csv(self.lr_statistics_path), 
+                    hr_statistics= pd.read_csv(self.hr_statistics_path), 
+                    stretch_mode=config["scaling"]
+                )
+                
+            else:
+                self.normalize = False
 
             self.dataset = XmmSimDataset(
                 dataset_dir=self.dataset_dir,
+                deblend_agn_dir= config["deblend_agn_dir"],
                 lr_res=config["lr"]["res"],
                 hr_res=config["hr"]["res"],
                 dataset_lr_res=config["lr"]["res"],
@@ -51,12 +100,24 @@ class XmmDataModule(BaseDataModule):
                 lr_background=config["lr"]["background"],
                 hr_background=config["hr"]["background"],
                 det_mask=config["det_mask"],
+                constant_img_combs = config["constant_img_combs"],
                 check_files=self.check_files,
                 transform=self.transform,
                 normalize=self.normalize,
             )
 
-            self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
+            if self.divide_dataset == 'all':
+                self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.dataset.mode}.p"
+            
+            elif self.divide_dataset == 'below' or self.divide_dataset == 'above':
+                self.subset_str = f"res/splits/sim_dataset/{{0}}/{self.divide_dataset}_{self.lr_exps[0]}ks_{config['lr']['res']}px_{self.blended_agn}_{self.dataset.mode}.p"
+              
+
+            else: 
+                raise ValueError(
+                f"divide_dataset option {self.divide_dataset} not known, options: 'all', 'below', 'above'")
+        
+        
         elif self.dataset_type == "boring":
             from xmm_superres_denoise.datasets import BoringDataset
 
@@ -148,9 +209,7 @@ class XmmDataModule(BaseDataModule):
     def setup(self, stage: str) -> None:
         if self.dataset_type == "boring":
             train, val, test = random_split(self.dataset, [0.8, 0.1, 0.1])
-            self.train_subset = Subset(self.dataset, train)
-            self.val_subset = Subset(self.dataset, val)
-            self.test_subset = Subset(self.dataset, test)
+            self.train_subset, self.val_subset, self.test_subset = train, val, test
         else:
             if stage == "fit":
                 train_indices = self._load_indices("train")
