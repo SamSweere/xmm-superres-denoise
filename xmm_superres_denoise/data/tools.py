@@ -49,14 +49,15 @@ def find_dir(parent: Path, pattern: str) -> Path:
 
 
 def find_img_dirs(
-    parent: Path, exps: list[int] | int, pattern: str = ""
+    parent: Path, exps: list[int] | int, res_mult_dir: str
 ) -> Dict[int, list[Path]]:
     if isinstance(exps, int):
         exps = [exps]
 
     res: Dict[int, list[Path]] = {}
     for exp in exps:
-        exp_dirs = list(parent.glob(f"{exp}ks/{pattern}"))
+        glob_pattern = f"{exp}ks/**/{res_mult_dir}" if res_mult_dir else f"{exp}ks/"
+        exp_dirs = list(parent.glob(glob_pattern))
         assert len(exp_dirs) > 0
         res[exp] = exp_dirs
     return res

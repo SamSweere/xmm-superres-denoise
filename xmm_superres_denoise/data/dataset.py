@@ -95,34 +95,30 @@ class XmmDataset(Dataset):
 
         split_key = "_mult_" if self.config.type == DatasetType.SIM else "_image_split_"
 
+        lr_res_mult = "1x" if self.config.type is DatasetType.SIM else ""
+        if self.config.type is DatasetType.REAL and self.config.hr.exp:
+            hr_res_mult = ""
+        elif self.config.type is DatasetType.SIM and comb_hr_img:
+            hr_res_mult = f"{self.config.res_mult}x_comb"
+        else:
+            hr_res_mult = f"{self.config.res_mult}x"
+
         # Get all the image directories
         # Note that if the mode is agn we consider them as the base images
         # --- LR images --- #
-        pattern = ""
-        if self.config.type is DatasetType.SIM:
-            pattern = f"*/*/1x"
-
-        lr_img_dirs = find_img_dirs(self.config.img_dir, self.config.lr.exps, pattern)
+        lr_img_dirs = find_img_dirs(
+            self.config.img_dir, self.config.lr.exps, lr_res_mult
+        )
         lr_img_files = find_img_files(lr_img_dirs)
-        del pattern
 
         # --- HR images --- #
-        pattern = ""
-        if self.config.type is DatasetType.REAL and self.config.hr.exp:
-            pattern = ""
-        elif self.config.type is DatasetType.SIM and comb_hr_img:
-            pattern = f"*/*/{self.config.res_mult}x_comb"
-        elif self.config.type is DatasetType.SIM:
-            pattern = f"*/*/{self.config.res_mult}x"
-
         if self.config.type is DatasetType.REAL and self.config.hr is None:
             hr_img_files = None
         else:
             hr_img_dirs = find_img_dirs(
-                self.config.img_dir, [self.config.hr.exp], pattern
+                self.config.img_dir, [self.config.hr.exp], hr_res_mult
             )
             hr_img_files = find_img_files(hr_img_dirs)
-        del pattern
 
         self.lr_img_files, self.hr_img_files, self.base_name_count = match_file_list(
             lr_img_files, hr_img_files, split_key
@@ -156,16 +152,13 @@ class XmmDataset(Dataset):
             msg1 = f"{msg1} * lr_agn_count"
             msg2 = f"{msg2} * {self.config.agn}"
             self.dataset_size = self.dataset_size * self.config.agn
-            lr_agn_dirs = find_img_dirs(self.config.agn_dir, self.config.lr.exps, f"1x")
+            lr_agn_dirs = find_img_dirs(
+                self.config.agn_dir, self.config.lr.exps, lr_res_mult
+            )
             lr_agn_files = find_img_files(lr_agn_dirs)
 
-            if comb_hr_img:
-                pattern = f"{self.config.res_mult}x_comb"
-            else:
-                pattern = f"{self.config.res_mult}x"
-
             hr_agn_dirs = find_img_dirs(
-                self.config.agn_dir, [self.config.hr.exp], pattern
+                self.config.agn_dir, [self.config.hr.exp], hr_res_mult
             )
             hr_agn_files = find_img_files(hr_agn_dirs)
 
@@ -194,7 +187,7 @@ class XmmDataset(Dataset):
             msg2 = f"{msg2} * {self.config.lr.bkg}"
             self.dataset_size = self.dataset_size * self.config.lr.bkg
             lr_background_dirs = find_img_dirs(
-                self.config.bkg_dir, self.config.lr.exps, f"1x"
+                self.config.bkg_dir, self.config.lr.exps, lr_res_mult
             )
             lr_background_files = find_img_files(lr_background_dirs)
             amt = min([len(file_list) for file_list in lr_background_files.values()])
