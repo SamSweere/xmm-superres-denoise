@@ -7,3 +7,5 @@ RUN conda install \
     -c pytorch -c conda-forge -c photosynthesis-team -c nvidia
 
 RUN pip install wandb einops
+# Install onnxruntime for CUDA 11.8
+RUN pip install onnxruntime-gpu --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-11/pypi/simple/

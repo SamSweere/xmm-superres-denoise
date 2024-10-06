@@ -29,9 +29,7 @@ def create_loss(
                 p = p * sc_dict[loss]["scaling"]
                 correction = correction + sc_dict[loss]["correction"]
 
-            if loss == "ssim":
-                module = modules[loss](kernel_size=13, sigma=2.5, k2=0.05)
-            elif loss == "ms_ssim":
+            if loss == "ssim" or loss == "ms_ssim":
                 module = modules[loss](kernel_size=13, sigma=2.5, k2=0.05)
             else:
                 module = modules[loss]()

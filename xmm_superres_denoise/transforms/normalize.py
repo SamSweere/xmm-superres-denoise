@@ -44,7 +44,7 @@ class Normalize:
 
     """
 
-    def __init__(self, lr_max, hr_max, stretch_mode="linear"):
+    def __init__(self, lr_max: float, hr_max: float, stretch_mode: str = "linear"):
         assert isinstance(stretch_mode, str)
 
         self.stretch_mode = stretch_mode

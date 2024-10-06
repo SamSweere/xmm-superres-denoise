@@ -2,6 +2,7 @@ import tomllib
 from argparse import ArgumentParser
 from pathlib import Path
 
+import wandb
 from config.config import (
     DatasetCfg,
     LossCfg,
@@ -20,7 +21,6 @@ from transforms import Normalize
 from utils import ImageLogger
 from utils.loss_functions import create_loss
 
-import wandb
 from data import XmmDataModule, XmmDisplayDataModule
 from models import Model
 
@@ -146,14 +146,16 @@ if __name__ == "__main__":
     if args.routine == "fit":
         callbacks = []
         if trainer_config.log_images_every_n_epochs > 0:
-            il = ImageLogger(
-                datamodule=XmmDisplayDataModule(dataset_config),
-                log_every_n_epochs=trainer_config.log_images_every_n_epochs,
-                normalize=datamodule.normalize,
-                scaling_normalizers=scaling_normalizers,
-                data_range=hr_max,
-            )
-            callbacks.append(il)
+            pass
+            # TODO ImageLogger has to be fixed
+            # il = ImageLogger(
+            #     datamodule=XmmDisplayDataModule(dataset_config),
+            #     log_every_n_epochs=trainer_config.log_images_every_n_epochs,
+            #     normalize=datamodule.normalize,
+            #     scaling_normalizers=scaling_normalizers,
+            #     data_range=hr_max,
+            # )
+            # callbacks.append(il)
         checkpoint_callback = ModelCheckpoint(
             monitor="val/loss",
             dirpath=f"{trainer_config.checkpoint_root}/checkpoints/"
@@ -176,7 +178,7 @@ if __name__ == "__main__":
         accelerator=trainer_config.accelerator,
         devices=trainer_config.devices if args.routine == "fit" else 1,
         max_epochs=trainer_config.epochs,
-        strategy=trainer_config.strategy,
+        strategy=strategy,
         callbacks=callbacks,
     )
 
@@ -189,6 +191,8 @@ if __name__ == "__main__":
         trainer.fit(
             model, datamodule=datamodule, ckpt_path=trainer_config.checkpoint_path
         )
+
+        trainer.test(model=model, datamodule=datamodule, ckpt_path="best")
     else:
         trainer.test(
             model, datamodule=datamodule, ckpt_path=trainer_config.checkpoint_path
