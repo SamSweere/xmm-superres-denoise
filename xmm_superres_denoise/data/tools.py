@@ -21,33 +21,6 @@ def save_splits(paths: List[Path], splits: List[Subset]):
             pickle.dump(indices, f)
 
 
-def find_dir(parent: Path, pattern: str) -> Path:
-    glob_res = parent.glob(pattern)
-    dir_path = None
-    zip_file = None
-    for res in glob_res:
-        if res.is_dir() and res.name.endswith(pattern.replace("*", "")[-1]):
-            dir_path = res
-            break
-        if res.name.endswith(".zip"):
-            zip_file = res
-    if dir_path is None and zip_file is not None:
-        logger.info(f"Extracting {zip_file} to {parent}...")
-        with ZipFile(zip_file, "r") as zip_f:
-            zip_f.extractall(parent)
-        dir_path = parent / pattern.replace(
-            "*", ""
-        )  # Remove the asterisk used to find the corresponding .zip file.
-        # zip_file.unlink()  # Use the deletion with care!
-
-    if dir_path is None:
-        raise NotADirectoryError(
-            f"Could not find any directory in {parent} matching {pattern}"
-        )
-
-    return dir_path
-
-
 def find_img_dirs(
     parent: Path, exps: list[int] | int, res_mult_dir: str
 ) -> Dict[int, list[Path]]:
@@ -125,14 +98,6 @@ def apply_transform(
             img = t(img)
 
     return img
-
-
-def load_det_mask(res_mult: int):
-    data = fits.getdata(
-        Path("res") / "detector_mask" / f"pn_mask_500_2000_detxy_{res_mult}x.ds", 0
-    )
-
-    return data.astype(np.float32)
 
 
 def reshape_img_to_res(res: int, img: torch.Tensor) -> torch.Tensor:
