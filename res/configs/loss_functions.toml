@@ -2,7 +2,7 @@
 # Set to True if you want to use the scaling and correction as described in the paper.
 # Only affects l1, poisson, psnr, ssim, ms_ssim
 # Values can be found down below
-use_scaling = false
+use_scaling = true
 # Loss function relative percentages
 l1 = 0.0
 poisson = 0.0

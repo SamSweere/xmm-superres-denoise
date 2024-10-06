@@ -1,7 +1,7 @@
 [wandb]
 api_key = ""
 project = ""
-online = true
+online = false
 log_model = true
 run_id = ""
 
@@ -11,6 +11,7 @@ strategy = "auto"
 checkpoint_path = ""
 devices = "auto"
 epochs = 50
+# log_images_every_n_epochs is currently ignored. WIP
 log_images_every_n_epochs = 0
 checkpoint_root = ""
 
@@ -20,14 +21,15 @@ batch_size = 1
 check_files = false
 crop_mode = "center"
 debug = false
-directory = ""
 comb_hr = false
+directory = ""
 # The mode, img or agn. If agn the model samples from agn as if it is an image.
 mode = "img"
 name = "sim_dataset"
 scaling = "sqrt"
 type = "sim"
 
+# Currently ignored. WIP
 #[dataset.display]
 #sim_display_name = "xmm_sim_display_selection"
 #real_display_name = "xmm_split_display_selection"
