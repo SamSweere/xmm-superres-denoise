@@ -1,11 +1,13 @@
-FROM continuumio/miniconda3
+FROM samsweere/xmm-epicpn-simulator
 
-RUN conda install \
-    python=3.11 \
-    pytorch torchvision torchaudio pytorch-cuda=11.8  \
-    lightning pandas piq astropy timm matplotlib python-dotenv pydantic loguru tqdm\
-    -c pytorch -c conda-forge -c photosynthesis-team -c nvidia
+USER 0
 
-RUN pip install wandb einops
-# Install onnxruntime for CUDA 11.8
-RUN pip install onnxruntime-gpu --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-11/pypi/simple/
+RUN apt-get update && apt-get upgrade -y && apt-get dist-upgrade -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+RUN uv pip install lightning pandas piq astropy timm matplotlib python-dotenv pydantic loguru tqdm tensorboard einops \
+    uv cache clean
+
+USER heasoft
