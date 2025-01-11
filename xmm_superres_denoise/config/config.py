@@ -203,14 +203,6 @@ class ModelCfg(BaseModel):
     optimizer: OptimizerCfg
 
 
-class WandbCfg(BaseModel):
-    api_key: str
-    project: str
-    online: bool
-    run_id: str
-    log_model: bool
-
-
 class TrainerCfg(BaseModel):
     accelerator: TrainerAccelerator
     strategy: TrainerStrategy

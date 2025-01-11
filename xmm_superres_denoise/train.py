@@ -2,23 +2,15 @@ import tomllib
 from argparse import ArgumentParser
 from pathlib import Path
 
-import wandb
-from config.config import (
-    DatasetCfg,
-    LossCfg,
-    ModelCfg,
-    TrainerCfg,
-    TrainerStrategy,
-    WandbCfg,
-)
+from config.config import DatasetCfg, LossCfg, ModelCfg, TrainerCfg, TrainerStrategy
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.strategies import FSDPStrategy
 from loguru import logger
 from metrics import get_ext_metrics, get_in_ext_metrics, get_in_metrics, get_metrics
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers.wandb import WandbLogger
-from pytorch_lightning.strategies import FSDPStrategy
 from transforms import Normalize
-from utils import ImageLogger
+
+# from utils import ImageLogger
 from utils.loss_functions import create_loss
 
 from data import XmmDataModule, XmmDisplayDataModule
@@ -34,8 +26,6 @@ if __name__ == "__main__":
 
     with open(args.run_config, "rb") as file:
         cfg: dict[str, dict] = tomllib.load(file)
-
-    wandb_config: WandbCfg = WandbCfg(**cfg["wandb"])
 
     dataset = cfg["dataset"]
     if dataset["hr"]["exp"] == 0:
@@ -63,22 +53,6 @@ if __name__ == "__main__":
     loss_config: LossCfg = LossCfg(**loss_config["loss"])
 
     trainer_config: TrainerCfg = TrainerCfg(**cfg["trainer"])
-
-    # --- Initialise the logger --- #
-    logger.info("Creating the WandbLogger...")
-    if wandb_config.online:
-        wandb.login(key=wandb_config.api_key)
-
-    wandb_logger = WandbLogger(
-        project=wandb_config.project,
-        log_model=wandb_config.online and wandb_config.log_model,
-        offline=not wandb_config.online,
-        config=cfg,
-        resume="must" if wandb_config.run_id else None,
-        id=wandb_config.run_id if wandb_config.run_id else None,
-    )
-    del wandb_config, cfg
-    logger.success("Created WandbLogger!")
 
     # --- Initialise the XmmDataModule --- #
     logger.info("Creating data module...")
@@ -158,8 +132,6 @@ if __name__ == "__main__":
             # callbacks.append(il)
         checkpoint_callback = ModelCheckpoint(
             monitor="val/loss",
-            dirpath=f"{trainer_config.checkpoint_root}/checkpoints/"
-            f"{wandb_logger.experiment.name}_{wandb_logger.experiment.id}",
             filename=f"epoch:{{epoch:05d}}-val_loss:{{val/loss:.5f}}",
             mode="min",
             auto_insert_metric_name=False,
@@ -174,7 +146,7 @@ if __name__ == "__main__":
         )
 
     trainer = Trainer(
-        logger=wandb_logger,
+        logger=True,
         accelerator=trainer_config.accelerator,
         devices=trainer_config.devices if args.routine == "fit" else 1,
         max_epochs=trainer_config.epochs,

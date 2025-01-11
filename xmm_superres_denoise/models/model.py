@@ -1,7 +1,7 @@
 # Based off: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/esrgan
 from typing import List, Optional, Tuple
 
-import pytorch_lightning as pl
+import lightning.pytorch as l
 import torch
 from config.config import BaseModels, ModelCfg
 from metrics import XMMMetricCollection
@@ -10,7 +10,7 @@ from torchmetrics import Metric
 from transforms import ImageUpsample
 
 
-class Model(pl.LightningModule):
+class Model(l.LightningModule):
     def __init__(
         self,
         config: ModelCfg,
