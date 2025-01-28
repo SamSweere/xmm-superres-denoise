@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 
-from xmm_superres_denoise.datasets import BaseDataModule
+from data import BaseDataModule
 
 
 class XmmDisplayDataModule(BaseDataModule):
@@ -14,11 +14,11 @@ class XmmDisplayDataModule(BaseDataModule):
         lr_exps = config["display"]["exposure"]
         det_mask = config["det_mask"]
 
-        # Display xmm_superres_denoise.datasets
+        # Display data
         self.sim_display_dataset = None
         self.real_display_dataset = None
         if config["display"]["sim_display_name"]:
-            from xmm_superres_denoise.datasets import XmmSimDataset
+            from data import XmmSimDataset
 
             dataset_dir = (
                 Path(config["dir"])
@@ -33,6 +33,7 @@ class XmmDisplayDataModule(BaseDataModule):
                 mode=config["mode"],
                 lr_exps=lr_exps,
                 hr_exp=config["hr"]["exp"],
+                comb_hr_img=False,
                 lr_agn=False,
                 hr_agn=False,
                 lr_background=False,
@@ -41,9 +42,10 @@ class XmmDisplayDataModule(BaseDataModule):
                 check_files=check_files,
                 transform=self.transform,
                 normalize=self.normalize,
+                display=True,
             )
         if config["display"]["real_display_name"]:
-            from xmm_superres_denoise.datasets import XmmDataset
+            from data import XmmDataset
 
             dataset_dir = (
                 Path(config["dir"])
@@ -62,9 +64,7 @@ class XmmDisplayDataModule(BaseDataModule):
             )
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
-        raise NotImplementedError(
-            "Display xmm_superres_denoise.datasets are not to be used during training!"
-        )
+        raise NotImplementedError("Display data are not to be used during training!")
 
     def val_dataloader(self) -> EVAL_DATALOADERS:
         dataloaders = []

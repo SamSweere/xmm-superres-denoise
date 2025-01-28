@@ -1,0 +1,64 @@
+[esr_gen]
+base_model = "esr_gen"
+in_channels = 1
+out_channels = 1
+filters = 32
+residual_blocks = 4
+learning_rate = 0.0001
+betas = [0.9, 0.999]
+
+[rrdb_denoise]
+base_model = "rrdb_denoise"
+in_channels = 1
+out_channels = 1
+filters = 32
+residual_blocks = 4
+learning_rate = 0.0001
+betas = [0.9, 0.999]
+
+[swinfir]
+base_model = 'swinfir'
+img_size = 416
+window_size = 16
+patch_size = 32
+embed_dim = 180
+upsampler = "pixelshuffle"
+in_channels = 1
+num_heads = [6, 6, 6, 6, 6, 6]
+depths = [6, 6, 6, 6, 6, 6]
+learning_rate = 0.0002
+betas = [0.9, 0.999]
+
+[drct]
+base_model = 'drct'
+img_size = 416
+window_size = 16
+patch_size = 32
+embed_dim = 180
+upsampler = "pixelshuffle"
+in_channels = 1
+num_heads = [6, 6, 6, 6, 6, 6]
+depths = [6, 6, 6, 6, 6, 6]
+learning_rate = 0.0002
+betas = [0.9, 0.999]
+
+[hat]
+base_model = 'hat'
+img_size = 416
+window_size = 16
+patch_size = 16
+embed_dim = 180
+upsampler = "pixelshuffle"
+in_channels = 1
+num_heads = [6, 6, 6, 6, 6, 6]
+depths = [6, 6, 6, 6, 6, 6]
+learning_rate = 0.0002
+betas = [0.9, 0.999]
+
+[restormer]
+base_model = "restormer"
+in_channels = 1
+out_channels = 1
+dim = 24
+learning_rate = 0.0001
+betas = [0.9, 0.999]

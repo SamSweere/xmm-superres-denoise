@@ -32,7 +32,7 @@ dataset:
   det_mask:
   # Set debug to true if debugging. Will make your life easier. Options: True, False
   debug:
-  # The parent folder of all datasets
+  # The parent folder of all data
   dir:
   display:
     # These images are used in our ImageLogger. After log_images_every_n_epochs (see trainer -> log_images_every_n_epochs)
@@ -65,7 +65,7 @@ dataset:
     # This implies the resolution increase
     res:
   # The mode, img or agn. If agn the model samples from agn as if it is an image.
-  # Only relevant for datasets with type == sim
+  # Only relevant for data with type == sim
   mode:
   name:
   # Options: None and 'linear', 'sqrt', 'asinh', 'log'

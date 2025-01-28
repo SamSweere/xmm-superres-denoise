@@ -4,25 +4,18 @@ from typing import Tuple
 from warnings import warn
 
 import matplotlib.pyplot as plt
-import onnxruntime as onnxruntime
+
+# import onnxruntime as onnxruntime
 import torch
 from astropy.io import fits
 from astropy.visualization import ImageNormalize, PercentileInterval
+from data.tools import apply_transform, load_det_mask, load_fits, reshape_img_to_res
 from matplotlib import colormaps
+from transforms import Crop, Normalize
+from transforms.totensor import ToTensor
+from utils.filehandling import read_yaml, write_xmm_file_to_fits_wcs
 
-from xmm_superres_denoise.datasets.utils import (
-    apply_transform,
-    load_det_mask,
-    load_fits,
-    reshape_img_to_res,
-)
-from xmm_superres_denoise.models import Model
-from xmm_superres_denoise.transforms import Crop, Normalize
-from xmm_superres_denoise.transforms.totensor import ToTensor
-from xmm_superres_denoise.utils.filehandling import (
-    read_yaml,
-    write_xmm_file_to_fits_wcs,
-)
+from models import Model
 
 
 def _infer_from_ckpt(

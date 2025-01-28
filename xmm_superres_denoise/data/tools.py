@@ -7,74 +7,56 @@ import numpy as np
 import pandas as pd
 import torch
 from astropy.io import fits
-from pytorch_lightning.utilities import rank_zero_info
+from loguru import logger
 from torch.utils.data import Subset
+from tqdm import tqdm
 
 
 def save_splits(paths: List[Path], splits: List[Subset]):
     for path, split in zip(paths, splits):
         indices = np.asarray(split.indices)
-        rank_zero_info(f"\tSplit {path} contains {len(indices)} images")
+        logger.info(f"\tSplit {path} contains {len(indices)} images")
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w+b") as f:
             pickle.dump(indices, f)
 
 
-def find_dir(parent: Path, pattern: str) -> Path:
-    glob_res = parent.glob(pattern)
-    dir_path = None
-    zip_file = None
-    for res in glob_res:
-        if res.is_dir() and res.name.endswith(pattern.replace("*", "")[-1]):
-            dir_path = res
-            break
-        if res.name.endswith(".zip"):
-            zip_file = res
-    if dir_path is None and zip_file is not None:
-        rank_zero_info(f"Extracting {zip_file} to {parent}...")
-        with ZipFile(zip_file, "r") as zip_f:
-            zip_f.extractall(parent)
-        dir_path = parent / pattern.replace(
-            "*", ""
-        )  # Remove the asterisk used to find the corresponding .zip file.
-        # zip_file.unlink()  # Use the deletion with care!
+def find_img_dirs(
+    parent: Path, exps: list[int] | int, res_mult_dir: str
+) -> Dict[int, list[Path]]:
+    if isinstance(exps, int):
+        exps = [exps]
 
-    if dir_path is None:
-        raise NotADirectoryError(
-            f"Could not find any directory in {parent} matching {pattern}"
-        )
-
-    return dir_path
-
-
-def find_img_dirs(parent: Path, exps: np.ndarray, pattern: str = "") -> Dict[int, Path]:
-    res: Dict[int, Path] = {}
+    res: Dict[int, list[Path]] = {}
     for exp in exps:
-        exp_dir = find_dir(parent=parent, pattern=f"{exp}ks*")
-        if pattern:
-            exp_dir = find_dir(exp_dir, f"{pattern}")
-        res[exp] = exp_dir
+        glob_pattern = f"{exp}ks/**/{res_mult_dir}" if res_mult_dir else f"{exp}ks/"
+        exp_dirs = list(parent.glob(glob_pattern))
+        assert len(exp_dirs) > 0
+        res[exp] = exp_dirs
     return res
 
 
-def find_img_files(exp_dirs_dict: Dict[int, Path]) -> Dict[int, List[Path]]:
+def find_img_files(exp_dirs_dict: Dict[int, list[Path]]) -> Dict[int, List[Path]]:
     res: Dict[int, List[Path]] = {}
-    for exp, img_dir in exp_dirs_dict.items():
-        res[exp] = get_fits_files(dataset_dir=img_dir)
+    for exp, img_dirs in exp_dirs_dict.items():
+        files = []
+        for img_dir in img_dirs:
+            files.extend(get_fits_files(dataset_dir=img_dir))
+        res[exp] = files
     return res
 
 
-def check_img_files(img_files: pd.DataFrame, shape: Tuple[int, int], msg: str = ""):
-    if msg:
-        rank_zero_info(f"\t{msg}")
-    for base_name, files in img_files.iterrows():
-        for exp, path_list in files.items():
+def check_img_files(
+    img_files: pd.DataFrame, shape: Tuple[int, int, int], msg: str = None
+):
+    for base_name, files in tqdm(img_files.iterrows(), desc=msg):
+        for exp, path_list in tqdm(files.items(), leave=False):
             for path in path_list:
                 check_img_corr(path, shape=shape)
 
 
 def check_img_corr(img_path, shape):
-    img = load_fits(img_path)["img"]
+    img = load_fits(img_path)
 
     max_val = 100000
     min_val = 0
@@ -84,44 +66,24 @@ def check_img_corr(img_path, shape):
             f"ERROR {img_path} wrong shape ({img.shape}, while desired shape is {shape}"
         )
 
-    if np.any(np.isnan(img)):
+    if torch.any(torch.isnan(img)):
         raise ValueError(f"ERROR {img_path} contains a NAN")
 
-    if np.any(img > max_val):
+    if torch.any(img > max_val):
         raise ValueError(f"ERROR {img_path} contains a value bigger then {max_val}")
 
-    if np.any(img < min_val):
+    if torch.any(img < min_val):
         raise ValueError(f"ERROR {img_path} contains a value smaller then {min_val}")
 
 
-def load_fits(fits_path: Path) -> Dict:
-    try:
-        with fits.open(fits_path) as hdu:
-            # Extract the image data from the fits file and convert to float
-            # (these images will be in int but since we will work with floats in pytorch we convert them to float)
-            img: np.ndarray = hdu["PRIMARY"].data.astype(np.float32)
-            exposure = hdu["PRIMARY"].header["EXPOSURE"]
-            header = dict(hdu["PRIMARY"].header)
+def load_fits(fits_path: Path) -> torch.Tensor:
+    # Extract the image data from the fits file and convert to float
+    # (these images will be in int but since we will work with floats in pytorch we convert them to float)
+    img = fits.getdata(fits_path, "PRIMARY")
 
-        # The `HISTORY`, `COMMENT` and 'DPSCORRF' key are causing problems
-        header.pop("HISTORY", None)
-        header.pop("COMMENT", None)
-        header.pop("DPSCORRF", None)
-        header.pop("ODSCHAIN", None)
-        header.pop("SRCPOS", None)
+    img = torch.from_numpy(img.astype(np.float32)).unsqueeze(dim=0)
 
-        # Devide the image by the exposure time to get a counts/sec image
-        img = img / exposure
-        img = img.astype(np.float32)
-
-        return {
-            "img": img,
-            "exp": exposure,
-            "file_name": fits_path.name,
-            "header": header,
-        }
-    except Exception as e:
-        raise IOError(f"Failed to load FITS file {fits_path} with error:", e)
+    return img
 
 
 def apply_transform(
@@ -138,40 +100,28 @@ def apply_transform(
     return img
 
 
-def load_det_mask(res_mult: int):
-    with fits.open(
-        Path("res") / "detector_mask" / f"pn_mask_500_2000_detxy_{res_mult}x.ds"
-    ) as hdu:
-        return hdu[0].data.astype(np.float32)
+def reshape_img_to_res(res: int, img: torch.Tensor) -> torch.Tensor:
+    """
+    Reshape the given image into (res, res)
 
-
-def reshape_img_to_res(dataset_lr_res, img, res_mult):
-    # The image has the shape (411, 403), we pad/crop this to (dataset_lr_res, dataset_lr_res)
-    y_diff = dataset_lr_res * res_mult - img.shape[0]
+    :param res: Resolution to be achieved
+    :param img: Image to pad/crop
+    :return: Padded/cropped image
+    """
+    y_diff = res - img.shape[1]
     y_top_pad = int(np.floor(y_diff / 2.0))
     y_bottom_pad = y_diff - y_top_pad
 
-    x_diff = dataset_lr_res * res_mult - img.shape[1]
+    x_diff = res - img.shape[2]
     x_left_pad = int(np.floor(x_diff / 2.0))
     x_right_pad = x_diff - x_left_pad
 
-    if y_diff >= 0:
-        # Pad the image in the y direction
-        img = np.pad(
-            img, ((y_top_pad, y_bottom_pad), (0, 0)), "constant", constant_values=0.0
-        )
-    else:
-        # Crop the image in the y direction
-        img = img[abs(y_top_pad) : img.shape[0] - abs(y_bottom_pad)]
-
-    if x_diff >= 0:
-        # Pad the image in the x direction
-        img = np.pad(
-            img, ((0, 0), (x_left_pad, x_right_pad)), "constant", constant_values=0.0
-        )
-    else:
-        # Crop the image in the x direction
-        img = img[:, abs(x_left_pad) : img.shape[1] - abs(x_right_pad)]
+    img = torch.nn.functional.pad(
+        img,
+        (x_left_pad, x_right_pad, y_top_pad, y_bottom_pad, 0, 0),
+        mode="constant",
+        value=0,
+    )
 
     return img
 
@@ -182,7 +132,7 @@ def get_fits_files(dataset_dir: Path) -> List[Path]:
 
     res: List[Path] = list(dataset_dir.glob("*.fits"))
     res.extend(list(dataset_dir.glob("*.fits.gz")))
-    rank_zero_info(f"\tDetected {len(res)} fits files in {dataset_dir}")
+    logger.info(f"\tDetected {len(res)} fits files in {dataset_dir}")
 
     return sorted(res)
 

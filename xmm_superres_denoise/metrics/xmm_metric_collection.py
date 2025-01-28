@@ -1,29 +1,17 @@
-from typing import List, Union
+from typing import List
 
-import torch
-from torchmetrics import (
-    MeanAbsoluteError,
-    MeanSquaredError,
-    MetricCollection,
+from metrics import FSIM, GMSD, MDSI, HaarPSI, MultiScaleGMSD, PoissonNLLLoss
+from torchmetrics import MeanAbsoluteError, MeanSquaredError, MetricCollection
+from torchmetrics.image import (
     MultiScaleStructuralSimilarityIndexMeasure,
     PeakSignalNoiseRatio,
     StructuralSimilarityIndexMeasure,
+    VisualInformationFidelity,
 )
-
-from xmm_superres_denoise.metrics import (
-    FSIM,
-    GMSD,
-    MDSI,
-    VIF,
-    HaarPSI,
-    MultiScaleGMSD,
-    PoissonNLLLoss,
-)
-from xmm_superres_denoise.transforms import Normalize
+from transforms import Normalize
 
 
 def get_metrics(
-    data_range: Union[int, float],
     dataset_normalizer: Normalize,
     scaling_normalizers: List[Normalize],
     prefix: str,
@@ -43,7 +31,6 @@ def get_metrics(
         }
     )
     return XMMMetricCollection(
-        data_range=data_range,
         metrics=metrics,
         dataset_normalizer=dataset_normalizer,
         scaling_normalizers=scaling_normalizers,
@@ -52,14 +39,13 @@ def get_metrics(
 
 
 def get_ext_metrics(
-    data_range: Union[int, float],
     dataset_normalizer: Normalize,
     scaling_normalizers: List[Normalize],
     prefix: str,
 ):
     metrics = MetricCollection(
         {
-            "vif_p": VIF(),
+            "vif_p": VisualInformationFidelity(),
             "fsim": FSIM(),
             "gmsd": GMSD(),
             "ms_gmsd": MultiScaleGMSD(),
@@ -68,7 +54,6 @@ def get_ext_metrics(
         }
     )
     return XMMMetricCollection(
-        data_range=data_range,
         metrics=metrics,
         dataset_normalizer=dataset_normalizer,
         scaling_normalizers=scaling_normalizers,
@@ -77,7 +62,6 @@ def get_ext_metrics(
 
 
 def get_in_metrics(
-    data_range: Union[int, float],
     dataset_normalizer: Normalize,
     scaling_normalizers: List[Normalize],
     prefix: str,
@@ -97,7 +81,6 @@ def get_in_metrics(
         }
     )
     return XMMMetricCollection(
-        data_range=data_range,
         metrics=metrics,
         dataset_normalizer=dataset_normalizer,
         scaling_normalizers=scaling_normalizers,
@@ -106,14 +89,13 @@ def get_in_metrics(
 
 
 def get_in_ext_metrics(
-    data_range: Union[int, float],
     dataset_normalizer: Normalize,
     scaling_normalizers: List[Normalize],
     prefix: str,
 ):
     metrics = MetricCollection(
         {
-            "in/vif_p": VIF(),
+            "in/vif_p": VisualInformationFidelity(),
             "in/fsim": FSIM(),
             "in/gmsd": GMSD(),
             "in/ms_gmsd": MultiScaleGMSD(),
@@ -122,7 +104,6 @@ def get_in_ext_metrics(
         }
     )
     return XMMMetricCollection(
-        data_range=data_range,
         metrics=metrics,
         dataset_normalizer=dataset_normalizer,
         scaling_normalizers=scaling_normalizers,
@@ -133,13 +114,11 @@ def get_in_ext_metrics(
 class XMMMetricCollection(MetricCollection):
     def __init__(
         self,
-        data_range: Union[int, float],
         metrics: MetricCollection,
         dataset_normalizer: Normalize,
         scaling_normalizers: List[Normalize],
         prefix: str,
     ):
-        self.data_range = data_range
         self.dataset_normalizer = dataset_normalizer
 
         metric_list = []
@@ -151,18 +130,14 @@ class XMMMetricCollection(MetricCollection):
             metric_list.append(metrics.clone(prefix=f"{mode}/"))
 
         self.normalizer_dict = normalizer_dict
-        super(XMMMetricCollection, self).__init__(
-            metrics=metric_list, prefix=f"{prefix}/"
-        )
+        super().__init__(metrics=metric_list, prefix=f"{prefix}/")
 
     def update(self, preds, target) -> None:
-        preds = self.dataset_normalizer.denormalize_hr_image(preds)
-        target = self.dataset_normalizer.denormalize_hr_image(target)
-        preds = torch.clamp(preds, min=0.0, max=self.data_range)
-        target = torch.clamp(target, min=0.0, max=self.data_range)
+        preds = self.dataset_normalizer.denorm(preds)
+        target = self.dataset_normalizer.denorm(target)
         for metric_name, metric in self.items(copy_state=False):
             mode = metric_name.split("/")[1]
             normalizer = self.normalizer_dict[mode]
-            preds_scaled = normalizer.normalize_hr_image(preds)
-            target_scaled = normalizer.normalize_hr_image(target)
+            preds_scaled = normalizer.norm(preds)
+            target_scaled = normalizer.norm(target)
             metric.update(preds=preds_scaled, target=target_scaled)

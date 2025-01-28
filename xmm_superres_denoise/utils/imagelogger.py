@@ -10,9 +10,9 @@ from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS
 from torchmetrics.functional import structural_similarity_index_measure as ssim
+from utils.filehandling import write_xmm_file_to_fits
 
-from xmm_superres_denoise.datasets import XmmDisplayDataModule
-from xmm_superres_denoise.utils.filehandling import write_xmm_file_to_fits
+from data import XmmDisplayDataModule
 
 _img_val_dict = {
     "input": {"cm": "plasma", "norm": False, "key": "{0}/input/{1}"},
