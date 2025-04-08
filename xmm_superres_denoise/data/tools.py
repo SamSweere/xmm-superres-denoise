@@ -1,15 +1,12 @@
 import pickle
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Set, Tuple, Union
-from zipfile import ZipFile
+from typing import Callable, List, Union
 
 import numpy as np
-import pandas as pd
 import torch
 from astropy.io import fits
 from loguru import logger
 from torch.utils.data import Subset
-from tqdm import tqdm
 
 
 def save_splits(paths: List[Path], splits: List[Subset]):
@@ -19,61 +16,6 @@ def save_splits(paths: List[Path], splits: List[Subset]):
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w+b") as f:
             pickle.dump(indices, f)
-
-
-def find_img_dirs(
-    parent: Path, exps: list[int] | int, res_mult_dir: str
-) -> Dict[int, list[Path]]:
-    if isinstance(exps, int):
-        exps = [exps]
-
-    res: Dict[int, list[Path]] = {}
-    for exp in exps:
-        glob_pattern = f"{exp}ks/**/{res_mult_dir}" if res_mult_dir else f"{exp}ks/"
-        exp_dirs = list(parent.glob(glob_pattern))
-        assert len(exp_dirs) > 0
-        res[exp] = exp_dirs
-    return res
-
-
-def find_img_files(exp_dirs_dict: Dict[int, list[Path]]) -> Dict[int, List[Path]]:
-    res: Dict[int, List[Path]] = {}
-    for exp, img_dirs in exp_dirs_dict.items():
-        files = []
-        for img_dir in img_dirs:
-            files.extend(get_fits_files(dataset_dir=img_dir))
-        res[exp] = files
-    return res
-
-
-def check_img_files(
-    img_files: pd.DataFrame, shape: Tuple[int, int, int], msg: str = None
-):
-    for base_name, files in tqdm(img_files.iterrows(), desc=msg):
-        for exp, path_list in tqdm(files.items(), leave=False):
-            for path in path_list:
-                check_img_corr(path, shape=shape)
-
-
-def check_img_corr(img_path, shape):
-    img = load_fits(img_path)
-
-    max_val = 100000
-    min_val = 0
-
-    if img.shape != shape:
-        raise ValueError(
-            f"ERROR {img_path} wrong shape ({img.shape}, while desired shape is {shape}"
-        )
-
-    if torch.any(torch.isnan(img)):
-        raise ValueError(f"ERROR {img_path} contains a NAN")
-
-    if torch.any(img > max_val):
-        raise ValueError(f"ERROR {img_path} contains a value bigger then {max_val}")
-
-    if torch.any(img < min_val):
-        raise ValueError(f"ERROR {img_path} contains a value smaller then {min_val}")
 
 
 def load_fits(fits_path: Path) -> torch.Tensor:
@@ -124,78 +66,3 @@ def reshape_img_to_res(res: int, img: torch.Tensor) -> torch.Tensor:
     )
 
     return img
-
-
-def get_fits_files(dataset_dir: Path) -> List[Path]:
-    if not dataset_dir.is_dir():
-        raise FileNotFoundError(f"Dataset directory {dataset_dir} does not exist!")
-
-    res: List[Path] = list(dataset_dir.glob("*.fits"))
-    res.extend(list(dataset_dir.glob("*.fits.gz")))
-    logger.info(f"\tDetected {len(res)} fits files in {dataset_dir}")
-
-    return sorted(res)
-
-
-def get_base_names(
-    img_dict: Union[Dict[int, List[Path]], List[Path]], split_key: str
-) -> Set[str]:
-    if isinstance(img_dict, dict):
-        base_names = []
-        for exp, file_names in img_dict.items():
-            base_names.append(
-                set([file_name.name.split(split_key)[0] for file_name in file_names])
-            )
-        # Since we can't be sure that every base_name is represented for every exposure, we have to make sure that no
-        # exposure has an empty list of files
-        base_names = set.intersection(*base_names)
-    else:
-        base_names = set()
-        for file_name in img_dict:
-            base_name = file_name.name.split(split_key)[0]
-            base_names.add(base_name)
-
-    return base_names
-
-
-def filter_img_dict(
-    img_dict: Dict[int, List[Path]], base_names: set, split_key: str
-) -> Dict[int, Dict[str, List[str]]]:
-    filtered_img_dict = {
-        exp: {base_name: [] for base_name in base_names} for exp in img_dict.keys()
-    }
-
-    for exp, file_names in img_dict.items():
-        for file_name in file_names:
-            base_name = file_name.name.split(split_key)[0]
-            if base_name in base_names:
-                filtered_img_dict[exp][base_name].append(file_name)
-
-    return filtered_img_dict
-
-
-def match_file_list(
-    lr_dict: Dict[int, List[Path]],
-    hr_dict: Optional[Dict[int, List[Path]]],
-    split_key: str,
-) -> Tuple[pd.DataFrame, Optional[pd.DataFrame], int]:
-    lr_base_names = get_base_names(lr_dict, split_key)
-    hr_base_names = (
-        get_base_names(hr_dict, split_key) if hr_dict is not None else lr_base_names
-    )
-    base_names = lr_base_names & hr_base_names
-
-    if not base_names:
-        raise ValueError(
-            f'No base_names could be found in both given dictionaries with split_key "{split_key}"!'
-        )
-
-    lr_dict = filter_img_dict(lr_dict, base_names, split_key)
-    hr_dict = (
-        filter_img_dict(hr_dict, base_names, split_key) if hr_dict is not None else None
-    )
-
-    lr_df = pd.DataFrame.from_dict(lr_dict).sort_index()
-    hr_df = pd.DataFrame.from_dict(hr_dict).sort_index() if hr_dict else None
-
-    return lr_df, hr_df, len(base_names)

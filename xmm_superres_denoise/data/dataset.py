@@ -1,283 +1,259 @@
+import tarfile
+from io import BytesIO
 from pathlib import Path
-from random import randint, sample
-from typing import Callable, List, Optional
+from random import choice
 
-import numpy as np
-import pandas as pd
 import torch
-from config.config import DatasetCfg, DatasetType
-from data.tools import (
-    apply_transform,
-    check_img_files,
-    find_img_dirs,
-    find_img_files,
-    load_fits,
-    match_file_list,
-    reshape_img_to_res,
-    save_splits,
-)
+from astropy.io import fits
+from data.config import DatasetCfg, DatasetType, ImageType
+from data.normalize import normalize_image
+from data.tools import load_fits, reshape_img_to_res
+from data.transform import upsample_image
 from loguru import logger
-from torch.utils.data import Dataset, random_split
-from transforms import ImageUpsample, Normalize
+from torch.utils.data import Dataset
 
 
-def _load_and_combine_simulations(
+def load_sample(sample: tuple[tarfile.TarFile, str]) -> torch.Tensor:
+    # TODO Add caching method
+    tar, name = sample
+    with fits.open(BytesIO(tar.extractfile(name).read()), lazy_load_hdus=False) as hdul:
+        # Choose a random HDU (first one is not an image) and get its data
+        data = choice(hdul[1:]).data
+
+    return torch.from_numpy(data).unsqueeze(dim=0)
+
+
+def load_and_combine(
     res: int,
-    img_path: Path,
-    agn_path: Path = None,
-    background_path: Path = None,
-    det_mask: Path = None,
-    upsample: ImageUpsample = None,
+    samples: list[tuple[tarfile.TarFile, str]],
+    upsample: bool,
+    det_mask: Path | None = None,
+    scale_factor: int = 1,
 ):
-    # Load the image data
-    img = load_fits(img_path)
+    sample = load_sample(samples[0])
 
-    if agn_path:
-        img += load_fits(agn_path)
-
-    if background_path:
-        img += load_fits(background_path)
+    for s in samples[1:]:
+        sample.add_(load_sample(s))
 
     if det_mask is not None:
-        img *= load_fits(det_mask)  # Note the *=
+        # TODO check
+        sample.mul_(load_fits(det_mask))
 
-    if upsample is not None:
-        img = upsample(img)
+    if upsample and scale_factor > 1:
+        upsample_image(sample, scale_factor, True)
 
-    img = reshape_img_to_res(res=res, img=img)
+    sample = reshape_img_to_res(res=res, img=sample)
 
-    return img
+    return sample
 
 
-class BoringDataset(Dataset):
-    def __init__(
-        self,
-        lr_exps: list[int] = None,
-        hr_exp: int = 100,
-        hr_res_mult: int = 2,
-        dataset_size: int = 10000,
-    ):
-        super().__init__()
-        if lr_exps is None:
-            lr_exps = [20]
-        self.lr_exps = lr_exps
-        self.hr_exp = hr_exp
-        self.hr_res_mult = hr_res_mult
-        self.dataset_size = dataset_size
-
-    def __len__(self):
-        return self.dataset_size
-
-    def __getitem__(self, idx):
-        return torch.randn(1, 416, 416), torch.randn(
-            1, 416 * self.hr_res_mult, 416 * self.hr_res_mult
+def find_files(
+    parent: Path, image_type: ImageType, exp: int, suffix: str
+) -> list[tuple[tarfile.TarFile, str]]:
+    res: dict[tarfile.TarFile, list[str]] = {}
+    paths = list((parent / image_type).glob(f"{exp}ks-*.tgz"))
+    logger.info(
+        f"({image_type.upper()}) Found {len(paths)} tgz files for exposure {exp}ks."
+    )
+    paths.sort()
+    for path in paths:
+        logger.info(f"Retrieving files from {path}.")
+        tar = tarfile.open(path, "r")
+        new_members = filter(
+            lambda member: member.name.endswith(suffix), tar.getmembers()
         )
+        members = res.get(tar, [])
+        members.extend(member.name for member in new_members)
+        res[tar] = members
+
+    for tar in res:
+        logger.info(f"Sorting members of {tar.name}")
+        res[tar].sort()
+
+    if len(res) == 0:
+        raise FileNotFoundError(
+            f"No {image_type.upper()} files found for exposure {exp}ks."
+        )
+
+    logger.info(
+        f"({image_type.upper()}) Found {sum(len(res[tar]) for tar in res)} files for exposure {exp}ks."
+    )
+
+    return res
+
+
+def check_samples(
+    lq: dict[tarfile.TarFile, list[str]],
+    hq: dict[tarfile.TarFile, list[str]],
+    lq_suffix: str,
+    hq_suffix: str,
+    image_type: ImageType,
+) -> None:
+    logger.info(
+        f"Checking that lq_{image_type} and hq_{image_type} contain the same members in identical order"
+    )
+    for lq_names, hq_names in zip(lq.values(), hq.values(), strict=True):
+        for lq_name, hq_name in zip(lq_names, hq_names, strict=True):
+            match image_type:
+                case ImageType.IMG:
+                    # Check that the parent dir is equal
+                    lq_parent = lq_name[: lq_name.rfind("/")]
+                    hq_parent = hq_name[: hq_name.rfind("/")]
+                    if lq_parent != hq_parent:
+                        raise ValueError(
+                            f"Parents do not match!\n\t{lq_parent} != {hq_parent}"
+                        )
+
+                    # Check that the projection is equal
+                    lq_proj = lq_name[lq_name.find("axis") :].removesuffix(lq_suffix)
+                    hq_proj = hq_name[hq_name.find("axis") :].removesuffix(hq_suffix)
+                    if lq_proj != hq_proj:
+                        raise ValueError(
+                            f"Projections do not match!\n\t{lq_proj} != {hq_proj}"
+                        )
+                case ImageType.AGN:
+                    # Check that the name is equal
+                    lq_name = lq_name.removesuffix(lq_suffix)
+                    hq_name = hq_name.removesuffix(hq_suffix)
+                    if lq_name != hq_name:
+                        raise ValueError(
+                            f"Names do not match!\n\t{lq_name} != {hq_name}"
+                        )
 
 
 class XmmDataset(Dataset):
     """XMM-Newton simulated dataset"""
 
-    def __init__(
-        self,
-        config: DatasetCfg,
-        comb_hr_img: bool,
-        transform: List[Callable] = None,
-        normalize: Optional[Normalize] = None,
-    ):
-        """
-        Args:
-            transform (callable) (optional): Optional transform to be applied
-            normalize (callable) (optional): Optional normalization to be applied
-        """
+    def __init__(self, config: DatasetCfg):
         self.config = config
-        self.transform = transform if transform else []
-        self.normalize = normalize
-
-        split_key = "_mult_" if self.config.type == DatasetType.SIM else "_image_split_"
-
-        lr_res_mult = "1x" if self.config.type is DatasetType.SIM else ""
-        if self.config.type is DatasetType.REAL and self.config.hr.exp:
-            hr_res_mult = ""
-        elif self.config.type is DatasetType.SIM and comb_hr_img:
-            hr_res_mult = f"{self.config.res_mult}x_comb"
-        else:
-            hr_res_mult = f"{self.config.res_mult}x"
-
-        # Get all the image directories
-        # Note that if the mode is agn we consider them as the base images
-        # --- LR images --- #
-        lr_img_dirs = find_img_dirs(
-            self.config.img_dir, self.config.lr.exps, lr_res_mult
+        # url = f"https://huggingface.co/datasets/bojanto/xmm-superres-denoise/tree/main/{version}/{dataset}"
+        # token = get_token()
+        # TODO Add possibility to download the dataset
+        self.base_path = (
+            Path(self.config.directory) / self.config.version / self.config.name
         )
-        lr_img_files = find_img_files(lr_img_dirs)
 
-        # --- HR images --- #
-        if self.config.type is DatasetType.REAL and self.config.hr is None:
-            hr_img_files = None
-        else:
-            hr_img_dirs = find_img_dirs(
-                self.config.img_dir, [self.config.hr.exp], hr_res_mult
-            )
-            hr_img_files = find_img_files(hr_img_dirs)
+        match self.config.type:
+            case DatasetType.REAL:
+                hq_suffix = ".fits"
+            case DatasetType.SIM:
+                hq_suffix = ".comb" if self.config.comb_hr else ".2x"
 
-        self.lr_img_files, self.hr_img_files, self.base_name_count = match_file_list(
-            lr_img_files, hr_img_files, split_key
+        self.lq_img: dict[tarfile.TarFile, list[str]] = find_files(
+            parent=self.base_path,
+            image_type=ImageType.IMG,
+            exp=self.config.lq.exp,
+            suffix=".1x",
         )
-        del lr_img_dirs, lr_img_files, hr_img_dirs, hr_img_files
 
-        self.upsample = None
-        if (
-            self.config.type is DatasetType.REAL
-            and self.config.hr.res != self.config.lr.res
-        ):
-            self.upsample = ImageUpsample(self.config.res_mult)
+        # TODO This doesn't make sense for the real dataset
+        self.hq_img: dict[tarfile.TarFile, list[str]] = find_files(
+            parent=self.base_path,
+            image_type=ImageType.IMG,
+            exp=self.config.hq.exp,
+            suffix=hq_suffix,
+        )
 
-        if self.config.check_files:
-            check_img_files(
-                self.lr_img_files, (1, 411, 403), "Checking lr_img_files..."
-            )
-            check_img_files(
-                self.hr_img_files,
-                (1, 411 * self.config.res_mult, 403 * self.config.res_mult),
-                "Checking hr_img_files...",
-            )
+        self.length = sum(len(self.lq_img[tar]) for tar in self.lq_img)
 
-        self.dataset_size = self.base_name_count * len(self.config.lr.exps)
-        msg1 = f"Overall dataset size: img_count * lr_exps_count"
-        msg2 = f"{self.base_name_count} * {len(self.config.lr.exps)}"
+        check_samples(self.lq_img, self.hq_img, ".1x", hq_suffix, ImageType.IMG)
+
+        self.upsample = (
+            self.config.res_mult > 1 and self.config.type is DatasetType.REAL
+        )
 
         # --- AGN images --- #
-        self.lr_agn_files = self.hr_agn_files = self.base_agn_count = None
-        if self.config.agn > 0 and not self.config.type is DatasetType.REAL:
-            msg1 = f"{msg1} * lr_agn_count"
-            msg2 = f"{msg2} * {self.config.agn}"
-            self.dataset_size = self.dataset_size * self.config.agn
-            lr_agn_dirs = find_img_dirs(
-                self.config.agn_dir, self.config.lr.exps, lr_res_mult
-            )
-            lr_agn_files = find_img_files(lr_agn_dirs)
-
-            hr_agn_dirs = find_img_dirs(
-                self.config.agn_dir, [self.config.hr.exp], hr_res_mult
-            )
-            hr_agn_files = find_img_files(hr_agn_dirs)
-
-            self.lr_agn_files, self.hr_agn_files, self.base_agn_count = match_file_list(
-                lr_agn_files, hr_agn_files, split_key
-            )
-            logger.success(
-                f"\tFound {self.base_agn_count} agn image pairs (lr and hr simulation matches)"
-            )
-            del lr_agn_dirs, lr_agn_files, hr_agn_dirs, hr_agn_files
-
-            if self.config.check_files:
-                check_img_files(
-                    self.lr_agn_files, (1, 411, 403), "Checking lr_agn_files..."
+        self.lq_agn: dict[tarfile.TarFile, list[str]] | None = None
+        self.hq_agn: dict[tarfile.TarFile, list[str]] | None = None
+        if not self.config.type is DatasetType.REAL:
+            if self.config.agn:
+                self.lq_agn = find_files(
+                    parent=self.base_path,
+                    image_type=ImageType.AGN,
+                    exp=self.config.lq.exp,
+                    suffix=".1x",
                 )
-                check_img_files(
-                    self.hr_agn_files,
-                    (1, 411 * self.config.res_mult, 403 * self.config.res_mult),
-                    "Checking hr_agn_files...",
+
+                self.hq_agn = find_files(
+                    parent=self.base_path,
+                    image_type=ImageType.AGN,
+                    exp=self.config.hq.exp,
+                    suffix=hq_suffix,
                 )
+
+                check_samples(self.lq_agn, self.hq_agn, ".1x", hq_suffix, ImageType.AGN)
 
         # --- BKG images --- #
-        self.lr_bkg_files = None
-        if self.config.lr.bkg > 0 and not self.config.type is DatasetType.REAL:
-            msg1 = f"{msg1} * lr_background_count"
-            msg2 = f"{msg2} * {self.config.lr.bkg}"
-            self.dataset_size = self.dataset_size * self.config.lr.bkg
-            lr_background_dirs = find_img_dirs(
-                self.config.bkg_dir, self.config.lr.exps, lr_res_mult
+        self.bkg: dict[tarfile.TarFile, list[str]] | None = None
+        if self.config.bkg and not self.config.type is DatasetType.REAL:
+            self.bkg = find_files(
+                parent=self.base_path,
+                image_type=ImageType.BKG,
+                exp=self.config.lq.exp,
+                suffix=".fits",
             )
-            lr_background_files = find_img_files(lr_background_dirs)
-            amt = min([len(file_list) for file_list in lr_background_files.values()])
-            self.lr_bkg_files = {}
-            for exp, files in lr_background_files.items():
-                self.lr_bkg_files[exp] = sample(files, amt)
-            self.lr_bkg_files = pd.DataFrame.from_dict(self.lr_bkg_files)
-            del lr_background_dirs, lr_background_files
-
-            if self.config.check_files:
-                check_img_files(
-                    self.lr_bkg_files,
-                    (1, 411, 403),
-                    "Checking lr_background_files...",
-                )
-
-        logger.info(f"\t{msg1} = dataset_size")
-        logger.info(f"\t\t{msg2} = {self.dataset_size}")
 
     def __len__(self):
-        return self.dataset_size
+        return self.length
 
-    def load_sample(self, idx) -> tuple[torch.Tensor, torch.Tensor | None]:
-        lr_exp = idx % len(self.config.lr.exps)
-        base_name = idx % self.base_name_count
+    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor]:
+        lq_samples = []
+        hq_samples = []
 
-        lr_img_path = sample(self.lr_img_files.iloc[base_name].iloc[lr_exp], 1)[0]
+        for lq_tar, hq_tar in zip(self.lq_img, self.hq_img):
+            if idx < len(self.lq_img[lq_tar]):
+                lq_samples.append((lq_tar, self.lq_img[lq_tar][idx]))
+                hq_samples.append((hq_tar, self.hq_img[hq_tar][idx]))
+                break
+            idx = idx - len(self.lq_img[lq_tar])
 
-        hr_img_path = None
-        if self.hr_img_files is not None:
-            hr_img_path = sample(self.hr_img_files.iloc[base_name].iloc[0], 1)[0]
+        if self.lq_agn is not None:
+            # Not the prettiest solution, but it works
+            lq_agn_tars = list(self.lq_agn.keys())
+            hq_agn_tars = list(self.hq_agn.keys())
+            agn_tar = choice(range(len(lq_agn_tars)))
+            lq_agn_tar = lq_agn_tars[agn_tar]
+            hq_agn_tar = hq_agn_tars[agn_tar]
+            lq_samples.append((lq_agn_tar, choice(self.lq_agn[lq_agn_tar])))
+            hq_samples.append((hq_agn_tar, choice(self.hq_agn[hq_agn_tar])))
 
-        lr_agn_path = hr_agn_path = None
-        if self.lr_agn_files is not None:
-            agn_idx = randint(0, self.base_agn_count - 1)
+        if self.bkg is not None:
+            bkg_tar = choice(list(self.bkg))
+            bkg_member = choice(self.bkg[bkg_tar])
+            lq_samples.append((bkg_tar, bkg_member))
 
-            lr_agn_path = sample(self.lr_agn_files.iloc[agn_idx].iloc[lr_exp], 1)[0]
-            hr_agn_path = sample(self.hr_agn_files.iloc[agn_idx].iloc[0], 1)[0]
-
-        lr_background_path = None
-        if self.lr_bkg_files is not None:
-            lr_background_path = (
-                self.lr_bkg_files[self.config.lr.exps[lr_exp]].sample(1).item()
-            )
-
-        # Load and combine the selected files
-        lr_img = _load_and_combine_simulations(
-            res=self.config.lr.res,
-            img_path=lr_img_path,
-            agn_path=lr_agn_path,
-            background_path=lr_background_path,
-            det_mask=self.config.lr.det_mask,
+        lq = load_and_combine(
+            res=self.config.lq.res,
+            samples=lq_samples,
+            det_mask=self.config.lq.det_mask,
+            upsample=False,
         )
 
-        hr_img = None
-        if hr_img_path is not None:
-            hr_img = _load_and_combine_simulations(
-                res=self.config.hr.res,
-                img_path=hr_img_path,
-                agn_path=hr_agn_path,
-                background_path=None,
-                det_mask=self.config.hr.det_mask,
-                upsample=self.upsample,
-            )
+        lq = lq / self.config.lq.exp
 
-        return lr_img, hr_img
+        lq = normalize_image(
+            stretch_mode=self.config.scaling,
+            image=lq,
+            max_val=self.config.lq.clamp_max,
+            inplace=True,
+        )
 
-    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor | None]:
-        # Load a sample based on the given index
-        lr_img, hr_img = self.load_sample(idx=idx)
+        # --- HQ --- #
+        hq = load_and_combine(
+            res=self.config.hq.res,
+            samples=hq_samples,
+            det_mask=self.config.hq.det_mask,
+            upsample=self.upsample,
+            scale_factor=self.config.res_mult,
+        )
 
-        if self.transform:
-            lr_img = apply_transform(lr_img, self.transform)
-            hr_img = apply_transform(hr_img, self.transform)
+        hq = hq / self.config.hq.exp
 
-        if self.normalize:
-            lr_img = self.normalize.normalize_lr_image(lr_img)
-            hr_img = self.normalize.normalize_hr_image(hr_img)
+        hq = normalize_image(
+            stretch_mode=self.config.scaling,
+            image=hq,
+            max_val=self.config.hq.clamp_max,
+            inplace=True,
+        )
 
-        return lr_img, hr_img
-
-    def prepare(self, subset_str: str):
-        splits = ["train", "val", "test"]
-        paths = [Path(subset_str.format(split_name)) for split_name in splits]
-        exists = np.all([path.exists() for path in paths])
-        if not exists:
-            logger.info(
-                f"Creating splits for {self.config.directory} with {self.base_name_count} base_names..."
-            )
-            train, val, test = random_split(
-                range(self.base_name_count), [0.8, 0.1, 0.1]
-            )
-            save_splits(paths, [train, val, test])
+        return lq, hq
